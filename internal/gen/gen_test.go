@@ -138,7 +138,7 @@ func TestGeneratorFailures(t *testing.T) {
 // macOS).
 func TestLiveRegeneration(t *testing.T) {
 	p, err := oracle.Start(oracle.Options{})
-	if errors.Is(err, oracle.ErrNoR) {
+	if oracle.Unavailable(err) {
 		if os.Getenv("RGO_REQUIRE_ORACLE") != "" {
 			t.Fatal(err)
 		}
@@ -155,9 +155,7 @@ func TestLiveRegeneration(t *testing.T) {
 		t.Fatal(err)
 	}
 	want, _ := os.ReadFile(filepath.Join(root, "testdata/golden/deparse.jsonl"))
-	if !bytes.Equal(got, want) {
-		t.Error("deparse.jsonl is stale: run `go run ./cmd/roracle deparse`")
-	}
+	compareLines(t, "deparse.jsonl", got, want)
 
 	values, _ := ReadSnippets(root, "testdata/values.R")
 	got, err = RDSGolden(p, values)
@@ -165,7 +163,24 @@ func TestLiveRegeneration(t *testing.T) {
 		t.Fatal(err)
 	}
 	want, _ = os.ReadFile(filepath.Join(root, "testdata/golden/rds.jsonl"))
-	if !bytes.Equal(got, want) {
-		t.Error("rds.jsonl is stale: run `go run ./cmd/roracle rds`")
+	compareLines(t, "rds.jsonl", got, want)
+}
+
+// compareLines reports which records of a golden differ, so that a platform
+// difference names the input it concerns.
+func compareLines(t *testing.T, name string, got, want []byte) {
+	t.Helper()
+	if bytes.Equal(got, want) {
+		return
+	}
+	g := strings.Split(string(got), "\n")
+	w := strings.Split(string(want), "\n")
+	t.Errorf("%s is stale or platform-dependent (%d records regenerated, %d committed); regenerate with go run ./cmd/roracle regen", name, len(g), len(w))
+	shown := 0
+	for i := 0; i < len(g) && i < len(w) && shown < 5; i++ {
+		if g[i] != w[i] {
+			t.Errorf("record %d differs:\n regenerated %.300s\n committed   %.300s", i+1, g[i], w[i])
+			shown++
+		}
 	}
 }

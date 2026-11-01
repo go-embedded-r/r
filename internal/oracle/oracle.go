@@ -45,6 +45,15 @@ func Script() string { return script }
 // ErrNoR is returned by [Command] when no R can be found.
 var ErrNoR = errors.New("oracle: no Rscript found (set RGO_RSCRIPT, or put the pinned release on PATH)")
 
+// ErrVersion is wrapped by the error Start returns when the R it found is not
+// the pinned release (CI runners ship their own R).
+var ErrVersion = errors.New("oracle: wrong R release")
+
+// Unavailable reports whether err means "the pinned R is not here": no R, or
+// another release. Tests that need the oracle skip on it (and fail instead
+// when RGO_REQUIRE_ORACLE is set).
+func Unavailable(err error) bool { return errors.Is(err, ErrNoR) || errors.Is(err, ErrVersion) }
+
 // ErrR is wrapped by every error that R itself reported in answer to a
 // request (as opposed to a failure of the process or the protocol).
 var ErrR = errors.New("R error")
@@ -140,7 +149,7 @@ func Start(opt Options) (*Process, error) {
 	if p.greet.Version != Version || p.greet.SVN != SVNRevision {
 		g := p.greet
 		p.Close()
-		return nil, fmt.Errorf("oracle: R %s (r%s) is running, the pinned release is %s (r%s)", g.Version, g.SVN, Version, SVNRevision)
+		return nil, fmt.Errorf("%w: R %s (r%s) is running, the pinned release is %s (r%s)", ErrVersion, g.Version, g.SVN, Version, SVNRevision)
 	}
 	return p, nil
 }

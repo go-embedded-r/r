@@ -179,7 +179,7 @@ func TestLiveRegen(t *testing.T) {
 	old := startOracle
 	defer func() { startOracle = old }()
 	p, err := oracle.Start(oracle.Options{})
-	if errors.Is(err, oracle.ErrNoR) {
+	if oracle.Unavailable(err) {
 		if os.Getenv("RGO_REQUIRE_ORACLE") != "" {
 			t.Fatal(err)
 		}

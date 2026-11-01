@@ -168,6 +168,9 @@ func TestFakeStartFailures(t *testing.T) {
 		if err == nil || !strings.Contains(err.Error(), want) {
 			t.Errorf("%s: %v, want %q", mode, err, want)
 		}
+		if got, want := Unavailable(err), mode == "oldr"; got != want {
+			t.Errorf("%s: Unavailable = %v", mode, got)
+		}
 	}
 	t.Setenv("RGO_RSCRIPT", "/nonexistent/Rscript")
 	if _, err := Start(Options{}); err == nil || !strings.Contains(err.Error(), "starting") {
@@ -261,7 +264,7 @@ func TestParseReplyErrors(t *testing.T) {
 func live(t *testing.T) *Process {
 	t.Helper()
 	p, err := Start(Options{Timeout: 120 * time.Second})
-	if errors.Is(err, ErrNoR) {
+	if Unavailable(err) {
 		if os.Getenv("RGO_REQUIRE_ORACLE") != "" {
 			t.Fatal(err)
 		}
@@ -377,7 +380,7 @@ func TestLiveReserialize(t *testing.T) {
 
 func TestLiveTimeoutKillsR(t *testing.T) {
 	p, err := Start(Options{Timeout: 700 * time.Millisecond})
-	if errors.Is(err, ErrNoR) {
+	if Unavailable(err) {
 		t.Skip(err)
 	}
 	if err != nil {
@@ -398,7 +401,7 @@ func TestLiveTimeoutKillsR(t *testing.T) {
 
 func TestLiveMemoryLimit(t *testing.T) {
 	p, err := Start(Options{MaxVSize: "100M", Timeout: 60 * time.Second})
-	if errors.Is(err, ErrNoR) {
+	if Unavailable(err) {
 		t.Skip(err)
 	}
 	if err != nil {
