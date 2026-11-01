@@ -142,7 +142,7 @@ jobs:
   # Linux builds share). The live tests must run, not skip; the goldens
   # regenerated on Linux must equal the files written on macOS.
   oracle:
-    name: oracle (R ${{ env.R_VERSION }})
+    name: oracle (R 4.6.2)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
