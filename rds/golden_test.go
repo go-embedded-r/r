@@ -152,7 +152,7 @@ func TestEncodeMatchesR(t *testing.T) {
 
 // NA_real_ and NaN keep their payloads through a decode and an encode.
 func TestNaNPayloads(t *testing.T) {
-	raw := golden(t, "c(0.1, NA, NaN, Inf, -Inf, 1e300, -0)")
+	raw := golden(t, "c(0.1, NA, NaN, Inf, -Inf, 1e15, -0)")
 	v, _, err := rds.Decode(raw, rds.Limits{})
 	if err != nil {
 		t.Fatal(err)

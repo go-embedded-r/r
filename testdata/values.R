@@ -1,4 +1,4 @@
-## Expressions written for this repository; each is evaluated by R and its serialization recorded. A line holding only #--- separates them.
+## Expressions written for this repository; each is evaluated by R and its serialization recorded. A line holding only #--- separates them. Literals must be exact in double precision: R's own parser rounds 1e300 differently on macOS arm64 and Linux x86-64 (R 4.6.2), which the CI oracle lane found.
 #---
 NULL
 #---
@@ -18,7 +18,7 @@ seq_len(0)
 #---
 1.5
 #---
-c(0.1, NA, NaN, Inf, -Inf, 1e300, -0)
+c(0.1, NA, NaN, Inf, -Inf, 1e15, -0)
 #---
 NA_real_
 #---
