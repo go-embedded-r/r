@@ -1,0 +1,170 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# Shape follows go-embedded-julia/julia's ci.yml: OS lanes with -race, a
+# 32-bit lane, every GOOS compiled, WebAssembly, govulncheck, short fuzz runs,
+# and the reference lane, which installs the pinned R and runs the live oracle
+# tests. (No 100% coverage gate yet: the packages are small and new.)
+env:
+  R_VERSION: 4.6.2
+
+jobs:
+  test:
+    name: test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: 1.27.2
+      - run: go version
+      - run: go vet ./...
+      - name: gofmt
+        if: matrix.os != 'windows-latest'
+        run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+      - run: go build ./...
+      - name: Test (-race)
+        run: go test -race -timeout=30m ./...
+
+  arch-native:
+    name: arch ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest,    label: amd64 }
+          - { os: ubuntu-24.04-arm, label: arm64 }
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: 1.27.2
+      - run: go env GOARCH && go test ./...
+
+  # 32-bit: int is 32 bits (the decoder's length arithmetic).
+  arch-386:
+    name: arch 386 (+ vet arm)
+    runs-on: ubuntu-latest
+    env:
+      CGO_ENABLED: "0"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: 1.27.2
+      - run: |
+          GOARCH=386 go vet ./...
+          GOARCH=arm go vet ./...
+      - run: GOARCH=386 go test ./...
+
+  # The library packages must compile on every GOOS/GOARCH pair Go supports.
+  every-target:
+    name: compile on every target (${{ matrix.goos }})
+    runs-on: ubuntu-latest
+    env:
+      CGO_ENABLED: "0"
+    strategy:
+      fail-fast: false
+      matrix:
+        goos: [aix, android, darwin, dragonfly, freebsd, illumos, ios, js, linux, netbsd, openbsd, plan9, solaris, wasip1, windows]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: 1.27.2
+      - name: Build every GOARCH of ${{ matrix.goos }}
+        shell: bash
+        run: |
+          fail=0
+          for t in $(go tool dist list | grep "^${{ matrix.goos }}/"); do
+            arch=${t#*/}
+            echo "== $t"
+            # listed on the host: go list refuses android/ios without cgo too
+            libs=$(go list -f '{{if ne .Name "main"}}{{.ImportPath}}{{end}}' ./...)
+            GOOS=${{ matrix.goos }} GOARCH=$arch go build $libs || { echo "::error::$t does not compile"; fail=1; }
+          done
+          exit $fail
+
+  wasm:
+    name: wasm (js + wasip1)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: 1.27.2
+      - run: CGO_ENABLED=0 GOOS=js GOARCH=wasm go build ./rds
+      - run: CGO_ENABLED=0 GOOS=wasip1 GOARCH=wasm go build ./rds
+      - run: go install github.com/tetratelabs/wazero/cmd/wazero@v1.12.0
+      - name: Test rds under wazero
+        env:
+          GOWASIRUNTIME: wazero
+        run: |
+          export PATH="$(go env GOROOT)/lib/wasm:$(go env GOPATH)/bin:$PATH"
+          GOOS=wasip1 GOARCH=wasm go test ./rds
+
+  govulncheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: 1.27.2
+      - run: go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
+      - run: "$(go env GOPATH)/bin/govulncheck ./..."
+
+  # A short run of the decoder's fuzz target (the corpus in rds/testdata/fuzz
+  # is replayed by every `go test`).
+  fuzz:
+    name: fuzz (rds)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: 1.27.2
+      - run: go test -run '^$' -fuzz '^FuzzDecode$' -fuzztime 90s ./rds
+
+  # The reference: R 4.6.2 from conda-forge (the version the macOS arm64 and
+  # Linux builds share). The live tests must run, not skip; the goldens
+  # regenerated on Linux must equal the files written on macOS.
+  oracle:
+    name: oracle (R 4.6.2)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: 1.27.2
+      - name: Install R ${{ env.R_VERSION }} (conda-forge, via micromamba)
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/mm.tar.bz2" https://micro.mamba.pm/api/micromamba/linux-64/latest
+          mkdir -p "$RUNNER_TEMP/mm"
+          tar -xjf "$RUNNER_TEMP/mm.tar.bz2" -C "$RUNNER_TEMP/mm"
+          "$RUNNER_TEMP/mm/bin/micromamba" create -y -r "$RUNNER_TEMP/mamba" -p "$RUNNER_TEMP/r" \
+            -c conda-forge --override-channels "r-base=${R_VERSION}"
+      - name: Live oracle tests
+        env:
+          RGO_REQUIRE_ORACLE: "1"
+        run: |
+          export RGO_RSCRIPT="$RUNNER_TEMP/r/bin/Rscript"
+          go test -count=1 -race ./...
+      - name: Goldens regenerated from linux R
+        run: |
+          export RGO_RSCRIPT="$RUNNER_TEMP/r/bin/Rscript"
+          go run ./cmd/roracle version
+          go run ./cmd/roracle regen
+          git diff --stat --exit-code

@@ -1,0 +1,33 @@
+go-embedded-r/r
+Copyright (c) 2026, go-embedded-r. BSD 3-Clause License (see LICENSE).
+
+This repository contains no code, text or data copied from R or from any
+GPL-licensed work. Everything in it was written for it.
+
+R (https://www.r-project.org) is distributed under the GNU General Public
+License, version 2 or later (R 4.6.2: doc/COPYRIGHTS). Its sources are used
+here in exactly one way: the released program is run as an oracle, and what it
+prints is recorded in testdata/golden. The following rules follow from the
+licensing decision of 2026-11-01 (BSD-3-Clause for the whole repository; the R
+code of base R is rewritten, never copied, never downloaded at run time):
+
+1. No file of the R source tree (C, Fortran, R, Rd, tests, .Rout.save) is
+   committed here, and no code is translated from one.
+2. Golden files hold the answers of R 4.6.2 to inputs written in this
+   repository (testdata/snippets.R, testdata/values.R); they are outputs of the
+   program, not R's own test data.
+3. The format of R's serialization (package rds) is implemented from the
+   section "Serialization Formats" of the R Internals manual and from the bytes
+   the reference R 4.6.2 writes; the numeric codes of the pseudo-types the
+   manual does not number (references, special environments, ALTREP) were
+   observed on that output. No text of the manual is copied.
+4. Contributors do not read src/main, src/nmath or the R code of the base
+   packages while writing their Go or R counterparts (CONTRIBUTING.md).
+
+Test tooling downloads, in CI and on a developer's machine, the conda-forge
+build of R 4.6.2 as an unmodified program. It is not part of this repository
+and is not redistributed by it.
+
+The Go module dependencies (github.com/spf13/cobra, github.com/spf13/pflag,
+github.com/inconshreveable/mousetrap) are Apache-2.0 / BSD-3-Clause licensed;
+see their repositories.

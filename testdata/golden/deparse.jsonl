@@ -1,0 +1,42 @@
+{"src":"1 + 2 * 3","deparse":[["1 + 2 * 3"]]}
+{"src":"(1 + 2) * 3","deparse":[["(1 + 2) * 3"]]}
+{"src":"-2^2","deparse":[["-2^2"]]}
+{"src":"a %in% b || !c && d","deparse":[["a %in% b || !c && d"]]}
+{"src":"x <- y <- 5","deparse":[["x <- y <- 5"]]}
+{"src":"x = f(a, b = 2, ...)","deparse":[["x = f(a, b = 2, ...)"]]}
+{"src":"f(,)","deparse":[["f(, )"]]}
+{"src":"x[1]; x[[1]]; x$name; x@slot","deparse":[["x[1]"],["x[[1]]"],["x$name"],["x@slot"]]}
+{"src":"x[i, j, drop = FALSE]","deparse":[["x[i, j, drop = FALSE]"]]}
+{"src":"function(x, y = 2, ...) x + y","deparse":[["function(x, y = 2, ...) x + y"]]}
+{"src":"\\(x) x^2","deparse":[["function(x) x^2"]]}
+{"src":"if (a) b else c","deparse":[["if (a) b else c"]]}
+{"src":"if (a) {\n  b\n} else if (c) {\n  d\n} else {\n  e\n}","deparse":[["if (a) {","    b","} else if (c) {","    d","} else {","    e","}"]]}
+{"src":"for (i in 1:10) { if (i %% 2 == 0) next; print(i) }","deparse":[["for (i in 1:10) {","    if (i%%2 == 0) ","        next","    print(i)","}"]]}
+{"src":"while (TRUE) break","deparse":[["while (TRUE) break"]]}
+{"src":"repeat { break }","deparse":[["repeat {","    break","}"]]}
+{"src":"x |> f(y = 1) |> g()","deparse":[["g(f(x, y = 1))"]]}
+{"src":"y ~ x + z | w","deparse":[["y ~ x + z | w"]]}
+{"src":"~ x","deparse":[["~x"]]}
+{"src":"`my var` <- 1","deparse":[["`my var` <- 1"]]}
+{"src":"\"a\\tb\\n\"","deparse":[["\"a\\tb\\n\""]]}
+{"src":"'single \"quoted\"'","deparse":[["\"single \\\"quoted\\\"\""]]}
+{"src":"r\"(raw \\string)\"","deparse":[["\"raw \\\\string\""]]}
+{"src":"0x10L","deparse":[["16L"]]}
+{"src":"1e5L","deparse":[["100000L"]]}
+{"src":"1e-3","deparse":[["0.001"]]}
+{"src":"100000","deparse":[["1e+05"]]}
+{"src":"123456789012","deparse":[["123456789012"]]}
+{"src":"TRUE & NA","deparse":[["TRUE & NA"]]}
+{"src":"NULL","deparse":[["NULL"]]}
+{"src":"Inf; -Inf; NaN","deparse":[["Inf"],["-Inf"],["NaN"]]}
+{"src":"1i","deparse":[["0+1i"]]}
+{"src":"pkg::fn(x); pkg:::hidden","deparse":[["pkg::fn(x)"],["pkg:::hidden"]]}
+{"src":"a -> b","deparse":[["b <- a"]]}
+{"src":"a ->> b","deparse":[["b <<- a"]]}
+{"src":"a <<- b","deparse":[["a <<- b"]]}
+{"src":"x[-1]","deparse":[["x[-1]"]]}
+{"src":"!x","deparse":[["!x"]]}
+{"src":"-(1:3)","deparse":[["-(1:3)"]]}
+{"src":"function(x) {\n  # a comment\n  x + 1\n}","deparse":[["function(x) {","    x + 1","}"]]}
+{"src":"switch(x, a = , b = \"ab\", \"other\")","deparse":[["switch(x, a = , b = \"ab\", \"other\")"]]}
+{"src":"f(g(h(1, 2), 3), 4)","deparse":[["f(g(h(1, 2), 3), 4)"]]}
