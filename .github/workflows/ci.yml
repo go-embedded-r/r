@@ -106,15 +106,15 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version: 1.27.2
-      - run: CGO_ENABLED=0 GOOS=js GOARCH=wasm go build ./rds
-      - run: CGO_ENABLED=0 GOOS=wasip1 GOARCH=wasm go build ./rds
+      - run: CGO_ENABLED=0 GOOS=js GOARCH=wasm go build ./rds ./syntax
+      - run: CGO_ENABLED=0 GOOS=wasip1 GOARCH=wasm go build ./rds ./syntax
       - run: go install github.com/tetratelabs/wazero/cmd/wazero@v1.12.0
-      - name: Test rds under wazero
+      - name: Test rds and syntax under wazero
         env:
           GOWASIRUNTIME: wazero
         run: |
           export PATH="$(go env GOROOT)/lib/wasm:$(go env GOPATH)/bin:$PATH"
-          GOOS=wasip1 GOARCH=wasm go test ./rds
+          GOOS=wasip1 GOARCH=wasm go test ./rds ./syntax
 
   govulncheck:
     runs-on: ubuntu-latest
@@ -129,14 +129,21 @@ jobs:
   # A short run of the decoder's fuzz target (the corpus in rds/testdata/fuzz
   # is replayed by every `go test`).
   fuzz:
-    name: fuzz (rds)
+    name: fuzz (${{ matrix.target }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { pkg: ./rds,    target: FuzzDecode }
+          - { pkg: ./syntax, target: FuzzParse }
+          - { pkg: ./syntax, target: FuzzLexNumbers }
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
         with:
           go-version: 1.27.2
-      - run: go test -run '^$' -fuzz '^FuzzDecode$' -fuzztime 90s ./rds
+      - run: go test -run '^$' -fuzz '^${{ matrix.target }}$' -fuzztime 90s ${{ matrix.pkg }}
 
   # The reference: R 4.6.2 from conda-forge (the version the macOS arm64 and
   # Linux builds share). The live tests must run, not skip; the goldens
@@ -168,3 +175,27 @@ jobs:
           go run ./cmd/roracle version
           go run ./cmd/roracle regen
           git diff --stat --exit-code
+      - name: Parser parity with R on the committed inputs
+        run: |
+          export RGO_RSCRIPT="$RUNNER_TEMP/r/bin/Rscript"
+          go run ./cmd/rparity snippets > parity.txt
+          cat parity.txt
+          # every verdict must be n / n
+          go run ./cmd/rparity check parity.txt
+      - name: Parser parity on R's own sources (downloaded, never committed)
+        run: |
+          export RGO_RSCRIPT="$RUNNER_TEMP/r/bin/Rscript"
+          curl -fsSL -o "$RUNNER_TEMP/R.tar.gz" https://cran.r-project.org/src/base/R-4/R-4.6.2.tar.gz
+          echo "c297040f6392b1dac6e5c0eb398422cfdaedf540ae2205edb9ad0d10cb10ee00  $RUNNER_TEMP/R.tar.gz" | sha256sum -c -
+          mkdir "$RUNNER_TEMP/rsrc"
+          tar -xzf "$RUNNER_TEMP/R.tar.gz" -C "$RUNNER_TEMP/rsrc"
+          go run ./cmd/rparity corpus "$RUNNER_TEMP/rsrc/R-4.6.2/src/library" > corpus.txt
+          go run ./cmd/rparity corpus "$RUNNER_TEMP/rsrc/R-4.6.2/tests" >> corpus.txt
+          cat corpus.txt
+          go run ./cmd/rparity check corpus.txt
+      - name: Differential fuzz (mutated R sources)
+        run: |
+          export RGO_RSCRIPT="$RUNNER_TEMP/r/bin/Rscript"
+          go run ./cmd/rparity mutate "$RUNNER_TEMP/rsrc/R-4.6.2/src/library" --n 20000 > mutate.txt
+          cat mutate.txt
+          go run ./cmd/rparity check mutate.txt

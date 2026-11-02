@@ -57,6 +57,9 @@ func fakeR(mode string) {
 	if mode == "nogreet" {
 		return
 	}
+	if mode == "x" {
+		return
+	}
 	if mode == "badhexgreet" {
 		fmt.Println("not hex")
 		return
@@ -68,6 +71,12 @@ func fakeR(mode string) {
 	emit(named("ok", lgl(true), "ready", lgl(true), "version", rds.Strings(version),
 		"svn", rds.Strings(SVNRevision), "platform", rds.Strings("fake"), "banner", rds.Strings("fake R")))
 	in := bufio.NewReader(os.Stdin)
+	// the bootstrap frame: the script, which the fake ignores
+	var sn [4]byte
+	if _, err := io.ReadFull(in, sn[:]); err != nil {
+		return
+	}
+	io.CopyN(io.Discard, in, int64(binary.BigEndian.Uint32(sn[:])))
 	for {
 		var n [4]byte
 		if _, err := io.ReadFull(in, n[:]); err != nil {

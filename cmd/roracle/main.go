@@ -21,6 +21,7 @@ import (
 
 	"github.com/go-embedded-r/r/internal/gen"
 	"github.com/go-embedded-r/r/internal/oracle"
+	"github.com/go-embedded-r/r/rds"
 )
 
 var osExit = os.Exit
@@ -58,6 +59,7 @@ func RootCmd() *cobra.Command {
 	steps := map[string]func(o oracleSession, root string, out io.Writer) error{
 		"deparse": writeDeparse,
 		"rds":     writeRDS,
+		"parse":   writeParse,
 	}
 	run := func(names ...string) func(*cobra.Command, []string) error {
 		return func(c *cobra.Command, _ []string) error {
@@ -76,7 +78,8 @@ func RootCmd() *cobra.Command {
 	}
 	cmd.AddCommand(&cobra.Command{Use: "deparse", Short: "write testdata/golden/deparse.jsonl", Args: cobra.NoArgs, RunE: run("deparse")})
 	cmd.AddCommand(&cobra.Command{Use: "rds", Short: "write testdata/golden/rds.jsonl", Args: cobra.NoArgs, RunE: run("rds")})
-	cmd.AddCommand(&cobra.Command{Use: "regen", Short: "regenerate every golden file", Args: cobra.NoArgs, RunE: run("deparse", "rds")})
+	cmd.AddCommand(&cobra.Command{Use: "parse", Short: "write testdata/golden/parse.jsonl (tree, tokens, errors)", Args: cobra.NoArgs, RunE: run("parse")})
+	cmd.AddCommand(&cobra.Command{Use: "regen", Short: "regenerate every golden file", Args: cobra.NoArgs, RunE: run("deparse", "rds", "parse")})
 	cmd.AddCommand(&cobra.Command{
 		Use:   "version",
 		Short: "print the identity of the R that answers",
@@ -109,6 +112,31 @@ func RootCmd() *cobra.Command {
 				}
 				for _, w := range r.Warnings {
 					fmt.Fprintln(c.ErrOrStderr(), "warning:", w)
+				}
+			}
+			return err
+		},
+	})
+	cmd.AddCommand(&cobra.Command{
+		Use:   "call OP ARG...",
+		Short: "send one request to the oracle and print a character reply, one string per line",
+		Args:  cobra.MinimumNArgs(1),
+		RunE: func(c *cobra.Command, args []string) error {
+			o, err := startOracle()
+			if err != nil {
+				return err
+			}
+			defer o.Close()
+			vals := make([]any, len(args)-1)
+			for i, a := range args[1:] {
+				vals[i] = a
+			}
+			r, err := o.Call(args[0], vals...)
+			if r != nil {
+				if ch, ok := r.Value.(*rds.Character); ok {
+					for _, s := range ch.V {
+						fmt.Fprintln(c.OutOrStdout(), s.S)
+					}
 				}
 			}
 			return err
@@ -151,4 +179,16 @@ func writeRDS(o oracleSession, root string, out io.Writer) error {
 		return err
 	}
 	return write(root, "testdata/golden/rds.jsonl", data, out)
+}
+
+func writeParse(o oracleSession, root string, out io.Writer) error {
+	srcs, err := gen.ParseInputs(root)
+	if err != nil {
+		return err
+	}
+	data, err := gen.ParseGolden(o, srcs)
+	if err != nil {
+		return err
+	}
+	return write(root, "testdata/golden/parse.jsonl", data, out)
 }

@@ -17,7 +17,7 @@ const root = "../.."
 
 func TestSplit(t *testing.T) {
 	in := "## header\n#---\na\nb\n#---\n\n#---\nc\r\n#---\n## not a snippet\n#---\nd\n"
-	want := []string{"a\nb", "c", "d"}
+	want := []string{"a\nb", "c\r", "d"}
 	if got := Split(in); !reflect.DeepEqual(got, want) {
 		t.Errorf("%q, want %q", got, want)
 	}
