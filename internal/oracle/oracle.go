@@ -140,11 +140,10 @@ func Start(opt Options) (*Process, error) {
 	}
 	frame := binary.BigEndian.AppendUint32(nil, uint32(len(script)))
 	frame = append(frame, script...)
-	if _, err := in.Write(frame); err != nil {
-		cmd.Process.Kill()
-		cmd.Wait()
-		return nil, fmt.Errorf("oracle: sending the script: %w", err)
-	}
+	// A failed write means the process is already gone (it ends before it
+	// reads its script when, for instance, R cannot start): the greeting read
+	// below then fails with what the process said on its standard error.
+	in.Write(frame)
 	p := &Process{cmd: cmd, in: in, out: bufio.NewReaderSize(out, 1<<20), stderr: stderr, timeout: opt.Timeout}
 	r, err := p.readReply()
 	if err != nil {
