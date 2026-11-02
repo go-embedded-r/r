@@ -64,7 +64,7 @@ func run(t *testing.T, args ...string) (string, string, error) {
 func repoCopy(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
-	for _, f := range []string{"testdata/snippets.R", "testdata/values.R"} {
+	for _, f := range []string{"testdata/snippets.R", "testdata/values.R", "testdata/errors.R", "testdata/edge.R"} {
 		b, err := os.ReadFile(filepath.Join("../..", f))
 		if err != nil {
 			t.Fatal(err)
@@ -114,7 +114,7 @@ func TestRegenWritesGoldens(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, f := range []string{"testdata/golden/deparse.jsonl", "testdata/golden/rds.jsonl"} {
+	for _, f := range []string{"testdata/golden/deparse.jsonl", "testdata/golden/rds.jsonl", "testdata/golden/parse.jsonl"} {
 		if !strings.Contains(out, "wrote "+f) {
 			t.Errorf("no report for %s in %q", f, out)
 		}
@@ -127,7 +127,7 @@ func TestRegenWritesGoldens(t *testing.T) {
 func TestRegenFailures(t *testing.T) {
 	withFake(t, fakeSession{}, nil)
 	empty := t.TempDir() // no inputs
-	for _, c := range []string{"deparse", "rds"} {
+	for _, c := range []string{"deparse", "rds", "parse"} {
 		if _, _, err := run(t, c, "-C", empty); err == nil {
 			t.Errorf("%s: missing inputs accepted", c)
 		}
@@ -194,7 +194,7 @@ func TestLiveRegen(t *testing.T) {
 	if _, _, err := run(t, "regen", "-C", dir); err != nil {
 		t.Fatal(err)
 	}
-	for _, f := range []string{"testdata/golden/deparse.jsonl", "testdata/golden/rds.jsonl"} {
+	for _, f := range []string{"testdata/golden/deparse.jsonl", "testdata/golden/rds.jsonl", "testdata/golden/parse.jsonl"} {
 		got, _ := os.ReadFile(filepath.Join(dir, f))
 		want, _ := os.ReadFile(filepath.Join("../..", f))
 		if !bytes.Equal(got, want) {

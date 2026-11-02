@@ -20,6 +20,8 @@
 
 local({
   stdin_con <- get0(".rgo_stdin", envir = globalenv(), ifnotfound = file("stdin", "rb"))
+  # leave the global environment as R starts it: requests can observe it
+  if (exists(".rgo_stdin", envir = globalenv(), inherits = FALSE)) rm(".rgo_stdin", envir = globalenv())
   reply_con <- stdout()
 
   send <- function(x) {

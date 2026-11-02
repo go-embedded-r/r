@@ -41,7 +41,7 @@ var script string
 
 // bootstrap is the -e program: Rscript passes -e through a fixed-size buffer
 // that the oracle's source outgrew, so the source is sent on stdin instead.
-const bootstrap = `.rgo_stdin <- file("stdin", "rb"); n <- readBin(.rgo_stdin, "integer", 1L, size = 4L, endian = "big"); eval(parse(text = rawToChar(readBin(.rgo_stdin, "raw", n))))`
+const bootstrap = `.rgo_stdin <- file("stdin", "rb"); eval(parse(text = rawToChar(readBin(.rgo_stdin, "raw", readBin(.rgo_stdin, "integer", 1L, size = 4L, endian = "big")))))`
 
 // Script returns the R source of the oracle.
 func Script() string { return script }

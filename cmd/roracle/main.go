@@ -59,6 +59,7 @@ func RootCmd() *cobra.Command {
 	steps := map[string]func(o oracleSession, root string, out io.Writer) error{
 		"deparse": writeDeparse,
 		"rds":     writeRDS,
+		"parse":   writeParse,
 	}
 	run := func(names ...string) func(*cobra.Command, []string) error {
 		return func(c *cobra.Command, _ []string) error {
@@ -77,7 +78,8 @@ func RootCmd() *cobra.Command {
 	}
 	cmd.AddCommand(&cobra.Command{Use: "deparse", Short: "write testdata/golden/deparse.jsonl", Args: cobra.NoArgs, RunE: run("deparse")})
 	cmd.AddCommand(&cobra.Command{Use: "rds", Short: "write testdata/golden/rds.jsonl", Args: cobra.NoArgs, RunE: run("rds")})
-	cmd.AddCommand(&cobra.Command{Use: "regen", Short: "regenerate every golden file", Args: cobra.NoArgs, RunE: run("deparse", "rds")})
+	cmd.AddCommand(&cobra.Command{Use: "parse", Short: "write testdata/golden/parse.jsonl (tree, tokens, errors)", Args: cobra.NoArgs, RunE: run("parse")})
+	cmd.AddCommand(&cobra.Command{Use: "regen", Short: "regenerate every golden file", Args: cobra.NoArgs, RunE: run("deparse", "rds", "parse")})
 	cmd.AddCommand(&cobra.Command{
 		Use:   "version",
 		Short: "print the identity of the R that answers",
@@ -177,4 +179,16 @@ func writeRDS(o oracleSession, root string, out io.Writer) error {
 		return err
 	}
 	return write(root, "testdata/golden/rds.jsonl", data, out)
+}
+
+func writeParse(o oracleSession, root string, out io.Writer) error {
+	srcs, err := gen.ParseInputs(root)
+	if err != nil {
+		return err
+	}
+	data, err := gen.ParseGolden(o, srcs)
+	if err != nil {
+		return err
+	}
+	return write(root, "testdata/golden/parse.jsonl", data, out)
 }

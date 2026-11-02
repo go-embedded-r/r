@@ -15,8 +15,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/go-embedded-r/r/internal/oracle"
+	"github.com/go-embedded-r/r/internal/parity"
 	"github.com/go-embedded-r/r/rds"
 )
 
@@ -139,6 +141,69 @@ func RDSGolden(o Oracle, exprs []string) ([]byte, error) {
 		}
 	}
 	return buf.Bytes(), nil
+}
+
+// ParseRecord is one line of parse.jsonl: what R makes of a source text.
+type ParseRecord struct {
+	Src string `json:"src"`
+	// Tree is the canonical dump of R's parse (see syntax.Dump), when it parses.
+	Tree []string `json:"tree,omitempty"`
+	// Tokens are the terminals of getParseData, "l1:c1-l2:c2 KIND hex(text)".
+	Tokens []string `json:"tokens,omitempty"`
+	// Error is the message of parse(), when it does not parse.
+	Error string `json:"error,omitempty"`
+}
+
+// ParseGolden asks R to parse each source text (texts that are not valid
+// UTF-8 are left out: JSON cannot carry them).
+func ParseGolden(o parity.Oracle, srcs []string) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	for _, s := range srcs {
+		if !utf8.ValidString(s) {
+			continue
+		}
+		rec := ParseRecord{Src: s}
+		tree, rErr, err := parity.TreeLines(o, s)
+		if err != nil {
+			return nil, err
+		}
+		if rErr != "" {
+			rec.Error = rErr
+		} else {
+			rec.Tree = tree
+			r, err := o.Call("tokens", s)
+			if err != nil {
+				return nil, err
+			}
+			ch, _ := r.Value.(*rds.Character)
+			rec.Tokens = []string{}
+			if ch != nil {
+				for _, t := range ch.V {
+					rec.Tokens = append(rec.Tokens, t.S)
+				}
+			}
+		}
+		if err := enc.Encode(rec); err != nil {
+			return nil, err
+		}
+	}
+	return buf.Bytes(), nil
+}
+
+// ParseInputs are the sources of parse.jsonl: the snippet files and the
+// extra cases of package parity.
+func ParseInputs(root string) ([]string, error) {
+	var all []string
+	for _, f := range []string{"testdata/snippets.R", "testdata/errors.R", "testdata/edge.R", "testdata/values.R"} {
+		s, err := ReadSnippets(root, f)
+		if err != nil {
+			return nil, err
+		}
+		all = append(all, s...)
+	}
+	return append(all, parity.Extras()...), nil
 }
 
 // ReadJSONL decodes a golden file into records of type T.

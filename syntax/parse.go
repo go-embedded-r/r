@@ -204,6 +204,36 @@ func (p *parser) spanOf(a, b Span) Span {
 	return Span{Start: a.Start, End: b.End, StartByte: a.StartByte, EndByte: b.EndByte}
 }
 
+// height is the height of the subtree rooted at n.
+func height(n Node) int {
+	switch x := n.(type) {
+	case *Call:
+		return x.h
+	case *Function:
+		return x.h
+	case nil:
+		return 0
+	}
+	return 1
+}
+
+// fin records the height of c and refuses a tree deeper than MaxDepth: the
+// parser's own recursion is bounded separately, but a long chain such as
+// a+a+a+... or f(x)(x)(x)... is built by a loop and is as deep as it is long.
+func (p *parser) fin(c *Call) *Call {
+	h := height(c.Fun)
+	for _, a := range c.Args {
+		if v := height(a.Value); v > h {
+			h = v
+		}
+	}
+	c.h = h + 1
+	if c.h > p.lim.MaxDepth {
+		panic(&LimitError{What: "depth", Limit: p.lim.MaxDepth})
+	}
+	return c
+}
+
 func (p *parser) sym(name string, s Span) *Sym {
 	p.newNode()
 	return &Sym{Pos: s, Name: name}
@@ -215,7 +245,7 @@ func (p *parser) call(fun string, funSpan Span, whole Span, args ...Node) *Call 
 	for _, a := range args {
 		c.Args = append(c.Args, Arg{Value: a, Pos: spanOfNode(a)})
 	}
-	return c
+	return p.fin(c)
 }
 
 func spanOfNode(n Node) Span {
@@ -613,7 +643,16 @@ func (p *parser) function() Node {
 	p.advance()
 	body := p.body()
 	p.newNode()
-	return &Function{Pos: p.spanFrom(t), Params: params, Body: body, Lambda: lambda}
+	fn := &Function{Pos: p.spanFrom(t), Params: params, Body: body, Lambda: lambda, h: height(body) + 1}
+	for _, q := range params {
+		if v := height(q.Default) + 1; v > fn.h {
+			fn.h = v
+		}
+	}
+	if fn.h > p.lim.MaxDepth {
+		panic(&LimitError{What: "depth", Limit: p.lim.MaxDepth})
+	}
+	return fn
 }
 
 // postfix parses a call or a subscript on lhs (starting at token start).
@@ -635,7 +674,7 @@ func (p *parser) postfix(lhs Node, start lexTok) Node {
 			fun = &Sym{Pos: c.Pos, Name: c.Str}
 		}
 		p.newNode()
-		return &Call{Pos: p.spanFrom(start), Fun: fun, Args: args}
+		return p.fin(&Call{Pos: p.spanFrom(start), Fun: fun, Args: args})
 	case '[':
 		args := p.sublist(']')
 		p.expect(']')
@@ -653,7 +692,7 @@ func (p *parser) subscript(name string, t lexTok, lhs Node, args []Arg, start le
 	c := &Call{Pos: p.spanFrom(start), Fun: p.sym(name, tokSpan(t))}
 	c.Args = append(c.Args, Arg{Value: lhs, Pos: spanOfNode(lhs)})
 	c.Args = append(c.Args, args...)
-	return c
+	return p.fin(c)
 }
 
 // markCallee turns the last SYMBOL token of the callee expression into
@@ -824,7 +863,7 @@ func (p *parser) pipe(lhs, rhs Node, rstart lexTok, whole Span) Node {
 	if slot, found := p.extractorChain(call, call, rstart); found {
 		slot.Value = lhs
 		slot.Pos = spanOfNode(lhs)
-		return rhs
+		return p.refin(rhs)
 	}
 	for i := range call.Args {
 		if isPlaceholder(call.Args[i].Value) {
@@ -838,7 +877,7 @@ func (p *parser) pipe(lhs, rhs Node, rstart lexTok, whole Span) Node {
 			}
 			call.Args[i].Value = lhs
 			call.Pos = whole
-			return rhs
+			return p.fin(call)
 		}
 	}
 	if s, ok := call.Fun.(*Sym); ok && specialSymbols[s.Name] {
@@ -847,7 +886,20 @@ func (p *parser) pipe(lhs, rhs Node, rstart lexTok, whole Span) Node {
 	args := append([]Arg{{Value: lhs, Pos: spanOfNode(lhs)}}, call.Args...)
 	call.Args = args
 	call.Pos = whole
-	return call
+	return p.fin(call)
+}
+
+// refin recomputes heights along a rewritten extractor chain.
+func (p *parser) refin(n Node) Node {
+	if c, ok := n.(*Call); ok {
+		for _, a := range c.Args {
+			if cc, ok := a.Value.(*Call); ok {
+				p.refin(cc)
+			}
+		}
+		return p.fin(c)
+	}
+	return n
 }
 
 func isPlaceholder(n Node) bool {

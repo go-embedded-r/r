@@ -65,6 +65,7 @@ type Call struct {
 	Pos  Span
 	Fun  Node
 	Args []Arg
+	h    int // height of the subtree, checked against Limits.MaxDepth
 }
 
 // Param is one formal argument of a function definition.
@@ -83,6 +84,7 @@ type Function struct {
 	// Lambda is set for the backslash form; both are the same call to
 	// `function` in R.
 	Lambda bool
+	h      int
 }
 
 func (n *Sym) Span() Span      { return n.Pos }
