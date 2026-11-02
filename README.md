@@ -67,12 +67,16 @@ names, err := syntax.TopLevelNames(cell)          // names a cell assigns and re
   assigns anywhere). `Dynamic` (with `Reasons`) when names cannot be resolved:
   `<<-`, assign/get with a computed name or another environment, eval, parse, source, attach, library, require, sys.function, `environment<-`, load, list2env...
 - **Numbers.** A decimal literal is computed in double precision, digit by
-  digit, as R does on a platform whose `long double` is a `double` (macOS
-  arm64): 70 000 random literals are identical to R's, bit for bit. R on
+  digit with an explicit fused multiply-add (`math.FMA`), then scaled by a power
+  of ten: what R does on macOS arm64, where `long double` is `double` and the
+  compiler fuses `10*ans + digit`. 150 000 random literals are identical to
+  that R's, bit for bit, and the result is the same on every platform. R on
   x86-64 Linux accumulates in 80-bit extended precision and can differ by one
-  unit in the last place (the CI oracle lane saw it on `1e300`); the parser is
-  deterministic and matches the 64-bit reference, on every platform.
-  Hexadecimal literals follow R's rule (`0x1.8p1`).
+  unit in the last place on literals of more than 15 digits (the CI oracle lane
+  saw it on `1e300`). The parser is deterministic and matches the 64-bit
+  reference; the platform-dependent literals are in `testdata/numbers.R`,
+  compared within 4 ulp and kept out of the goldens. Hexadecimal literals
+  follow R's rule (`0x1.8p1`).
 
 #### Parity with R 4.6.2
 

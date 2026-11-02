@@ -85,7 +85,7 @@ func snippetsCmd() *cobra.Command {
 				return err
 			}
 			defer p.Close()
-			for _, f := range []string{"testdata/snippets.R", "testdata/errors.R", "testdata/edge.R", "testdata/values.R"} {
+			for _, f := range []string{"testdata/snippets.R", "testdata/errors.R", "testdata/edge.R", "testdata/numbers.R", "testdata/values.R"} {
 				snippets, err := gen.ReadSnippets(".", f)
 				if err != nil {
 					return err

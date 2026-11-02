@@ -661,21 +661,23 @@ func rAtof(s string) float64 {
 }
 
 // decAtof accumulates the digits and scales by a power of ten, all in double
-// precision (the arithmetic of R on a platform whose long double is a
-// double: macOS arm64).
+// precision: the arithmetic of R on a platform whose long double is a double
+// (macOS arm64), where the compiler fuses 10*ans+digit into one rounding. The
+// fusion is written as math.FMA so that the result is the same on every
+// platform, whatever the Go compiler does for its target.
 func decAtof(s string) float64 {
 	var ans float64
 	expn := 0
 	ndigits := 0
 	i := 0
 	for ; i < len(s) && isDigit(int(s[i])); i++ {
-		ans = 10*ans + float64(s[i]-'0')
+		ans = math.FMA(10, ans, float64(s[i]-'0'))
 		ndigits++
 	}
 	if i < len(s) && s[i] == '.' {
 		i++
 		for ; i < len(s) && isDigit(int(s[i])); i++ {
-			ans = 10*ans + float64(s[i]-'0')
+			ans = math.FMA(10, ans, float64(s[i]-'0'))
 			ndigits++
 			expn--
 		}
@@ -746,13 +748,13 @@ func hexAtof(s string) float64 {
 	var ans float64
 	i := 0
 	for ; i < len(s) && isHex(s[i]); i++ {
-		ans = 16*ans + float64(hexVal(s[i]))
+		ans = math.FMA(16, ans, float64(hexVal(s[i])))
 	}
 	exph := 0
 	if i < len(s) && s[i] == '.' {
 		i++
 		for ; i < len(s) && isHex(s[i]); i++ {
-			ans = 16*ans + float64(hexVal(s[i]))
+			ans = math.FMA(16, ans, float64(hexVal(s[i])))
 			exph += 4
 		}
 	}
