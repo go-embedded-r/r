@@ -169,6 +169,6 @@ go run ./cmd/roracle regen              # rewrite testdata/golden
 | `cmd/roracle/` | the command that regenerates the goldens |
 | `testdata/` | inputs written for this repository, and `golden/` |
 
-There is no release yet: tags will follow once the parser (M1) lands. The
-organisation landing page and the documentation site are not set up at M0; this
-README is the documentation.
+The parser (M1) is released as [v0.1.0](https://github.com/go-embedded-r/r/releases/tag/v0.1.0).
+The organisation landing page is <https://go-embedded-r.github.io/> and the
+documentation site is <https://go-embedded-r.github.io/docs/>.
