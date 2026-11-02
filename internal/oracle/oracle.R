@@ -55,7 +55,7 @@ local({
   }
 
   hx <- function(s) {
-    if (is.na(s)) "NA" else paste(as.character(charToRaw(enc2utf8(s))), collapse = "")
+    if (is.na(s)) "NA" else paste(as.character(charToRaw(s)), collapse = "")
   }
   dbits <- function(x) {
     paste(as.character(writeBin(x, raw(), endian = "big")), collapse = "")

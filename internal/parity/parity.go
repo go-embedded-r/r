@@ -81,6 +81,9 @@ func Extras() []string {
 		"x$\n y",
 		"x |>\n f()",
 		"x\n|> f()",
+		"x <- '\xff'", "\xff", "x \xe9 y", "'\xe9'", "`a\xc3`", "r\"(\xc3)\"", "# \xff\nx", "x <- '\xe2\x82'", "\xe2\x82",
+		"x <- '\u202e'", "'a\u2066b'", "r'(\u202a)'", "\u202e",
+		"x <- 1;;", "if (a) b\n\n\nelse c", "{if (a) b\n\n\nelse c}", "f(if (a) b\n else c)",
 	}
 }
 
@@ -157,6 +160,12 @@ func Compare(o Oracle, src string) (Outcome, error) {
 	out.Tree, out.ULP, out.Detail = compareTrees(rlines, glines)
 
 	r, err := o.Call("tokens", src)
+	if errors.Is(err, oracle.ErrR) {
+		// R cannot build parse data for this text (it refuses invalid
+		// UTF-8 when it splits the source into lines): nothing to compare
+		out.Tokens = true
+		return out, nil
+	}
 	if err != nil {
 		return out, err
 	}

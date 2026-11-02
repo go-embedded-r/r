@@ -138,7 +138,7 @@ func (l *lexer) mbNext(c int) (rune, int) {
 		for i := 1; i < n; i++ {
 			l.getc()
 		}
-		l.raise("invalid multibyte character")
+		l.raise("invalid multibyte character in parser")
 	}
 	return r, n
 }
@@ -196,7 +196,11 @@ func (l *lexer) skipComment() int {
 		lastOff = l.off
 	}
 	text := string(l.src[startOff:lastOff])
-	l.toks = append(l.toks, recTok{kind: "COMMENT", text: text, first: first, last: last, fb: startOff, lb: lastOff})
+	kind := "COMMENT"
+	if first.Col == 1 && isLineDirective(l.src[startOff:lastOff]) {
+		kind = "LINE_DIRECTIVE"
+	}
+	l.toks = append(l.toks, recTok{kind: kind, text: text, first: first, last: last, fb: startOff, lb: lastOff})
 	return c
 }
 
@@ -990,6 +994,9 @@ loop:
 	}
 	t.text = text
 	if forSymbol {
+		if len(out) == 0 {
+			panic(&Error{Message: "attempt to use zero-length variable name", Lexical: true, text: "attempt to use zero-length variable name"})
+		}
 		t.kind = tSYMBOL
 		t.sym = string(out)
 		return
@@ -1241,3 +1248,18 @@ func (l *lexer) tokenRecorded() lexTok {
 }
 
 func trimNL(s string) string { return strings.TrimRight(s, "\n") }
+
+// isLineDirective reports whether a comment at the start of a line is a
+// "#line N" directive: R's lexer records those under their own token name.
+// (The directive's effect on the line numbers of later errors is not
+// implemented.)
+func isLineDirective(c []byte) bool {
+	if len(c) < 6 || string(c[:5]) != "#line" {
+		return false
+	}
+	i := 5
+	for i < len(c) && (c[i] == ' ' || c[i] == '\t' || c[i] == '\f') {
+		i++
+	}
+	return i < len(c) && isDigit(int(c[i]))
+}

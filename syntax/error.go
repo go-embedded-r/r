@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"unicode/utf8"
 )
 
 // ErrLimit is wrapped by the error returned when an input exceeds a
@@ -49,6 +50,16 @@ func syntaxError(filename, msg string, pos Pos, consumed []byte) *Error {
 	ctx := consumed
 	if len(ctx) > 256 {
 		ctx = ctx[len(ctx)-256:]
+	}
+	// a multibyte character cut short by the end of the input was pushed
+	// back by R's lexer, and does not appear in the context
+	for len(ctx) > 0 {
+		r, n := utf8.DecodeLastRune(ctx)
+		if r != utf8.RuneError || n != 1 {
+			break
+		}
+		ctx = ctx[:len(ctx)-1]
+		consumed = consumed[:len(consumed)-1]
 	}
 	lines := strings.Split(string(ctx), "\n")
 	// R_ParseContextLine is the line of the last character read; a trailing

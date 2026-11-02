@@ -427,11 +427,11 @@ func (p *parser) prefix() Node {
 	case tWHILE:
 		p.advance()
 		cond := p.cond()
-		body := p.exprOrAssign(0)
+		body := p.body()
 		return p.call("while", tokSpan(t), p.spanFrom(t), cond, body)
 	case tREPEAT:
 		p.advance()
-		body := p.exprOrAssign(0)
+		body := p.body()
 		return p.call("repeat", tokSpan(t), p.spanFrom(t), body)
 	case tNEXT, tBREAK:
 		p.advance()
@@ -526,10 +526,10 @@ func (p *parser) ifExpr() Node {
 	t := p.tok
 	p.advance()
 	cond := p.cond()
-	yes := p.exprOrAssign(0)
+	yes := p.body()
 	if p.tok.kind == tELSE {
 		p.advance()
-		no := p.exprOrAssign(0)
+		no := p.body()
 		return p.call("if", tokSpan(t), p.spanFrom(t), cond, yes, no)
 	}
 	return p.call("if", tokSpan(t), p.spanFrom(t), cond, yes)
@@ -554,7 +554,7 @@ func (p *parser) forExpr() Node {
 	}
 	p.lx.eatLines = true
 	p.advance()
-	body := p.exprOrAssign(0)
+	body := p.body()
 	p.newNode()
 	vs := &Sym{Pos: tokSpan(v), Name: v.sym}
 	return p.call("for", tokSpan(t), p.spanFrom(t), vs, seq, body)
@@ -611,7 +611,7 @@ func (p *parser) function() Node {
 	}
 	p.lx.eatLines = true
 	p.advance()
-	body := p.exprOrAssign(0)
+	body := p.body()
 	p.newNode()
 	return &Function{Pos: p.spanFrom(t), Params: params, Body: body, Lambda: lambda}
 }
@@ -904,3 +904,8 @@ func (p *parser) extractorChain(rhs, expr *Call, rstart lexTok) (*Arg, bool) {
 	}
 	return slot, found
 }
+
+// body parses the body of if, else, for, while, repeat and function: an
+// expression that may use '=' but ends before '?' (those constructs bind
+// tighter than '?').
+func (p *parser) body() Node { return p.expr(bpQuestion+1, true) }
