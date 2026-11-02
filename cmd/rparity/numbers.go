@@ -68,7 +68,7 @@ func numbersCmd() *cobra.Command {
 					}
 				}
 			}
-			fmt.Fprintf(c.OutOrStdout(), "%d literals: %d identical, %d within 4 ulp, %d further\n", len(lits), exact, close, far)
+			fmt.Fprintf(c.OutOrStdout(), "%d literals: %d identical, %d within 16 ulp, %d further\n", len(lits), exact, close, far)
 			for _, b := range bad {
 				fmt.Fprintln(c.OutOrStdout(), "  ", b)
 			}

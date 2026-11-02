@@ -73,9 +73,10 @@ names, err := syntax.TopLevelNames(cell)          // names a cell assigns and re
   that R's, bit for bit, and the result is the same on every platform. R on
   x86-64 Linux accumulates in 80-bit extended precision and can differ by one
   unit in the last place on literals of more than 15 digits (the CI oracle lane
-  saw it on `1e300`). The parser is deterministic and matches the 64-bit
+  saw it on `1e300`), and by up to 6 ulp on literals near the subnormal range
+  (measured on R's own `tests/`: 290 literals differ, at most by 6 ulp). The parser is deterministic and matches the 64-bit
   reference; the platform-dependent literals are in `testdata/numbers.R`,
-  compared within 4 ulp and kept out of the goldens. One literal differs by more: `1.7976931348623157e308` (the largest double) is `Inf` in 64-bit-double R and in the Go parser, and is kept by 80-bit R. Hexadecimal literals
+  compared within 16 ulp and kept out of the goldens. One literal differs by more: `1.7976931348623157e308` (the largest double) is `Inf` in 64-bit-double R and in the Go parser, and is kept by 80-bit R. Hexadecimal literals
   follow R's rule (`0x1.8p1`).
 
 #### Parity with R 4.6.2

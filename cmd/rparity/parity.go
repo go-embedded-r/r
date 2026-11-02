@@ -59,7 +59,7 @@ func (t *tally) print(w io.Writer, maxFail int) {
 	fmt.Fprintf(w, "  tokens  %5d / %-5d\n", t.tokens, t.tokensOf)
 	fmt.Fprintf(w, "  errors  %5d / %-5d byte for byte\n", t.errs, t.errsOf)
 	if t.ulp > 0 {
-		fmt.Fprintf(w, "  numeric literals within 4 ulp of R's (counted as equal): %d\n", t.ulp)
+		fmt.Fprintf(w, "  numeric literals within 16 ulp of R's (counted as equal): %d\n", t.ulp)
 	}
 	if t.skipped > 0 {
 		fmt.Fprintf(w, "  skipped (not valid UTF-8): %d\n", t.skipped)

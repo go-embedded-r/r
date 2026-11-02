@@ -1,4 +1,4 @@
-## Numeric literals whose value depends on the platform's floating-point arithmetic in R (80-bit long double on x86-64 Linux, fused multiply-add on arm64): compared by `rparity snippets` within 4 ulp, kept out of the goldens. (Not here: 1.7976931348623157e308, DBL_MAX, which 64-bit-double R rounds to Inf and 80-bit R keeps.) A line holding only #--- separates them.
+## Numeric literals whose value depends on the platform's floating-point arithmetic in R (80-bit long double on x86-64 Linux, fused multiply-add on arm64): compared by `rparity snippets` within 16 ulp, kept out of the goldens. (Not here: 1.7976931348623157e308, DBL_MAX, which 64-bit-double R rounds to Inf and 80-bit R keeps.) A line holding only #--- separates them.
 #---
 1.5; .5; 5.; 1e-5; 1E+5; 1e5; 123456789012345678901234567890
 #---

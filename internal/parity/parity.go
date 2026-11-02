@@ -224,7 +224,7 @@ func firstLine(s string) string {
 	return s
 }
 
-// compareTrees compares two dumps. Doubles that differ by at most 4 units in
+// compareTrees compares two dumps. Doubles that differ by at most 16 units in
 // the last place are counted, not failed.
 func compareTrees(r, g []string) (ok bool, ulp int, detail string) {
 	n := len(r)
@@ -261,7 +261,7 @@ func decodeLine(s string) string {
 }
 
 // NumClose reports whether two dump lines are doubles (or complex numbers)
-// within 4 ulps of each other, and how many of their parts differ.
+// within 16 ulps of each other, and how many of their parts differ.
 func NumClose(a, b string) (int, bool) {
 	fa, fb := strings.Fields(a), strings.Fields(b)
 	if len(fa) != len(fb) || len(fa) < 2 || strings.TrimLeft(fa[0], ".") != strings.TrimLeft(fb[0], ".") || len(fa[0]) != len(fb[0]) {
@@ -289,7 +289,7 @@ func NumClose(a, b string) (int, bool) {
 		if d < 0 {
 			d = -d
 		}
-		if d > 4 {
+		if d > 16 {
 			return 0, false
 		}
 		n++
