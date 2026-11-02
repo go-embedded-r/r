@@ -26,6 +26,6 @@ func main() {
 // RootCmd builds the command tree.
 func RootCmd() *cobra.Command {
 	cmd := &cobra.Command{Use: "rparity", Short: "Compare the Go parser with R " + "4.6.2", SilenceUsage: true}
-	cmd.AddCommand(probeCmd(), snippetsCmd(), corpusCmd(), numbersCmd(), mutateCmd())
+	cmd.AddCommand(probeCmd(), snippetsCmd(), corpusCmd(), numbersCmd(), mutateCmd(), benchCmd(), checkCmd())
 	return cmd
 }

@@ -81,6 +81,7 @@ func Extras() []string {
 		"x$\n y",
 		"x |>\n f()",
 		"x\n|> f()",
+		"f(length=>)", "a => b", "a => b => c", "x |> f() => y",
 		"x <- '\xff'", "\xff", "x \xe9 y", "'\xe9'", "`a\xc3`", "r\"(\xc3)\"", "# \xff\nx", "x <- '\xe2\x82'", "\xe2\x82",
 		"x <- '\u202e'", "'a\u2066b'", "r'(\u202a)'", "\u202e",
 		"x <- 1;;", "if (a) b\n\n\nelse c", "{if (a) b\n\n\nelse c}", "f(if (a) b\n else c)",

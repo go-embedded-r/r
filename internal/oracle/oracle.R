@@ -170,6 +170,16 @@ local({
         NULL
       }, error = function(e) conditionMessage(e)))
     },
+    # benchparse(texts): seconds R spends in parse(text=, keep.source=FALSE) on
+    # each text (a character vector), by elapsed time.
+    benchparse = function(args) {
+      guarded({
+        texts <- args[[1L]]
+        t0 <- proc.time()[["elapsed"]]
+        for (s in texts) parse(text = s, keep.source = FALSE)
+        proc.time()[["elapsed"]] - t0
+      })
+    },
     # sleep(seconds): for the timeout test.
     sleep = function(args) {
       guarded(Sys.sleep(as.numeric(args[[1L]])))

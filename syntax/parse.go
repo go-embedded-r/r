@@ -368,9 +368,6 @@ func (p *parser) infix(lhs Node, start lexTok, minbp int, eq bool) Node {
 		}
 		p.advance()
 		opSpan := tokSpan(t)
-		if k == tPIPEBIND {
-			panic(lexicalError(p.lx.file, "'=>' is disabled; set '_R_USE_PIPEBIND_' envvar to a true value to enable it", t.first))
-		}
 		rstart := p.tok
 		var rhs Node
 		switch k {
@@ -380,6 +377,10 @@ func (p *parser) infix(lhs Node, start lexTok, minbp int, eq bool) Node {
 			rhs = p.expr(rbp, true)
 		default:
 			rhs = p.expr(rbp, false)
+		}
+		if k == tPIPEBIND {
+			// raised when the rule is reduced, i.e. after the right operand
+			panic(lexicalError(p.lx.file, "'=>' is disabled; set '_R_USE_PIPEBIND_' envvar to a true value to enable it", t.first))
 		}
 		whole := Span{Start: start.first, End: p.prevLast, StartByte: start.fb, EndByte: p.prevLastB}
 		switch k {
