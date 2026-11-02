@@ -30,7 +30,7 @@ type Oracle interface {
 // "#---". A chunk whose first line starts with "## " is a header and dropped.
 func Split(text string) []string {
 	var out []string
-	for _, chunk := range strings.Split(strings.ReplaceAll(text, "\r\n", "\n"), "\n#---\n") {
+	for _, chunk := range strings.Split(text, "\n#---\n") {
 		chunk = strings.Trim(chunk, "\n")
 		if chunk == "" || strings.HasPrefix(chunk, "## ") {
 			continue

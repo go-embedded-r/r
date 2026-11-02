@@ -21,6 +21,7 @@ import (
 
 	"github.com/go-embedded-r/r/internal/gen"
 	"github.com/go-embedded-r/r/internal/oracle"
+	"github.com/go-embedded-r/r/rds"
 )
 
 var osExit = os.Exit
@@ -109,6 +110,31 @@ func RootCmd() *cobra.Command {
 				}
 				for _, w := range r.Warnings {
 					fmt.Fprintln(c.ErrOrStderr(), "warning:", w)
+				}
+			}
+			return err
+		},
+	})
+	cmd.AddCommand(&cobra.Command{
+		Use:   "call OP ARG...",
+		Short: "send one request to the oracle and print a character reply, one string per line",
+		Args:  cobra.MinimumNArgs(1),
+		RunE: func(c *cobra.Command, args []string) error {
+			o, err := startOracle()
+			if err != nil {
+				return err
+			}
+			defer o.Close()
+			vals := make([]any, len(args)-1)
+			for i, a := range args[1:] {
+				vals[i] = a
+			}
+			r, err := o.Call(args[0], vals...)
+			if r != nil {
+				if ch, ok := r.Value.(*rds.Character); ok {
+					for _, s := range ch.V {
+						fmt.Fprintln(c.OutOrStdout(), s.S)
+					}
 				}
 			}
 			return err

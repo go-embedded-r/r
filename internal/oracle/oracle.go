@@ -39,6 +39,10 @@ const SVNRevision = "90784"
 //go:embed oracle.R
 var script string
 
+// bootstrap is the -e program: Rscript passes -e through a fixed-size buffer
+// that the oracle's source outgrew, so the source is sent on stdin instead.
+const bootstrap = `.rgo_stdin <- file("stdin", "rb"); n <- readBin(.rgo_stdin, "integer", 1L, size = 4L, endian = "big"); eval(parse(text = rawToChar(readBin(.rgo_stdin, "raw", n))))`
+
 // Script returns the R source of the oracle.
 func Script() string { return script }
 
@@ -119,7 +123,7 @@ func Start(opt Options) (*Process, error) {
 	if opt.MaxVSize == "" {
 		opt.MaxVSize = "2G"
 	}
-	argv = append(argv, "--vanilla", "-e", script)
+	argv = append(argv, "--vanilla", "-e", bootstrap)
 	cmd := exec.Command(argv[0], argv[1:]...)
 	// A fixed locale and zone: goldens must not depend on the host.
 	// R 4.6 ignores the --max-vsize option ("no longer supported", printed on
@@ -133,6 +137,13 @@ func Start(opt Options) (*Process, error) {
 	out, _ := cmd.StdoutPipe()
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("oracle: starting %q: %w", argv[0], err)
+	}
+	frame := binary.BigEndian.AppendUint32(nil, uint32(len(script)))
+	frame = append(frame, script...)
+	if _, err := in.Write(frame); err != nil {
+		cmd.Process.Kill()
+		cmd.Wait()
+		return nil, fmt.Errorf("oracle: sending the script: %w", err)
 	}
 	p := &Process{cmd: cmd, in: in, out: bufio.NewReaderSize(out, 1<<20), stderr: stderr, timeout: opt.Timeout}
 	r, err := p.readReply()
