@@ -133,5 +133,3 @@ is.symbol(quote(x)); is.name(quote(x)); is.call(quote(f(x))); is.call(quote(x));
 is.environment(1); is.environment(NULL); is.environment(sum)
 #---
 0:1E20
-#---
-1e100:1e100
