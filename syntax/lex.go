@@ -31,6 +31,10 @@ type lexer struct {
 	toks []recTok // every terminal, in source order (comments included)
 
 	havePH bool // a pipe placeholder was seen
+	// ungot is set when the last thing the scan did was to push a character
+	// back: R then leaves a NUL in its 256-byte context ring, so the context
+	// shown in an error is one byte shorter.
+	ungot bool
 }
 
 // recTok is a recorded terminal.
@@ -52,6 +56,7 @@ type lexTok struct {
 	fb    int // first byte
 	lb    int // byte after the last
 	cend  int // bytes consumed when it was returned (R's parse context)
+	ungot bool
 	rec   int // index in lexer.toks, -1 if not recorded
 	// values
 	sym  string
@@ -64,6 +69,7 @@ func newLexer(src []byte, file string) *lexer {
 }
 
 func (l *lexer) getc() int {
+	l.ungot = false
 	l.hist[l.hn&15] = lexState{l.off, l.line, l.col}
 	l.hn++
 	if l.off >= len(l.src) {
@@ -84,6 +90,7 @@ func (l *lexer) getc() int {
 }
 
 func (l *lexer) ungetc() {
+	l.ungot = true
 	l.hn--
 	s := l.hist[l.hn&15]
 	l.off, l.line, l.col = s.off, s.line, s.col
@@ -225,6 +232,7 @@ func (l *lexer) token() lexTok {
 		l.saved = nil
 		return t
 	}
+	l.ungot = false
 	c := l.skipSpace()
 	if c == '#' {
 		c = l.skipComment()
@@ -244,6 +252,7 @@ func (l *lexer) token() lexTok {
 	t.last = l.pos()
 	t.lb = l.off
 	t.cend = l.off
+	t.ungot = l.ungot
 	if t.text == "" && t.kind != tERROR && t.kind != tINCOMPLETE && t.kind != '\n' {
 		t.text = string(l.src[t.fb:t.lb])
 	}
@@ -547,7 +556,7 @@ func (l *lexer) numeric(c int, t *lexTok) {
 					break
 				}
 				if c == '.' {
-					if seendot == 1 {
+					if seendot != 0 {
 						t.kind = tERROR
 						return
 					}
@@ -603,7 +612,7 @@ func (l *lexer) numeric(c int, t *lexTok) {
 			}
 		}
 		if c == '.' {
-			if seendot == 1 {
+			if seendot != 0 {
 				break
 			}
 			seendot = 1

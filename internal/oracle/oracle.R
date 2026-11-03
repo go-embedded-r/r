@@ -180,6 +180,41 @@ local({
         proc.time()[["elapsed"]] - t0
       })
     },
+    # primitives(): the names bound to primitives in the base environment.
+    primitives = function(args) {
+      guarded({
+        nm <- sort(ls(baseenv(), all.names = TRUE))
+        nm[vapply(nm, function(n) is.primitive(get(n, baseenv())), NA)]
+      })
+    },
+    # deparse2(source, mode): deparse of each top-level expression as
+    # deparse() does by default, or as print() writes a language object.
+    deparse2 = function(args) {
+      guarded({
+        exprs <- parse(text = args[[1L]], keep.source = FALSE)
+        lapply(exprs, function(e) {
+          if (identical(args[[2L]], "print") && (is.call(e) || is.name(e))) {
+            utils::capture.output(print(e))
+          } else deparse(e)
+        })
+      })
+    },
+    # nonprint(): the ranges of code points above 127 that R's string
+    # encoder escapes, as a vector start1, end1, start2, end2, ...
+    nonprint = function(args) {
+      guarded({
+        cps <- c(128L:55295L, 57344L:1114111L)
+        x <- intToUtf8(cps, multiple = TRUE)
+        bad <- encodeString(x, quote = '"') != paste0('"', x, '"')
+        b <- cps[bad]
+        if (!length(b)) integer() else {
+          brk <- c(TRUE, diff(b) != 1L)
+          starts <- b[brk]
+          ends <- b[c(brk[-1L], TRUE)]
+          as.integer(rbind(starts, ends))
+        }
+      })
+    },
     # sleep(seconds): for the timeout test.
     sleep = function(args) {
       guarded(Sys.sleep(as.numeric(args[[1L]])))

@@ -22,9 +22,14 @@ type tally struct {
 	n, parsed, rejected      int
 	tree, tokens, errs       int // matches
 	treeOf, tokensOf, errsOf int // denominators
+	dep                      int // deparse matches (denominator: parsed)
 	ulp                      int
 	failures                 []string
 	skipped                  int
+	// noDeparse: the file holds platform-dependent numeric literals (R formats
+	// them with the C library and, on x86-64 Linux, in long double), so the
+	// deparse verdict is reported but not part of the parity gate.
+	noDeparse bool
 }
 
 func (t *tally) add(label string, o parity.Outcome) {
@@ -39,6 +44,9 @@ func (t *tally) add(label string, o parity.Outcome) {
 		if o.Tokens {
 			t.tokens++
 		}
+		if o.Deparse {
+			t.dep++
+		}
 	} else {
 		t.rejected++
 		t.errsOf++
@@ -47,7 +55,7 @@ func (t *tally) add(label string, o parity.Outcome) {
 		}
 	}
 	t.ulp += o.ULP
-	ok := o.Tree && o.Tokens && o.Error
+	ok := o.Tree && o.Tokens && o.Error && (o.Deparse || t.noDeparse)
 	if !ok {
 		t.failures = append(t.failures, label+": "+o.Detail)
 	}
@@ -57,6 +65,11 @@ func (t *tally) print(w io.Writer, maxFail int) {
 	fmt.Fprintf(w, "%-28s %6d inputs (%d parse, %d rejected)\n", t.name, t.n, t.parsed, t.rejected)
 	fmt.Fprintf(w, "  tree    %5d / %-5d\n", t.tree, t.treeOf)
 	fmt.Fprintf(w, "  tokens  %5d / %-5d\n", t.tokens, t.tokensOf)
+	if t.noDeparse {
+		fmt.Fprintf(w, "  deparse of platform-dependent literals, not gated: %d of %d equal to this platform's R\n", t.dep, t.parsed)
+	} else {
+		fmt.Fprintf(w, "  deparse %5d / %-5d byte for byte (deparse() and print())\n", t.dep, t.parsed)
+	}
 	fmt.Fprintf(w, "  errors  %5d / %-5d byte for byte\n", t.errs, t.errsOf)
 	if t.ulp > 0 {
 		fmt.Fprintf(w, "  numeric literals within 16 ulp of R's (counted as equal): %d\n", t.ulp)
@@ -85,7 +98,7 @@ func snippetsCmd() *cobra.Command {
 				return err
 			}
 			defer p.Close()
-			for _, f := range []string{"testdata/snippets.R", "testdata/errors.R", "testdata/edge.R", "testdata/numbers.R", "testdata/values.R"} {
+			for _, f := range []string{"testdata/snippets.R", "testdata/errors.R", "testdata/edge.R", "testdata/deparse.R", "testdata/numbers.R", "testdata/values.R"} {
 				snippets, err := gen.ReadSnippets(".", f)
 				if err != nil {
 					return err
@@ -93,7 +106,7 @@ func snippetsCmd() *cobra.Command {
 				if f == "testdata/values.R" {
 					snippets = append(snippets, parity.Extras()...)
 				}
-				t := &tally{name: f}
+				t := &tally{name: f, noDeparse: f == "testdata/numbers.R"}
 				for i, s := range snippets {
 					o, err := parity.Compare(p, s)
 					if err != nil {
@@ -126,6 +139,7 @@ func corpusFiles(root string) ([]string, error) {
 
 func corpusCmd() *cobra.Command {
 	var maxFail int
+	var noDeparse bool
 	cmd := &cobra.Command{
 		Use:   "corpus DIR",
 		Short: "parity on every .R file under DIR (read locally, never committed)",
@@ -140,7 +154,7 @@ func corpusCmd() *cobra.Command {
 				return err
 			}
 			defer p.Close()
-			t := &tally{name: "corpus " + args[0]}
+			t := &tally{name: "corpus " + args[0], noDeparse: noDeparse}
 			bytesTotal := 0
 			for _, path := range files {
 				b, err := os.ReadFile(path)
@@ -165,5 +179,6 @@ func corpusCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().IntVar(&maxFail, "max-diff", 10, "differences to print")
+	cmd.Flags().BoolVar(&noDeparse, "platform-numbers", false, "report, but do not gate, the deparse verdict (x86-64 Linux R formats and parses numbers in long double)")
 	return cmd
 }

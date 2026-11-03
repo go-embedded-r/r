@@ -32,6 +32,9 @@ type Outcome struct {
 	// rejects, Error applies (Tree and Tokens are true when Go agrees it is
 	// rejected).
 	Tree, Tokens, Error bool
+	// Deparse is set when Go's deparse of every top-level expression equals R's, in
+	// both ways R writes one: deparse() and print().
+	Deparse bool
 	// ULP counts the numeric literals that differ from R's by a few units in
 	// the last place (see syntax's package documentation).
 	ULP int
@@ -81,11 +84,22 @@ func Extras() []string {
 		"x$\n y",
 		"x |>\n f()",
 		"x\n|> f()",
+		strings.Repeat("(", 49) + "1" + strings.Repeat(")", 49), strings.Repeat("(", 50) + "1" + strings.Repeat(")", 50), strings.Repeat("(", 5000) + "1",
 		"f(length=>)", "a => b", "a => b => c", "x |> f() => y",
 		"x <- '\xff'", "\xff", "x \xe9 y", "'\xe9'", "`a\xc3`", "r\"(\xc3)\"", "# \xff\nx", "x <- '\xe2\x82'", "\xe2\x82",
 		"x <- '\u202e'", "'a\u2066b'", "r'(\u202a)'", "\u202e",
 		"x <- 1;;", "if (a) b\n\n\nelse c", "{if (a) b\n\n\nelse c}", "f(if (a) b\n else c)",
 	}
+}
+
+// GoDeparse deparses e the way the oracle's deparse2 operation does in the
+// given mode ("default": deparse(); "print": print() of a call or name).
+func GoDeparse(e syntax.Node, mode string) []string {
+	var opt *syntax.DeparseOptions
+	if _, isSym := e.(*syntax.Sym); isSym && mode == "default" {
+		opt = &syntax.DeparseOptions{NoBackquote: true}
+	}
+	return syntax.Deparse(e, opt)
 }
 
 // TreeLines returns the dump of R's parse of src, or R's error message.
@@ -141,7 +155,7 @@ func Compare(o Oracle, src string) (Outcome, error) {
 	f, gerr := syntax.ParseAll(src)
 	out.Parsed = rErr == ""
 	if !out.Parsed {
-		out.Tree, out.Tokens = gerr != nil, gerr != nil
+		out.Tree, out.Tokens, out.Deparse = gerr != nil, gerr != nil, gerr != nil
 		switch {
 		case gerr == nil:
 			out.Detail = "R rejects: " + firstLine(rErr) + "; Go accepts"
@@ -157,8 +171,37 @@ func Compare(o Oracle, src string) (Outcome, error) {
 		return out, nil
 	}
 	out.Error = true
+	out.Deparse = true
+	for _, mode := range []string{"default", "print"} {
+		r, err := o.Call("deparse2", src, mode)
+		if err != nil {
+			return out, err
+		}
+		rl, _ := r.Value.(*rds.List)
+		if rl == nil || len(rl.V) != len(f.Exprs) {
+			out.Deparse = false
+			if out.Detail == "" {
+				out.Detail = "deparse: R returned a different number of expressions"
+			}
+			continue
+		}
+		for i, e := range f.Exprs {
+			want := strs(rl.V[i])
+			got := GoDeparse(e, mode)
+			if strings.Join(got, "\n") != strings.Join(want, "\n") {
+				out.Deparse = false
+				if out.Detail == "" {
+					out.Detail = firstLineDiff(mode, i+1, want, got)
+				}
+			}
+		}
+	}
 	glines := syntax.Dump(f.Exprs)
-	out.Tree, out.ULP, out.Detail = compareTrees(rlines, glines)
+	var treeDetail string
+	out.Tree, out.ULP, treeDetail = compareTrees(rlines, glines)
+	if out.Detail == "" {
+		out.Detail = treeDetail
+	}
 
 	r, err := o.Call("tokens", src)
 	if errors.Is(err, oracle.ErrR) {
@@ -299,3 +342,19 @@ func NumClose(a, b string) (int, bool) {
 
 // ErrUnavailable is returned when the pinned R is not available.
 var ErrUnavailable = errors.New("parity: the reference R is not available")
+
+func firstLineDiff(mode string, expr int, want, got []string) string {
+	for i := 0; i < len(want) || i < len(got); i++ {
+		var w, g string
+		if i < len(want) {
+			w = want[i]
+		}
+		if i < len(got) {
+			g = got[i]
+		}
+		if w != g || i >= len(want) || i >= len(got) {
+			return fmt.Sprintf("deparse (%s) of expression %d, line %d\n  R:  %q\n  Go: %q", mode, expr, i+1, w, g)
+		}
+	}
+	return "deparse"
+}

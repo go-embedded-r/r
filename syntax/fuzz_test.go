@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/go-embedded-r/r/internal/gen"
 	"github.com/go-embedded-r/r/syntax"
@@ -65,5 +66,29 @@ func FuzzLexNumbers(f *testing.F) {
 			return
 		}
 		syntax.ParseAll(src)
+	})
+}
+
+// FuzzDeparse: whatever parses can be deparsed, to at least one line of valid
+// UTF-8 (deparse() is not a round trip: doubles keep 15 digits, 1i is written
+// 0+1i, so only the shape of the output is checked here; its content is
+// checked against R by cmd/rparity).
+func FuzzDeparse(f *testing.F) {
+	seedCorpus(f)
+	lim := syntax.Limits{MaxBytes: 1 << 16, MaxDepth: 100, MaxNodes: 20000}
+	f.Fuzz(func(t *testing.T, src string) {
+		file, err := syntax.ParseAllLimits(src, lim)
+		if err != nil {
+			return
+		}
+		for _, e := range file.Exprs {
+			lines := syntax.Deparse(e, nil)
+			if len(lines) == 0 {
+				t.Fatal("no line")
+			}
+			if !utf8.ValidString(strings.Join(lines, "\n")) && utf8.ValidString(src) {
+				t.Fatalf("invalid UTF-8 from valid input: %q", lines)
+			}
+		}
 	})
 }

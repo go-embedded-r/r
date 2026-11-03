@@ -36,6 +36,17 @@ func TestGoldenParity(t *testing.T) {
 		if got := syntax.Dump(f.Exprs); strings.Join(got, "\n") != strings.Join(rec.Tree, "\n") {
 			t.Errorf("%q: tree differs\n R:  %v\n Go: %v", rec.Src, rec.Tree, got)
 		}
+		for mode, want := range map[string][][]string{"default": rec.Deparse, "print": rec.Print} {
+			if len(want) != len(f.Exprs) {
+				t.Errorf("%q: %d deparsed expressions in the golden, %d parsed", rec.Src, len(want), len(f.Exprs))
+				continue
+			}
+			for i, e := range f.Exprs {
+				if got := parity.GoDeparse(e, mode); strings.Join(got, "\n") != strings.Join(want[i], "\n") {
+					t.Errorf("%q: deparse (%s) of expression %d\n R:  %q\n Go: %q", rec.Src, mode, i+1, want[i], got)
+				}
+			}
+		}
 		if got := parity.TokenLines(f.Tokens); strings.Join(got, "\n") != strings.Join(rec.Tokens, "\n") {
 			t.Errorf("%q: tokens differ\n R:  %v\n Go: %v", rec.Src, rec.Tokens, got)
 		}
