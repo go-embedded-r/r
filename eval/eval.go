@@ -127,6 +127,10 @@ func (s *Session) evalLang(c *Lang, env *Env) Value {
 	if s.depth > s.opts.MaxDepth {
 		s.errorf(nil, "evaluation nested too deeply: infinite recursion / options(expressions=)?")
 	}
+	s.tick++
+	if s.tick&127 == 0 {
+		s.checkInterrupt()
+	}
 	if s.opts.MaxSteps > 0 {
 		s.steps++
 		if s.steps > s.opts.MaxSteps {
@@ -149,7 +153,7 @@ func (s *Session) evalLang(c *Lang, env *Env) Value {
 		}
 		return f.fn(s, ci)
 	case *Closure:
-		return s.applyClosure(f, c, s.promiseArgs(c.Args, env), env)
+		return s.applyClosure(f, c, s.promiseArgs(c.Args, env), env, nil)
 	}
 	s.errorf(s.currentCall(), "attempt to apply non-function")
 	return nil
@@ -218,11 +222,17 @@ func (s *Session) promiseArgs(raw []Arg, env *Env) []Arg {
 }
 
 // applyClosure calls f with supplied (promises, constants, Missing).
-func (s *Session) applyClosure(f *Closure, call *Lang, supplied []Arg, caller *Env) (result Value) {
+func (s *Session) applyClosure(f *Closure, call *Lang, supplied []Arg, caller *Env, di *dispatchInfo) (result Value) {
 	fenv := &Env{parent: f.Env, fn: f}
 	s.bindArgs(f, call, supplied, fenv)
-	s.frames = append(s.frames, &frame{call: call, fn: f, env: fenv})
+	if di != nil {
+		fenv.set(Intern(".Generic"), mkString(di.generic))
+		fenv.set(Intern(".Class"), strVec(di.classes[min(di.idx+1, len(di.classes)):]))
+	}
+	fr := &frame{call: call, fn: f, env: fenv, supplied: supplied, di: di, caller: caller}
+	s.frames = append(s.frames, fr)
 	defer func() {
+		s.runOnExit(fr)
 		s.frames = s.frames[:len(s.frames)-1]
 		if r := recover(); r != nil {
 			if sig, ok := r.(*flowSignal); ok && sig.f == flowReturn && sig.env == fenv {

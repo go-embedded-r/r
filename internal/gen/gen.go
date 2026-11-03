@@ -262,6 +262,8 @@ type EvalRecord struct {
 	Typeof   string   `json:"typeof,omitempty"`
 	Visible  bool     `json:"visible,omitempty"`
 	Warnings []string `json:"warnings,omitempty"`
+	Output   string   `json:"output,omitempty"` // what the cell printed on standard output
+	Stderr   string   `json:"stderr,omitempty"` // message() output
 	Error    string   `json:"error,omitempty"` // conditionMessage
 	Call     string   `json:"call,omitempty"`  // deparsed conditionCall
 }
@@ -315,6 +317,7 @@ func EvalGolden(o parity.Oracle, snippets []string) ([]byte, error) {
 		} else {
 			rec.Error, rec.Call = str("message"), str("call")
 		}
+		rec.Output, rec.Stderr = str("output"), str("stderr")
 		if w, ok := f["warnings"].(*rds.Character); ok {
 			for _, x := range w.V {
 				rec.Warnings = append(rec.Warnings, x.S)

@@ -1,9 +1,11 @@
 package eval
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/go-embedded-r/r/syntax"
 )
@@ -15,8 +17,14 @@ type Options struct {
 	MaxDepth int
 	// MaxVector bounds the length of any vector the runtime allocates.
 	MaxVector int
+	// MaxAlloc bounds the bytes of vector storage one Eval allocates, in
+	// total (0: no bound). Exceeding it ends the evaluation with an error.
+	MaxAlloc int
 	// MaxSteps bounds the number of calls evaluated by one Eval (0: no bound).
 	MaxSteps int
+	// Timeout bounds the time one Eval may take (0: none); a context passed to
+	// EvalContext bounds it too.
+	Timeout time.Duration
 	// Parse bounds the source text of an Eval.
 	Parse syntax.Limits
 }
@@ -39,8 +47,17 @@ type Warning struct {
 
 // Result is what one Eval returns.
 type Result struct {
-	Value    Value
-	Visible  bool
+	// Value is the value of the last expression.
+	Value Value
+	// Visible says whether R would print it.
+	Visible bool
+	// Output is what the cell printed on standard output: what print() and
+	// cat() wrote, and the auto-printed value of every visible top-level
+	// expression, as an R console shows them.
+	Output string
+	// Stderr is what the cell wrote on standard error: message() output.
+	Stderr string
+	// Warnings are the warnings raised and not muffled.
 	Warnings []Warning
 }
 
@@ -49,6 +66,14 @@ type Result struct {
 type Error struct {
 	Message string
 	Call    string
+	// Condition is the condition object that was signalled (nil for errors
+	// that no handler could see: limits and interrupts).
+	Condition Value
+	// Output and Stderr are what the cell had written before it failed.
+	Output, Stderr string
+	// Warnings are the warnings raised before the error.
+	Warnings []Warning
+	err      error
 }
 
 func (e *Error) Error() string {
@@ -57,6 +82,10 @@ func (e *Error) Error() string {
 	}
 	return "Error in " + e.Call + " : " + e.Message
 }
+
+// Unwrap is context.DeadlineExceeded or context.Canceled for an evaluation
+// that was interrupted, and nil otherwise.
+func (e *Error) Unwrap() error { return e.err }
 
 // Session is one interpreter: a global environment that persists from one
 // Eval to the next. It is not safe for concurrent use.
@@ -69,6 +98,18 @@ type Session struct {
 	visible  bool
 	steps    int
 	depth    int
+	alloc    int
+	tick     int
+	ctx      context.Context
+	deadline time.Time
+
+	handlers []handler
+	restarts []string
+	nextID   int
+	out      strings.Builder
+	stderr   strings.Builder
+
+	noDispatch bool // the next primitive runs its default, not a method
 
 	// flow is set by break, next and return in statement position, and read
 	// by the construct that owns them; see eval.go.
@@ -78,20 +119,28 @@ type Session struct {
 }
 
 type frame struct {
-	call *Lang
-	fn   *Closure
-	env  *Env
+	call     *Lang
+	fn       *Closure
+	env      *Env
+	supplied []Arg         // the arguments as supplied (promises), for UseMethod and NextMethod
+	di       *dispatchInfo // set when the function runs as an S3 method
+	caller   *Env
+	onexit   []Value
 }
 
-// rError is the panic value of an R error.
+// rError is the panic value of an R error that no handler took.
 type rError struct {
-	msg  string
-	call *Lang
+	msg   string
+	call  *Lang
+	cond  Value
+	abort bool // a limit or an interrupt: not an R condition
+	err   error
 }
 
 // NewSession makes a session whose global environment is empty, enclosed by
 // the base environment holding the primitives.
 func NewSession(opts Options) *Session {
+	installS3()
 	s := &Session{opts: opts.withDefaults()}
 	s.Base = &Env{name: "base"}
 	for name, b := range builtins {
@@ -102,41 +151,70 @@ func NewSession(opts Options) *Session {
 }
 
 // Eval parses src and evaluates its expressions in order in the global
-// environment. The result is that of the last one. Errors are *Error (a
-// runtime error), *syntax.Error or *syntax.LimitError.
-func (s *Session) Eval(src string) (*Result, error) { return s.EvalIn(src, s.Global) }
+// environment, as one notebook cell. The result is that of the last one.
+// Errors are *Error (a runtime error: R's message and call, with the output
+// and warnings so far), *syntax.Error or *syntax.LimitError.
+func (s *Session) Eval(src string) (*Result, error) {
+	return s.EvalContext(context.Background(), src)
+}
 
-// EvalIn is Eval in the given environment (a child of the global one, for
-// a cell that must not leave names behind).
-func (s *Session) EvalIn(src string, env *Env) (res *Result, err error) {
+// EvalContext is Eval that ends, with an *Error wrapping the context's
+// error, when ctx is done; Options.Timeout bounds it as well.
+func (s *Session) EvalContext(ctx context.Context, src string) (*Result, error) {
+	return s.EvalIn(ctx, src, s.Global)
+}
+
+// EvalIn is EvalContext in the given environment (a child of the global one,
+// for a cell that must not leave names behind).
+func (s *Session) EvalIn(ctx context.Context, src string, env *Env) (res *Result, err error) {
 	f, perr := syntax.Parse(src, syntax.Options{Limits: s.opts.Parse})
 	if perr != nil {
 		return nil, perr
 	}
 	s.warnings = nil
-	s.steps = 0
+	s.steps, s.tick, s.alloc, s.depth = 0, 0, 0, 0
 	s.frames = s.frames[:0]
+	s.handlers, s.restarts = nil, nil
 	s.flow = flowNone
+	s.noDispatch = false
+	s.out.Reset()
+	s.stderr.Reset()
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	s.ctx, s.deadline = ctx, time.Time{}
+	if s.opts.Timeout > 0 {
+		s.deadline = time.Now().Add(s.opts.Timeout)
+	}
 	res = &Result{Value: Null}
 	defer func() {
+		s.ctx = nil
 		if r := recover(); r != nil {
-			switch e := r.(type) {
+			e := &Error{Output: s.out.String(), Stderr: s.stderr.String(), Warnings: s.warnings}
+			switch x := r.(type) {
 			case *rError:
-				err = &Error{Message: e.msg, Call: callText(e.call)}
+				e.Message, e.Call, e.Condition, e.err = x.msg, callText(x.call), x.cond, x.err
 			case *flowSignal:
-				err = &Error{Message: noLoopMessage(e.f)}
+				e.Message = noLoopMessage(x.f)
+			case *unwindSignal:
+				e.Message = "unhandled condition"
+			case *restartSignal:
+				e.Message = "no 'restart' '" + x.name + "' found"
 			default:
 				panic(r)
 			}
-			res = nil
+			res, err = nil, e
 		}
 	}()
 	for _, e := range f.Exprs {
 		s.visible = true
 		v := s.eval(FromSyntax(e), env)
 		res.Value, res.Visible = v, s.visible
+		if s.visible {
+			s.printValue(v, env)
+		}
 	}
-	res.Warnings = s.warnings
+	res.Output, res.Stderr, res.Warnings = s.out.String(), s.stderr.String(), s.warnings
 	return res, nil
 }
 
@@ -158,14 +236,16 @@ func callText(c *Lang) string {
 	return strings.Join(syntax.Deparse(toSyntax(c), nil), "\n")
 }
 
-// errorf raises an R error with the given call.
+// errorf raises an R error with the given call: a condition that the
+// handlers see before the evaluation ends.
 func (s *Session) errorf(call *Lang, format string, a ...any) {
-	panic(&rError{msg: fmt.Sprintf(format, a...), call: call})
+	s.raiseError(fmt.Sprintf(format, a...), call)
 }
 
-// warningf records a warning.
+// warningf raises a warning condition.
 func (s *Session) warningf(call *Lang, format string, a ...any) {
-	s.warnings = append(s.warnings, Warning{Message: fmt.Sprintf(format, a...), Call: callText(call)})
+	msg := fmt.Sprintf(format, a...)
+	s.doWarning(makeCondition(msg, callValue(call), "simpleWarning", "warning", "condition"), msg, call)
 }
 
 // currentCall is the call of the innermost function being evaluated, the
@@ -177,7 +257,8 @@ func (s *Session) currentCall() *Lang {
 	return nil
 }
 
-// Builtins returns the names of the primitives this evaluator provides.
+// Builtins returns the names of the primitives and native functions this
+// evaluator provides.
 func Builtins() []string {
 	out := make([]string, 0, len(builtins))
 	for n := range builtins {

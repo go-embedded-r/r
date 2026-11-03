@@ -1,5 +1,10 @@
 package eval
 
+import (
+	"context"
+	"time"
+)
+
 func init() {
 	regSpecial("quote", func(s *Session, c *callInfo) Value {
 		if len(c.raw) != 1 {
@@ -133,7 +138,10 @@ func init() {
 					sym = Intern(t.V[0].S)
 				}
 			case *Lang:
-				s.errorf(c.call, "complex assignment targets are not supported yet")
+				v := s.eval(c.raw[1].Value, c.env)
+				s.complexAssign(c, t, v, super)
+				s.visible = false
+				return v
 			}
 			if sym == nil {
 				s.errorf(c.call, "invalid (do_set) left-hand side to assignment")
@@ -184,6 +192,19 @@ func init() {
 	})
 }
 
+// checkInterrupt ends the evaluation when its context is done or its time
+// is up.
+func (s *Session) checkInterrupt() {
+	if s.ctx != nil {
+		if err := s.ctx.Err(); err != nil {
+			s.abort("evaluation interrupted: "+err.Error(), err)
+		}
+	}
+	if !s.deadline.IsZero() && time.Now().After(s.deadline) {
+		s.abort("evaluation interrupted: time limit of "+s.opts.Timeout.String()+" exceeded", context.DeadlineExceeded)
+	}
+}
+
 // loopBody evaluates the body of a loop once; it reports whether the loop
 // must end because of a break. A next ends the iteration only.
 func (s *Session) loopBody(body Value, env *Env) (brk bool) {
@@ -196,6 +217,10 @@ func (s *Session) loopBody(body Value, env *Env) (brk bool) {
 			panic(r)
 		}
 	}()
+	s.tick++
+	if s.tick&127 == 0 {
+		s.checkInterrupt()
+	}
 	s.evalStmt(body, env)
 	switch s.flow {
 	case flowBreak:

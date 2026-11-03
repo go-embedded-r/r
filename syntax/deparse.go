@@ -217,6 +217,23 @@ func (d *deparser) quotify(name string, quote byte) string {
 	return encodeString(name, quote)
 }
 
+// EncodeString writes s in the given quote with R's escapes, as print() and
+// deparse() do.
+func EncodeString(s string, quote byte) string { return encodeString(s, quote) }
+
+// DeparseClosure writes a function the way print() shows one without source
+// references: "function (x, y = 2) " and then the body on the next lines.
+func DeparseClosure(params []Param, body Node) []string {
+	d := &deparser{cutoff: 60, backtick: true, keepInt: true, startline: true}
+	d.print("function (")
+	d.formals(params)
+	d.print(") ")
+	d.writeline()
+	d.node(body)
+	d.writeline()
+	return d.lines
+}
+
 // encodeString writes s in double (or other) quotes with R's escapes.
 func encodeString(s string, quote byte) string {
 	var b strings.Builder
@@ -300,6 +317,18 @@ var pow10tbl = [...]float64{1e00, 1e01, 1e02, 1e03, 1e04, 1e05, 1e06, 1e07, 1e08
 // precision (R's computation, not the exact decimal expansion: they differ
 // for some very large and very small values).
 func scientific(x float64) (neg, kpower, nsig int, roundingWidens bool) {
+	return scientificD(x, 15)
+}
+
+// Scientific is R's scientific() for the given number of significant digits
+// (7 for print(), 15 for deparse()): the sign, the decimal exponent, the
+// number of significant digits needed (at most digits), and whether rounding
+// to digits makes the number one decimal place wider than it is.
+func Scientific(x float64, digits int) (neg, kpower, nsig int, roundingWidens bool) {
+	return scientificD(x, digits)
+}
+
+func scientificD(x float64, digits int) (neg, kpower, nsig int, roundingWidens bool) {
 	if x == 0 {
 		return 0, 0, 1, false
 	}
@@ -307,7 +336,6 @@ func scientific(x float64) (neg, kpower, nsig int, roundingWidens bool) {
 	if x < 0 {
 		neg, r = 1, -x
 	}
-	const digits = 15
 	kp := int(math.Floor(math.Log10(r))) - digits + 1
 	rp := r
 	switch {

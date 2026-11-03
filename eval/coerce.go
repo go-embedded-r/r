@@ -22,7 +22,6 @@ func parseNumber(s Str) (float64, bool) {
 		neg = body[0] == '-'
 		body = body[1:]
 	}
-	// R_strtod: NA, NaN and Inf are matched case-sensitively, infinity not
 	signed := func(f float64) float64 {
 		if neg {
 			return -f
@@ -30,11 +29,9 @@ func parseNumber(s Str) (float64, bool) {
 		return f
 	}
 	switch {
-	case body == "NA":
-		return naReal, true
-	case body == "NaN":
+	case strings.EqualFold(body, "nan"):
 		return rNaN, true
-	case body == "Inf" || strings.EqualFold(body, "infinity"):
+	case strings.EqualFold(body, "inf") || strings.EqualFold(body, "infinity"):
 		return signed(math.Inf(1)), true
 	}
 	var f float64

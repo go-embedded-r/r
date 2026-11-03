@@ -4,6 +4,7 @@
 package evalcheck
 
 import (
+	"context"
 	"encoding/hex"
 	"fmt"
 	"strings"
@@ -17,7 +18,15 @@ import (
 // description of the first difference.
 func Check(rec gen.EvalRecord) string {
 	s := eval.NewSession(eval.Options{})
-	res, err := s.EvalIn(rec.Src, eval.NewEnv(s.Global))
+	res, err := s.EvalIn(context.Background(), rec.Src, eval.NewEnv(s.Global))
+	if e, ok := err.(*eval.Error); ok && !rec.OK {
+		if e.Output != rec.Output {
+			return fmt.Sprintf("output before the error\n  R:  %q\n  Go: %q", rec.Output, e.Output)
+		}
+		if e.Stderr != rec.Stderr {
+			return fmt.Sprintf("stderr before the error\n  R:  %q\n  Go: %q", rec.Stderr, e.Stderr)
+		}
+	}
 	switch {
 	case rec.OK && err != nil:
 		return "R succeeds, Go fails: " + err.Error()
@@ -46,6 +55,12 @@ func Check(rec gen.EvalRecord) string {
 	}
 	if res.Visible != rec.Visible {
 		return "visibility differs"
+	}
+	if res.Output != rec.Output {
+		return fmt.Sprintf("output\n  R:  %q\n  Go: %q", rec.Output, res.Output)
+	}
+	if res.Stderr != rec.Stderr {
+		return fmt.Sprintf("stderr\n  R:  %q\n  Go: %q", rec.Stderr, res.Stderr)
 	}
 	var got []string
 	for _, w := range res.Warnings {

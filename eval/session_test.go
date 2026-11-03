@@ -123,8 +123,8 @@ func TestLoopsAreIterative(t *testing.T) {
 	}
 }
 
-// Every primitive the evaluator registers is a primitive of R, and every one
-// is exercised by the goldens, so each is checked against the oracle.
+// Every primitive and native function the evaluator registers is exercised by
+// the goldens, so each is checked against the oracle.
 func TestPrimitiveCoverage(t *testing.T) {
 	prims := syntax.PrimitiveNames()
 	snippets, err := gen.EvalInputs("..")
@@ -163,9 +163,10 @@ func TestPrimitiveCoverage(t *testing.T) {
 	}
 	have := eval.Builtins()
 	var missing []string
+	natives := 0
 	for _, n := range have {
 		if !prims[n] {
-			t.Errorf("%q is registered but is not a primitive of R", n)
+			natives++
 		}
 		if !used[n] {
 			missing = append(missing, n)
@@ -174,5 +175,5 @@ func TestPrimitiveCoverage(t *testing.T) {
 	if len(missing) > 0 {
 		t.Errorf("registered but not exercised by testdata/eval: %v", missing)
 	}
-	t.Logf("%d of the %d primitives of R are implemented and each is covered by the oracle goldens", len(have), len(prims))
+	t.Logf("%d of the %d primitives of R are implemented, and %d base functions that are closures in R; each is covered by the oracle goldens", len(have)-natives, len(prims), natives)
 }
