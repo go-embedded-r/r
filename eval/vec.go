@@ -272,7 +272,11 @@ func (s *Session) colon(c *callInfo) Value {
 	if math.IsNaN(a) || math.IsNaN(b) {
 		s.errorf(c.call, "NA/NaN argument")
 	}
-	n := int(math.Floor(math.Abs(a-b)+1e-10)) + 1
+	nf := math.Floor(math.Abs(a-b)+1e-10) + 1
+	if nf > 1<<52 {
+		s.errorf(c.call, "result would be too long a vector")
+	}
+	n := int(nf)
 	s.checkLen(c.call, n)
 	useInt := a == math.Floor(a) && a <= math.MaxInt32 && a > math.MinInt32
 	if useInt {

@@ -34,7 +34,7 @@ func Check(rec gen.EvalRecord) string {
 		return ""
 	}
 	if rec.Typeof != "closure" && rec.Typeof != "builtin" && rec.Typeof != "special" {
-		b, eerr := rds.Encode(eval.ToRDS(res.Value))
+		b, eerr := rds.Encode(gen.NormalizeNaN(eval.ToRDS(res.Value)))
 		if eerr != nil {
 			return eerr.Error()
 		}

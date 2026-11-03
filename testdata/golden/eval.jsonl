@@ -119,6 +119,8 @@
 {"src":"is.function(sum); is.function(function(x) x); is.function(1)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000a0000000100000000","typeof":"logical","visible":true}
 {"src":"is.symbol(quote(x)); is.name(quote(x)); is.call(quote(f(x))); is.call(quote(x)); is.symbol(1)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000a0000000100000000","typeof":"logical","visible":true}
 {"src":"is.environment(1); is.environment(NULL); is.environment(sum)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000a0000000100000000","typeof":"logical","visible":true}
+{"src":"0:1E20","ok":false,"error":"result would be too long a vector","call":"0:1e+20"}
+{"src":"1e100:1e100","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e0000000154b249ad2594c37e","typeof":"double","visible":true}
 {"src":"f <- function(x) x + 1; f(2)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014008000000000000","typeof":"double","visible":true}
 {"src":"f <- function(x, y = 2) x * y; f(3); f(3, 4); f(y = 5, x = 2)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014024000000000000","typeof":"double","visible":true}
 {"src":"f <- function(x, y) x - y; f(y = 1, 10); f(10, y = 1); f(x = 1, 10)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e00000001c022000000000000","typeof":"double","visible":true}

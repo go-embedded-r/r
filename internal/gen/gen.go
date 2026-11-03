@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -297,7 +298,15 @@ func EvalGolden(o parity.Oracle, snippets []string) ([]byte, error) {
 		if lg, ok := f["ok"].(*rds.Logical); ok && len(lg.V) == 1 && lg.V[0] == 1 {
 			rec.OK = true
 			if raw, ok := f["bytes"].(*rds.Raw); ok {
-				rec.Hex = hex.EncodeToString(raw.V)
+				v, _, err := rds.Decode(raw.V, rds.Limits{})
+				if err != nil {
+					return nil, fmt.Errorf("gen: value of %q: %w", s, err)
+				}
+				norm, err := rds.Encode(NormalizeNaN(v))
+				if err != nil {
+					return nil, err
+				}
+				rec.Hex = hex.EncodeToString(norm)
 			}
 			rec.Typeof = str("typeof")
 			if v, ok := f["visible"].(*rds.Logical); ok && len(v.V) == 1 {
@@ -349,4 +358,42 @@ func ParseJSONL[T any](b []byte) ([]T, error) {
 		out = append(out, t)
 	}
 	return out, nil
+}
+
+// NormalizeNaN rewrites, in place, the NaNs of every double vector of v to
+// one NaN and one NA: the bits of a NaN (its sign, whether it is quiet) are
+// whatever the hardware made of it (the sign bit of 0/0 differs between
+// x86-64 and arm64), so goldens keep only whether an element is NA or NaN.
+func NormalizeNaN(v rds.Value) rds.Value {
+	switch x := v.(type) {
+	case *rds.Real:
+		for i, f := range x.V {
+			if f != f {
+				if math.Float64bits(f)&0xFFFFFFFF == 1954 {
+					x.V[i] = math.Float64frombits(rds.NAReal)
+				} else {
+					x.V[i] = math.Float64frombits(0x7FF8000000000000)
+				}
+			}
+		}
+		normAttrs(x.Meta)
+	case *rds.List:
+		for _, e := range x.V {
+			NormalizeNaN(e)
+		}
+		normAttrs(x.Meta)
+	case *rds.Integer:
+		normAttrs(x.Meta)
+	case *rds.Logical:
+		normAttrs(x.Meta)
+	case *rds.Character:
+		normAttrs(x.Meta)
+	}
+	return v
+}
+
+func normAttrs(m rds.Meta) {
+	for _, a := range m.Attrs {
+		NormalizeNaN(a.Value)
+	}
 }

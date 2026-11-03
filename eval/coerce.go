@@ -327,67 +327,85 @@ func (s *Session) summary(name string) func(s *Session, c *callInfo) Value {
 				return mkInt(best)
 			}
 		}
-		var acc float64
-		switch name {
-		case "sum":
-			acc = 0
-		case "prod":
-			acc = 1
-		case "min":
-			acc = math.Inf(1)
-		case "max":
+		if name == "sum" || name == "prod" {
+			// R accumulates each argument on its own, then combines the partial
+			// results: sum(a, b) is (sum a) + (sum b), prod(0, x) is 0 * (prod x)
+			unit := 0.0
+			if name == "prod" {
+				unit = 1
+			}
+			total := unit
+			totNaN := false
+			var nanv float64
+			for _, a := range data {
+				_, isDbl := a.(*Double)
+				part := unit
+				partNaN := false
+				var pn float64
+				for _, e := range asDoubles(a) {
+					if math.IsNaN(e) {
+						if rm {
+							continue
+						}
+						if name == "sum" && !isDbl {
+							return mkDouble(naReal) // an integer NA ends the sum, exactly
+						}
+						if !partNaN || (isNAReal(e) && !isNAReal(pn)) {
+							pn = e
+						}
+						partNaN = true
+						continue
+					}
+					if name == "sum" {
+						part += e
+					} else {
+						part *= e
+					}
+				}
+				if partNaN {
+					cand := quiet(pn)
+					if !totNaN || (isNAReal(cand) && !isNAReal(nanv)) {
+						nanv = cand
+					}
+					totNaN = true
+				} else if name == "sum" {
+					total += part
+				} else {
+					total *= part
+				}
+			}
+			if totNaN {
+				return mkDouble(nanv)
+			}
+			return mkDouble(total)
+		}
+		acc := math.Inf(1)
+		if name == "max" {
 			acc = math.Inf(-1)
 		}
-		sawAny, sawNaN, exactNA, intNA := false, false, false, false
+		sawAny, sawNaN := false, false
 		var naVal float64
 		for _, a := range data {
-			_, isDbl := a.(*Double)
 			for _, e := range asDoubles(a) {
 				if math.IsNaN(e) {
 					if rm {
 						continue
 					}
-					if name == "sum" && !isDbl {
-						intNA = true
-					}
-					first := !sawNaN
-					if name == "min" || name == "max" {
-						// min and max: any NA trumps all the NaNs
-						first = first || (isNAReal(e) && !isNAReal(naVal))
-					}
-					if first {
-						naVal = e
-						exactNA = !isDbl && isNAReal(e) && name == "sum" // an integer NA is stored by sum, not added
+					if !sawNaN || (isNAReal(e) && !isNAReal(naVal)) {
+						naVal = e // any NA trumps all the NaNs
 					}
 					sawNaN = true
 					continue
 				}
 				sawAny = true
-				switch name {
-				case "sum":
-					acc += e
-				case "prod":
-					acc *= e
-				case "min":
-					if e < acc { // not math.Min: min(0, -0) is 0
-						acc = e
-					}
-				case "max":
-					if e > acc {
-						acc = e
-					}
+				if name == "min" && e < acc { // not math.Min: min(0, -0) is 0
+					acc = e
+				} else if name == "max" && e > acc {
+					acc = e
 				}
 			}
 		}
 		if sawNaN {
-			switch {
-			case name == "sum" && intNA:
-				return mkDouble(naReal) // an integer NA ends the sum, exactly
-			case name == "sum" && !exactNA:
-				return mkDouble(quiet(naVal)) // the first NaN, quieted by the addition
-			case name == "prod":
-				return mkDouble(quiet(naVal))
-			}
 			return mkDouble(naVal)
 		}
 		if !sawAny && (name == "min" || name == "max") {

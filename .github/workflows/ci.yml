@@ -106,15 +106,15 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version: 1.27.2
-      - run: CGO_ENABLED=0 GOOS=js GOARCH=wasm go build ./rds ./syntax
-      - run: CGO_ENABLED=0 GOOS=wasip1 GOARCH=wasm go build ./rds ./syntax
+      - run: CGO_ENABLED=0 GOOS=js GOARCH=wasm go build ./rds ./syntax ./eval
+      - run: CGO_ENABLED=0 GOOS=wasip1 GOARCH=wasm go build ./rds ./syntax ./eval
       - run: go install github.com/tetratelabs/wazero/cmd/wazero@v1.12.0
       - name: Test rds and syntax under wazero
         env:
           GOWASIRUNTIME: wazero
         run: |
           export PATH="$(go env GOROOT)/lib/wasm:$(go env GOPATH)/bin:$PATH"
-          GOOS=wasip1 GOARCH=wasm go test ./rds ./syntax
+          GOOS=wasip1 GOARCH=wasm go test ./rds ./syntax ./eval
 
   govulncheck:
     runs-on: ubuntu-latest
@@ -139,6 +139,7 @@ jobs:
           - { pkg: ./syntax, target: FuzzParse }
           - { pkg: ./syntax, target: FuzzLexNumbers }
           - { pkg: ./syntax, target: FuzzDeparse }
+          - { pkg: ./eval,   target: FuzzEval }
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
@@ -196,6 +197,10 @@ jobs:
           go run ./cmd/rparity corpus --platform-numbers "$RUNNER_TEMP/rsrc/R-4.6.2/tests" >> corpus.txt
           cat corpus.txt
           go run ./cmd/rparity check corpus.txt
+      - name: Evaluator differential fuzz, report only (x86-64 Linux R computes in long double, with libm functions that differ from macOS's)
+        run: |
+          export RGO_RSCRIPT="$RUNNER_TEMP/r/bin/Rscript"
+          go run ./cmd/rparity evalfuzz --n 5000 --seed 1 || true
       - name: Differential fuzz (mutated R sources)
         run: |
           export RGO_RSCRIPT="$RUNNER_TEMP/r/bin/Rscript"
