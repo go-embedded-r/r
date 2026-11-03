@@ -363,7 +363,7 @@ func init() {
 				}
 			}()
 			if !haveExpr {
-				return Null
+				s.errorf(c.call, "argument \"expr\" is missing, with no default")
 			}
 			return s.eval(expr, c.env)
 		}()
@@ -390,7 +390,7 @@ func init() {
 		s.handlers = h
 		defer func() { s.handlers = base }()
 		if !haveExpr {
-			return Null
+			s.errorf(c.call, "argument \"expr\" is missing, with no default")
 		}
 		return s.eval(expr, c.env)
 	})

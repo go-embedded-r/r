@@ -85,3 +85,6 @@ seq_len(NA)
 seq_len(c(1, 2))
 #---
 seq_len(2.9)
+
+#---
+double(2); double(0)

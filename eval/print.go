@@ -338,7 +338,8 @@ func (s *Session) printValueTagged(v Value, prefix string, env *Env) {
 				}
 			}
 			s.out.WriteString(tag + "\n")
-			if isObject(e) {
+			// print.default dispatches only to methods registered by base
+			if cl := classAttr(e); isObject(e) && (hasString(cl, "factor") || hasString(cl, "condition")) {
 				s.printObject(e, tag, env)
 			} else {
 				s.printValueTagged(e, tag, env)
@@ -371,13 +372,22 @@ func (s *Session) printValueTagged(v Value, prefix string, env *Env) {
 	}
 }
 
+func hasString(l []string, w string) bool {
+	for _, e := range l {
+		if e == w {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *Session) printAttributes(v Value, prefix string, env *Env) {
 	for _, a := range attrsOf(v) {
 		if a.Name == "names" || ((a.Name == "dim" || a.Name == "dimnames") && len(dimsOf(v)) >= 2) {
 			continue
 		}
-		s.out.WriteString(prefix + "attr(,\"" + a.Name + "\")\n")
-		s.printValueTagged(a.Value, prefix+"attr(,\""+a.Name+"\")", env)
+		s.out.WriteString("attr(,\"" + a.Name + "\")\n")
+		s.printValueTagged(a.Value, "attr(,\""+a.Name+"\")", env)
 	}
 }
 

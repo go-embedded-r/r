@@ -215,11 +215,21 @@ func init() {
 		if len(c.args) == 0 {
 			s.errorf(c.call, "argument \".Data\" is missing, with no default")
 		}
-		x := c.args[0]
+		di := 0
+		for i := range c.args {
+			if c.names[i] == ".Data" || c.names[i] == "" {
+				di = i
+				break
+			}
+		}
+		x := c.args[di]
 		if _, isNull := x.(nullT); isNull && len(c.args) > 1 {
 			s.errorf(c.call, "attempt to set an attribute on NULL")
 		}
-		for i := 1; i < len(c.args); i++ {
+		for i := 0; i < len(c.args); i++ {
+			if i == di {
+				continue
+			}
 			name := c.names[i]
 			if name == "" {
 				s.errorf(c.call, "attributes must be named")
