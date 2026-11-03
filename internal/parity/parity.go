@@ -84,6 +84,7 @@ func Extras() []string {
 		"x$\n y",
 		"x |>\n f()",
 		"x\n|> f()",
+		strings.Repeat("(", 49) + "1" + strings.Repeat(")", 49), strings.Repeat("(", 50) + "1" + strings.Repeat(")", 50), strings.Repeat("(", 5000) + "1",
 		"f(length=>)", "a => b", "a => b => c", "x |> f() => y",
 		"x <- '\xff'", "\xff", "x \xe9 y", "'\xe9'", "`a\xc3`", "r\"(\xc3)\"", "# \xff\nx", "x <- '\xe2\x82'", "\xe2\x82",
 		"x <- '\u202e'", "'a\u2066b'", "r'(\u202a)'", "\u202e",

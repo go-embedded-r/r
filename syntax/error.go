@@ -46,10 +46,14 @@ func (e *LimitError) Unwrap() error { return ErrLimit }
 // syntaxError builds R's message for a syntax error detected at the token
 // that starts at pos; consumed is the source up to the end of that token
 // (what R's lexer had read), with a final newline counted as in R.
-func syntaxError(filename, msg string, pos Pos, consumed []byte) *Error {
+func syntaxError(filename, msg string, pos Pos, consumed []byte, ungot bool) *Error {
 	ctx := consumed
-	if len(ctx) > 256 {
-		ctx = ctx[len(ctx)-256:]
+	size := 256
+	if ungot {
+		size = 255
+	}
+	if len(ctx) > size {
+		ctx = ctx[len(ctx)-size:]
 	}
 	// a multibyte character cut short by the end of the input was pushed
 	// back by R's lexer, and does not appear in the context

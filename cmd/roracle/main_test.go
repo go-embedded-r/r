@@ -64,7 +64,7 @@ func run(t *testing.T, args ...string) (string, string, error) {
 func repoCopy(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
-	for _, f := range []string{"testdata/snippets.R", "testdata/values.R", "testdata/errors.R", "testdata/edge.R"} {
+	for _, f := range []string{"testdata/snippets.R", "testdata/values.R", "testdata/errors.R", "testdata/edge.R", "testdata/deparse.R"} {
 		b, err := os.ReadFile(filepath.Join("../..", f))
 		if err != nil {
 			t.Fatal(err)

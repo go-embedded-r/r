@@ -164,7 +164,7 @@ func (p *parser) unexpected() {
 	if end > len(p.lx.src) {
 		end = len(p.lx.src)
 	}
-	panic(syntaxError(p.file, "unexpected "+t.kind.unexpected(), t.first, p.lx.src[:end]))
+	panic(syntaxError(p.file, "unexpected "+t.kind.unexpected(), t.first, p.lx.src[:end], t.ungot))
 }
 
 func (p *parser) expect(k Kind) {
