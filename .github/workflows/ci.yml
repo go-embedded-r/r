@@ -191,7 +191,9 @@ jobs:
           mkdir "$RUNNER_TEMP/rsrc"
           tar -xzf "$RUNNER_TEMP/R.tar.gz" -C "$RUNNER_TEMP/rsrc"
           go run ./cmd/rparity corpus "$RUNNER_TEMP/rsrc/R-4.6.2/src/library" > corpus.txt
-          go run ./cmd/rparity corpus "$RUNNER_TEMP/rsrc/R-4.6.2/tests" >> corpus.txt
+          # R's tests/ hold numeric constants that x86-64 Linux R parses and formats in
+          # long double: the deparse verdict is reported there, not gated (README)
+          go run ./cmd/rparity corpus --platform-numbers "$RUNNER_TEMP/rsrc/R-4.6.2/tests" >> corpus.txt
           cat corpus.txt
           go run ./cmd/rparity check corpus.txt
       - name: Differential fuzz (mutated R sources)

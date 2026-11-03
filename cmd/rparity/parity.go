@@ -139,6 +139,7 @@ func corpusFiles(root string) ([]string, error) {
 
 func corpusCmd() *cobra.Command {
 	var maxFail int
+	var noDeparse bool
 	cmd := &cobra.Command{
 		Use:   "corpus DIR",
 		Short: "parity on every .R file under DIR (read locally, never committed)",
@@ -153,7 +154,7 @@ func corpusCmd() *cobra.Command {
 				return err
 			}
 			defer p.Close()
-			t := &tally{name: "corpus " + args[0]}
+			t := &tally{name: "corpus " + args[0], noDeparse: noDeparse}
 			bytesTotal := 0
 			for _, path := range files {
 				b, err := os.ReadFile(path)
@@ -178,5 +179,6 @@ func corpusCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().IntVar(&maxFail, "max-diff", 10, "differences to print")
+	cmd.Flags().BoolVar(&noDeparse, "platform-numbers", false, "report, but do not gate, the deparse verdict (x86-64 Linux R formats and parses numbers in long double)")
 	return cmd
 }
