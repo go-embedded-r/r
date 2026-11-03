@@ -670,9 +670,16 @@ func (p *parser) postfix(lhs Node, start lexTok) Node {
 			args = nil
 		}
 		fun := lhs
-		if c, ok := lhs.(*Const); ok && c.Kind == String && !c.NA && !c.ph {
+		if c, ok := lhs.(*Const); ok && c.Kind == String && !c.ph {
+			name := c.Str
+			if c.NA {
+				name = "NA"
+			}
+			if name == "" {
+				panic(&Error{Message: "attempt to use zero-length variable name", Lexical: true, text: "attempt to use zero-length variable name"})
+			}
 			p.newNode()
-			fun = &Sym{Pos: c.Pos, Name: c.Str}
+			fun = &Sym{Pos: c.Pos, Name: name}
 		}
 		p.newNode()
 		return p.fin(&Call{Pos: p.spanFrom(start), Fun: fun, Args: args})
@@ -792,10 +799,12 @@ func (p *parser) sub(closer Kind) Arg {
 			a := Arg{Name: name, HasName: true}
 			if p.tok.kind == ',' || p.tok.kind == closer {
 				a.Pos = p.spanFrom(t)
+				p.checkArgName(t, name)
 				return a
 			}
 			a.Value = p.exprOrHelp()
 			a.Pos = p.spanFrom(t)
+			p.checkArgName(t, name)
 			return a
 		}
 		// not a name: t is the first operand of an expression
@@ -962,3 +971,11 @@ func (p *parser) extractorChain(rhs, expr *Call, rstart lexTok) (*Arg, bool) {
 // expression that may use '=' but ends before '?' (those constructs bind
 // tighter than '?').
 func (p *parser) body() Node { return p.expr(bpQuestion+1, true) }
+
+// checkArgName refuses an empty argument name written as a string: R fails
+// when it builds the argument, which is after the argument's value.
+func (p *parser) checkArgName(t lexTok, name string) {
+	if t.kind == tSTR && name == "" {
+		panic(&Error{Message: "attempt to use zero-length variable name", Lexical: true, text: "attempt to use zero-length variable name"})
+	}
+}

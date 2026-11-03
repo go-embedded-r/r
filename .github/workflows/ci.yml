@@ -138,6 +138,7 @@ jobs:
           - { pkg: ./rds,    target: FuzzDecode }
           - { pkg: ./syntax, target: FuzzParse }
           - { pkg: ./syntax, target: FuzzLexNumbers }
+          - { pkg: ./syntax, target: FuzzDeparse }
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7

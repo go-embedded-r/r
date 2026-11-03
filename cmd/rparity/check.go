@@ -28,7 +28,7 @@ func checkCmd() *cobra.Command {
 			lines, bad := 0, 0
 			for sc.Scan() {
 				fs := strings.Fields(sc.Text())
-				if len(fs) >= 4 && fs[2] == "/" && (fs[0] == "tree" || fs[0] == "tokens" || fs[0] == "errors") {
+				if len(fs) >= 4 && fs[2] == "/" && (fs[0] == "tree" || fs[0] == "tokens" || fs[0] == "errors" || fs[0] == "deparse") {
 					lines++
 					if fs[1] != fs[3] {
 						bad++

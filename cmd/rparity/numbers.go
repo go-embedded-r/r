@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-embedded-r/r/internal/oracle"
 	"github.com/go-embedded-r/r/internal/parity"
+	"github.com/go-embedded-r/r/rds"
 	"github.com/go-embedded-r/r/syntax"
 )
 
@@ -34,6 +35,8 @@ func numbersCmd() *cobra.Command {
 				lits = append(lits, randomLiteral(rng))
 			}
 			exact, close, far := 0, 0, 0
+			depBad := 0
+			var depEx []string
 			var bad []string
 			const batch = 500
 			for i := 0; i < len(lits); i += batch {
@@ -51,6 +54,20 @@ func numbersCmd() *cobra.Command {
 					return gerr
 				}
 				gl := syntax.Dump(f.Exprs)
+				dr, err := p.Call("deparse2", src, "default")
+				if err != nil {
+					return err
+				}
+				dl := dr.Value.(*rds.List)
+				for k, e := range f.Exprs {
+					want := dl.V[k].(*rds.Character).V[0].S
+					if got := syntax.Deparse(e, nil)[0]; got != want {
+						depBad++
+						if len(depEx) < 10 {
+							depEx = append(depEx, fmt.Sprintf("%s  R=%s Go=%s", lits[i+k], want, got))
+						}
+					}
+				}
 				for k := range lits[i:j] {
 					r, g := rl[k+1], gl[k+1]
 					switch {
@@ -69,6 +86,10 @@ func numbersCmd() *cobra.Command {
 				}
 			}
 			fmt.Fprintf(c.OutOrStdout(), "%d literals: %d identical, %d within 16 ulp, %d further\n", len(lits), exact, close, far)
+			fmt.Fprintf(c.OutOrStdout(), "deparse of the same literals: %d of %d differ from R's\n", depBad, len(lits))
+			for _, b := range depEx {
+				fmt.Fprintln(c.OutOrStdout(), "  ", b)
+			}
 			for _, b := range bad {
 				fmt.Fprintln(c.OutOrStdout(), "  ", b)
 			}

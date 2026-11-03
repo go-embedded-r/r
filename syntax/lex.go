@@ -547,7 +547,7 @@ func (l *lexer) numeric(c int, t *lexTok) {
 					break
 				}
 				if c == '.' {
-					if seendot == 1 {
+					if seendot != 0 {
 						t.kind = tERROR
 						return
 					}
@@ -603,7 +603,7 @@ func (l *lexer) numeric(c int, t *lexTok) {
 			}
 		}
 		if c == '.' {
-			if seendot == 1 {
+			if seendot != 0 {
 				break
 			}
 			seendot = 1

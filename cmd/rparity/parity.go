@@ -22,6 +22,7 @@ type tally struct {
 	n, parsed, rejected      int
 	tree, tokens, errs       int // matches
 	treeOf, tokensOf, errsOf int // denominators
+	dep                      int // deparse matches (denominator: parsed)
 	ulp                      int
 	failures                 []string
 	skipped                  int
@@ -39,6 +40,9 @@ func (t *tally) add(label string, o parity.Outcome) {
 		if o.Tokens {
 			t.tokens++
 		}
+		if o.Deparse {
+			t.dep++
+		}
 	} else {
 		t.rejected++
 		t.errsOf++
@@ -47,7 +51,7 @@ func (t *tally) add(label string, o parity.Outcome) {
 		}
 	}
 	t.ulp += o.ULP
-	ok := o.Tree && o.Tokens && o.Error
+	ok := o.Tree && o.Tokens && o.Error && o.Deparse
 	if !ok {
 		t.failures = append(t.failures, label+": "+o.Detail)
 	}
@@ -57,6 +61,7 @@ func (t *tally) print(w io.Writer, maxFail int) {
 	fmt.Fprintf(w, "%-28s %6d inputs (%d parse, %d rejected)\n", t.name, t.n, t.parsed, t.rejected)
 	fmt.Fprintf(w, "  tree    %5d / %-5d\n", t.tree, t.treeOf)
 	fmt.Fprintf(w, "  tokens  %5d / %-5d\n", t.tokens, t.tokensOf)
+	fmt.Fprintf(w, "  deparse %5d / %-5d byte for byte (deparse() and print())\n", t.dep, t.parsed)
 	fmt.Fprintf(w, "  errors  %5d / %-5d byte for byte\n", t.errs, t.errsOf)
 	if t.ulp > 0 {
 		fmt.Fprintf(w, "  numeric literals within 16 ulp of R's (counted as equal): %d\n", t.ulp)
@@ -85,7 +90,7 @@ func snippetsCmd() *cobra.Command {
 				return err
 			}
 			defer p.Close()
-			for _, f := range []string{"testdata/snippets.R", "testdata/errors.R", "testdata/edge.R", "testdata/numbers.R", "testdata/values.R"} {
+			for _, f := range []string{"testdata/snippets.R", "testdata/errors.R", "testdata/edge.R", "testdata/deparse.R", "testdata/numbers.R", "testdata/values.R"} {
 				snippets, err := gen.ReadSnippets(".", f)
 				if err != nil {
 					return err

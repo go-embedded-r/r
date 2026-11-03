@@ -150,6 +150,10 @@ type ParseRecord struct {
 	Tree []string `json:"tree,omitempty"`
 	// Tokens are the terminals of getParseData, "l1:c1-l2:c2 KIND hex(text)".
 	Tokens []string `json:"tokens,omitempty"`
+	// Deparse and Print are, for each top-level expression, the lines of
+	// deparse() and of print() (see the oracle's deparse2 operation).
+	Deparse [][]string `json:"deparse,omitempty"`
+	Print   [][]string `json:"print,omitempty"`
 	// Error is the message of parse(), when it does not parse.
 	Error string `json:"error,omitempty"`
 }
@@ -184,6 +188,30 @@ func ParseGolden(o parity.Oracle, srcs []string) ([]byte, error) {
 					rec.Tokens = append(rec.Tokens, t.S)
 				}
 			}
+			for _, mode := range []string{"default", "print"} {
+				dr, err := o.Call("deparse2", s, mode)
+				if err != nil {
+					return nil, err
+				}
+				l, _ := dr.Value.(*rds.List)
+				var all [][]string
+				if l != nil {
+					for _, e := range l.V {
+						lines := []string{}
+						if c, ok := e.(*rds.Character); ok {
+							for _, x := range c.V {
+								lines = append(lines, x.S)
+							}
+						}
+						all = append(all, lines)
+					}
+				}
+				if mode == "default" {
+					rec.Deparse = all
+				} else {
+					rec.Print = all
+				}
+			}
 		}
 		if err := enc.Encode(rec); err != nil {
 			return nil, err
@@ -196,7 +224,7 @@ func ParseGolden(o parity.Oracle, srcs []string) ([]byte, error) {
 // extra cases of package parity.
 func ParseInputs(root string) ([]string, error) {
 	var all []string
-	for _, f := range []string{"testdata/snippets.R", "testdata/errors.R", "testdata/edge.R", "testdata/values.R"} {
+	for _, f := range []string{"testdata/snippets.R", "testdata/errors.R", "testdata/edge.R", "testdata/deparse.R", "testdata/values.R"} {
 		s, err := ReadSnippets(root, f)
 		if err != nil {
 			return nil, err
