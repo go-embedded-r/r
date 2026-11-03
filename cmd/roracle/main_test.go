@@ -199,6 +199,13 @@ func TestLiveRegen(t *testing.T) {
 		want, _ := os.ReadFile(filepath.Join("../..", f))
 		if !bytes.Equal(got, want) {
 			t.Errorf("%s differs from the committed golden", f)
+			g, w := strings.Split(string(got), "\n"), strings.Split(string(want), "\n")
+			for i := 0; i < len(g) && i < len(w); i++ {
+				if g[i] != w[i] {
+					t.Errorf("first difference, record %d:\n regenerated %.600s\n committed   %.600s", i+1, g[i], w[i])
+					break
+				}
+			}
 		}
 	}
 	out, _, err := run(t, "version")
