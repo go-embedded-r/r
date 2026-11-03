@@ -59,11 +59,12 @@ func RootCmd() *cobra.Command {
 	cmd.PersistentFlags().StringVarP(&root, "root", "C", ".", "repository root")
 
 	steps := map[string]func(o oracleSession, root string, out io.Writer) error{
-		"deparse": writeDeparse,
-		"rds":     writeRDS,
-		"parse":   writeParse,
-		"prims":   writePrims,
-		"print":   writeNonprint,
+		"deparse":    writeDeparse,
+		"rds":        writeRDS,
+		"parse":      writeParse,
+		"prims":      writePrims,
+		"print":      writeNonprint,
+		"evalgolden": writeEval,
 	}
 	run := func(names ...string) func(*cobra.Command, []string) error {
 		return func(c *cobra.Command, _ []string) error {
@@ -85,7 +86,8 @@ func RootCmd() *cobra.Command {
 	cmd.AddCommand(&cobra.Command{Use: "parse", Short: "write testdata/golden/parse.jsonl (tree, tokens, errors)", Args: cobra.NoArgs, RunE: run("parse")})
 	cmd.AddCommand(&cobra.Command{Use: "prims", Short: "write syntax/prims_gen.go (the primitives of R's base environment)", Args: cobra.NoArgs, RunE: run("prims")})
 	cmd.AddCommand(&cobra.Command{Use: "print", Short: "write syntax/print_gen.go (the characters R's string encoder escapes)", Args: cobra.NoArgs, RunE: run("print")})
-	cmd.AddCommand(&cobra.Command{Use: "regen", Short: "regenerate every golden file", Args: cobra.NoArgs, RunE: run("deparse", "rds", "parse")})
+	cmd.AddCommand(&cobra.Command{Use: "evalgolden", Short: "write testdata/golden/eval.jsonl (from testdata/eval/*.R)", Args: cobra.NoArgs, RunE: run("evalgolden")})
+	cmd.AddCommand(&cobra.Command{Use: "regen", Short: "regenerate every golden file", Args: cobra.NoArgs, RunE: run("deparse", "rds", "parse", "evalgolden")})
 	cmd.AddCommand(&cobra.Command{
 		Use:   "version",
 		Short: "print the identity of the R that answers",
@@ -235,4 +237,16 @@ func writeNonprint(o oracleSession, root string, out io.Writer) error {
 	}
 	b.WriteString("}\n")
 	return write(root, "syntax/print_gen.go", []byte(b.String()), out)
+}
+
+func writeEval(o oracleSession, root string, out io.Writer) error {
+	srcs, err := gen.EvalInputs(root)
+	if err != nil {
+		return err
+	}
+	data, err := gen.EvalGolden(o, srcs)
+	if err != nil {
+		return err
+	}
+	return write(root, "testdata/golden/eval.jsonl", data, out)
 }

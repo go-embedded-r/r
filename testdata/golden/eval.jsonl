@@ -1,0 +1,311 @@
+{"src":"1 + 2","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014008000000000000","typeof":"double","visible":true}
+{"src":"1L + 2L","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d0000000100000003","typeof":"integer","visible":true}
+{"src":"1L + 2","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014008000000000000","typeof":"double","visible":true}
+{"src":"TRUE + TRUE","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d0000000100000002","typeof":"integer","visible":true}
+{"src":"5 - 3; 5L - 3L","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d0000000100000002","typeof":"integer","visible":true}
+{"src":"2 * 3; 2L * 3L; 2L * 3","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014018000000000000","typeof":"double","visible":true}
+{"src":"7 / 2; 7L / 2L; 6L / 3L; 1 / 0; -1 / 0; 0 / 0","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000017ff8000000000000","typeof":"double","visible":true}
+{"src":"2 ^ 10; 2L ^ 3L; 2 ^ -1; 0 ^ 0; (-8) ^ 2; 4 ^ 0.5; Inf ^ 0; 1 ^ NA; NA ^ 0","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000013ff0000000000000","typeof":"double","visible":true}
+{"src":"7 %% 3; -7 %% 3; 7 %% -3; -7 %% -3; 5.5 %% 2; -5.5 %% 2; 7L %% 3L; -7L %% 3L; 7L %% -3L","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d00000001fffffffe","typeof":"integer","visible":true}
+{"src":"7 %/% 3; -7 %/% 3; 7 %/% -3; 5.5 %/% 2; 7L %/% 3L; -7L %/% 3L","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d00000001fffffffd","typeof":"integer","visible":true}
+{"src":"5 %% 0; 5L %% 0L; 5 %/% 0; 5L %/% 0L; -5 %/% 0; 0 %/% 0","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000017ff8000000000000","typeof":"double","visible":true}
+{"src":"Inf %% 3; 3 %% Inf; -3 %% Inf; Inf %/% 3","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000017ff0000000000000","typeof":"double","visible":true}
+{"src":"1:3 + 1","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e00000003400000000000000040080000000000004010000000000000","typeof":"double","visible":true}
+{"src":"1:3 + 1:3","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d00000003000000020000000400000006","typeof":"integer","visible":true}
+{"src":"1:6 + 1:2","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d00000006000000020000000400000004000000060000000600000008","typeof":"integer","visible":true}
+{"src":"1:5 + 1:2","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d000000050000000200000004000000040000000600000006","typeof":"integer","visible":true,"warnings":["longer object length is not a multiple of shorter object length"]}
+{"src":"as.numeric(NULL) + 1","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e00000000","typeof":"double","visible":true}
+{"src":"NULL + 1","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e00000000","typeof":"double","visible":true}
+{"src":"NULL + 1L","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d00000000","typeof":"integer","visible":true}
+{"src":"c(1, 2) + NULL","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e00000000","typeof":"double","visible":true}
+{"src":"c(a = 1, b = 2) + 1","ok":true,"hex":"580a000000030004060200030500000000055554462d380000020e0000000240000000000000004008000000000000000004020000000100040009000000056e616d65730000001000000002000400090000000161000400090000000162000000fe","typeof":"double","visible":true}
+{"src":"1 + c(a = 1, b = 2)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000020e0000000240000000000000004008000000000000000004020000000100040009000000056e616d65730000001000000002000400090000000161000400090000000162000000fe","typeof":"double","visible":true}
+{"src":"c(a = 1, b = 2) + c(x = 10, y = 20)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000020e0000000240260000000000004036000000000000000004020000000100040009000000056e616d65730000001000000002000400090000000161000400090000000162000000fe","typeof":"double","visible":true}
+{"src":"NA + 1; NA_integer_ + 1L; NA_real_ * 0; NA_integer_ * 0L; NA_real_ ^ 0","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000013ff0000000000000","typeof":"double","visible":true}
+{"src":".Machine_integer_max <- 2147483647L; .Machine_integer_max + 1L","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d0000000180000000","typeof":"integer","visible":true,"warnings":["NAs produced by integer overflow"]}
+{"src":"2147483647L + 1L","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d0000000180000000","typeof":"integer","visible":true,"warnings":["NAs produced by integer overflow"]}
+{"src":"-2147483647L - 1L","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d0000000180000000","typeof":"integer","visible":true,"warnings":["NAs produced by integer overflow"]}
+{"src":"46341L * 46341L","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d0000000180000000","typeof":"integer","visible":true,"warnings":["NAs produced by integer overflow"]}
+{"src":"2147483647L * 2L; 2147483647L + 0L","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d000000017fffffff","typeof":"integer","visible":true,"warnings":["NAs produced by integer overflow"]}
+{"src":"1e308 * 10; -1e308 * 10","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e00000001fff0000000000000","typeof":"double","visible":true}
+{"src":"5 %/% 2 * 2 + 5 %% 2","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014014000000000000","typeof":"double","visible":true}
+{"src":"-(1:3)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d00000003fffffffffffffffefffffffd","typeof":"integer","visible":true}
+{"src":"-TRUE; +TRUE; -c(a = 1L, b = NA)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000020d00000002ffffffff80000000000004020000000100040009000000056e616d65730000001000000002000400090000000161000400090000000162000000fe","typeof":"integer","visible":true}
+{"src":"+c(1.5, -2)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000023ff8000000000000c000000000000000","typeof":"double","visible":true}
+{"src":"1 - 2 - 3; 2 ^ 3 ^ 2; 1 + 2 * 3 - 4 / 2","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014014000000000000","typeof":"double","visible":true}
+{"src":"(1 + 2) * 3","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014022000000000000","typeof":"double","visible":true}
+{"src":"x <- 5; y <- x * 2; y + 1","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014026000000000000","typeof":"double","visible":true}
+{"src":"a <- b <- 3; a + b","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014018000000000000","typeof":"double","visible":true}
+{"src":"x = 4; x ^ 2","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014030000000000000","typeof":"double","visible":true}
+{"src":"10 -> z; z / 4","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014004000000000000","typeof":"double","visible":true}
+{"src":"5L / 2L; 5L %/% 2L; class_test <- 5L %% 2L; class_test","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d0000000100000001","typeof":"integer","visible":true}
+{"src":"0.5 + 0.25; 0.125 * 8; 1 / 4","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000013fd0000000000000","typeof":"double","visible":true}
+{"src":"100000 * 100000; 123456789 * 1000","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e00000001423cbe991a080000","typeof":"double","visible":true}
+{"src":"TRUE & NA; FALSE & NA; TRUE | NA; FALSE | NA; NA & NA; NA | NA","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000a0000000180000000","typeof":"logical","visible":true}
+{"src":"c(TRUE, FALSE, NA) & c(TRUE, TRUE, TRUE); c(TRUE, FALSE, NA) | c(FALSE, FALSE, FALSE)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000a00000003000000010000000080000000","typeof":"logical","visible":true}
+{"src":"!TRUE; !c(TRUE, NA, FALSE); !0; !1:3; !NULL","ok":false,"error":"invalid argument type","call":"!NULL"}
+{"src":"1:3 & c(1, 0, 1); 0 | 0; 2 & 3","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000a0000000100000001","typeof":"logical","visible":true}
+{"src":"c(1, 2, 3) & c(TRUE, FALSE)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000a00000003000000010000000000000001","typeof":"logical","visible":true,"warnings":["longer object length is not a multiple of shorter object length"]}
+{"src":"x <- c(a = TRUE, b = FALSE); !x","ok":true,"hex":"580a000000030004060200030500000000055554462d380000020a000000020000000000000001000004020000000100040009000000056e616d65730000001000000002000400090000000161000400090000000162000000fe","typeof":"logical","visible":true}
+{"src":"TRUE && FALSE; TRUE && TRUE; FALSE && 1 + \"a\"; TRUE || 1 + \"a\"; FALSE || TRUE; NA && FALSE; NA && TRUE; NA || TRUE; NA || FALSE","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000a0000000180000000","typeof":"logical","visible":true}
+{"src":"1 && 2; 0 || 0; 0L && 1L","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000a0000000100000000","typeof":"logical","visible":true}
+{"src":"as.logical(NULL) && TRUE","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000a0000000180000000","typeof":"logical","visible":true}
+{"src":"c(TRUE, FALSE) && TRUE","ok":false,"error":"'length = 2' in coercion to 'logical(1)'","call":"c(TRUE, FALSE) && TRUE"}
+{"src":"\"a\" && TRUE","ok":false,"error":"invalid 'x' type in 'x && y'","call":"\"a\" && TRUE"}
+{"src":"TRUE && \"a\"","ok":false,"error":"invalid 'y' type in 'x && y'","call":"TRUE && \"a\""}
+{"src":"1 == 1; 1 != 1; 1 < 2; 1 <= 1; 2 > 1; 2 >= 3","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000a0000000100000000","typeof":"logical","visible":true}
+{"src":"1L == 1; 1L < 2.5; TRUE == 1L; TRUE > FALSE","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000a0000000100000001","typeof":"logical","visible":true}
+{"src":"c(1, 2, 3) == c(1, 5, 3)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000a00000003000000010000000000000001","typeof":"logical","visible":true}
+{"src":"1:6 > 3","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000a00000006000000000000000000000000000000010000000100000001","typeof":"logical","visible":true}
+{"src":"1:5 < 1:2","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000a000000050000000000000000000000000000000000000000","typeof":"logical","visible":true,"warnings":["longer object length is not a multiple of shorter object length"]}
+{"src":"NA == 1; NA_integer_ > 0L; NaN == NaN; NA_real_ < 1","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000a0000000180000000","typeof":"logical","visible":true}
+{"src":"c(a = 1, b = 5) > 2","ok":true,"hex":"580a000000030004060200030500000000055554462d380000020a000000020000000000000001000004020000000100040009000000056e616d65730000001000000002000400090000000161000400090000000162000000fe","typeof":"logical","visible":true}
+{"src":"\"a\" == \"a\"; \"a\" < \"b\"; \"b\" < \"a\"; \"abc\" != \"abd\"; \"a\" <= \"a\"","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000a0000000100000001","typeof":"logical","visible":true}
+{"src":"\"1\" == 1; 1 == \"1\"; TRUE == \"TRUE\"; 1L == \"1\"; \"a\" == NA","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000a0000000180000000","typeof":"logical","visible":true}
+{"src":"NULL == 1; 1 == NULL; as.logical(NULL) == 1","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000a00000000","typeof":"logical","visible":true}
+{"src":"as.numeric(NULL) < 1","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000a00000000","typeof":"logical","visible":true}
+{"src":"1 == c(1, 2, 1)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000a00000003000000010000000000000001","typeof":"logical","visible":true}
+{"src":"Inf > 1e308; -Inf < 0; Inf == Inf","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000a0000000100000001","typeof":"logical","visible":true}
+{"src":"1:3 == c(1L, 2L)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000a00000003000000010000000100000000","typeof":"logical","visible":true,"warnings":["longer object length is not a multiple of shorter object length"]}
+{"src":"1:10","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d0000000a0000000100000002000000030000000400000005000000060000000700000008000000090000000a","typeof":"integer","visible":true}
+{"src":"5:1","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d000000050000000500000004000000030000000200000001","typeof":"integer","visible":true}
+{"src":"-2:2","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d00000005fffffffeffffffff000000000000000100000002","typeof":"integer","visible":true}
+{"src":"1.5:4","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000033ff80000000000004004000000000000400c000000000000","typeof":"double","visible":true}
+{"src":"1:1","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d0000000100000001","typeof":"integer","visible":true}
+{"src":"3:3.5","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d0000000100000003","typeof":"integer","visible":true}
+{"src":"0:0","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d0000000100000000","typeof":"integer","visible":true}
+{"src":"(-2):2; 2:-2","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d00000005000000020000000100000000fffffffffffffffe","typeof":"integer","visible":true}
+{"src":"1:0","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d000000020000000100000000","typeof":"integer","visible":true}
+{"src":"TRUE:3","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d00000003000000010000000200000003","typeof":"integer","visible":true}
+{"src":"1:NA","ok":false,"error":"NA/NaN argument","call":"1:NA"}
+{"src":"1:NULL","ok":false,"error":"argument of length 0","call":"1:NULL"}
+{"src":"c(5, 6):7","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d00000003000000050000000600000007","typeof":"integer","visible":true,"warnings":["numerical expression has 2 elements: only the first used"]}
+{"src":"1:3.9","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d00000003000000010000000200000003","typeof":"integer","visible":true}
+{"src":"2147483647L:2147483647L","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d000000017fffffff","typeof":"integer","visible":true}
+{"src":"1e10:1e10","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014202a05f20000000","typeof":"double","visible":true}
+{"src":"c(1, 2, 3)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000033ff000000000000040000000000000004008000000000000","typeof":"double","visible":true}
+{"src":"c(1L, 2L); c(1L, 2.5); c(TRUE, 2L); c(TRUE, \"a\"); c(1, \"a\", TRUE)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000001000000003000400090000000131000400090000000161000400090000000454525545","typeof":"character","visible":true}
+{"src":"c()","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","visible":true}
+{"src":"c(NULL, NULL)","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","visible":true}
+{"src":"c(1, NULL, 2)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000023ff00000000000004000000000000000","typeof":"double","visible":true}
+{"src":"c(a = 1, b = 2)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000020e000000023ff00000000000004000000000000000000004020000000100040009000000056e616d65730000001000000002000400090000000161000400090000000162000000fe","typeof":"double","visible":true}
+{"src":"c(a = 1, 2, c = 3)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000020e000000033ff000000000000040000000000000004008000000000000000004020000000100040009000000056e616d657300000010000000030004000900000001610004000900000000000400090000000163000000fe","typeof":"double","visible":true}
+{"src":"c(x = c(1, 2), y = 3)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000020e000000033ff000000000000040000000000000004008000000000000000004020000000100040009000000056e616d657300000010000000030004000900000002783100040009000000027832000400090000000179000000fe","typeof":"double","visible":true}
+{"src":"c(x = c(p = 1, q = 2))","ok":true,"hex":"580a000000030004060200030500000000055554462d380000020e000000023ff00000000000004000000000000000000004020000000100040009000000056e616d657300000010000000020004000900000003782e700004000900000003782e71000000fe","typeof":"double","visible":true}
+{"src":"c(c(a = 1), b = 2)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000020e000000023ff00000000000004000000000000000000004020000000100040009000000056e616d65730000001000000002000400090000000161000400090000000162000000fe","typeof":"double","visible":true}
+{"src":"c(list(1, 2), 3)","ok":true,"hex":"580a000000030004060200030500000000055554462d3800000013000000030000000e000000013ff00000000000000000000e0000000140000000000000000000000e000000014008000000000000","typeof":"list","visible":true}
+{"src":"c(list(a = 1), b = 2)","ok":true,"hex":"580a000000030004060200030500000000055554462d3800000213000000020000000e000000013ff00000000000000000000e000000014000000000000000000004020000000100040009000000056e616d65730000001000000002000400090000000161000400090000000162000000fe","typeof":"list","visible":true}
+{"src":"c(1:2, list(\"x\"))","ok":true,"hex":"580a000000030004060200030500000000055554462d3800000013000000030000000d00000001000000010000000d00000001000000020000001000000001000400090000000178","typeof":"list","visible":true}
+{"src":"c(\"a\", NA, \"b\"); c(NA, 1L); c(NA, \"a\"); c(NA_real_, 1)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000027ff00000000007a23ff0000000000000","typeof":"double","visible":true}
+{"src":"c(1.5, 2L, TRUE)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000033ff800000000000040000000000000003ff0000000000000","typeof":"double","visible":true}
+{"src":"c(1e5, 1)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e0000000240f86a00000000003ff0000000000000","typeof":"double","visible":true}
+{"src":"c(0.1, \"x\"); c(1e5, \"x\"); c(100000L, \"x\"); c(1e15, \"x\"); c(123456.7, \"x\"); c(1/3, \"x\")","ok":true,"hex":"580a000000030004060200030500000000055554462d3800000010000000020004000900000011302e333333333333333333333333333333000400090000000178","typeof":"character","visible":true}
+{"src":"length(1:10); length(NULL); length(list(1, 2)); length(\"a\"); length(c(a = 1))","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d0000000100000001","typeof":"integer","visible":true}
+{"src":"length(c(1, 2, 3)) + 1L","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d0000000100000004","typeof":"integer","visible":true}
+{"src":"list(1, \"a\")","ok":true,"hex":"580a000000030004060200030500000000055554462d3800000013000000020000000e000000013ff00000000000000000001000000001000400090000000161","typeof":"list","visible":true}
+{"src":"list(a = 1, b = \"x\")","ok":true,"hex":"580a000000030004060200030500000000055554462d3800000213000000020000000e000000013ff00000000000000000001000000001000400090000000178000004020000000100040009000000056e616d65730000001000000002000400090000000161000400090000000162000000fe","typeof":"list","visible":true}
+{"src":"list(1, b = 2)","ok":true,"hex":"580a000000030004060200030500000000055554462d3800000213000000020000000e000000013ff00000000000000000000e000000014000000000000000000004020000000100040009000000056e616d657300000010000000020004000900000000000400090000000162000000fe","typeof":"list","visible":true}
+{"src":"list()","ok":true,"hex":"580a000000030004060200030500000000055554462d380000001300000000","typeof":"list","visible":true}
+{"src":"list(list(1), list(2, 3))","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000130000000200000013000000010000000e000000013ff000000000000000000013000000020000000e0000000140000000000000000000000e000000014008000000000000","typeof":"list","visible":true}
+{"src":"list(NULL)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000001300000001000000fe","typeof":"list","visible":true}
+{"src":"names(c(a = 1, b = 2)); names(1:3); names(list(x = 1))","ok":true,"hex":"580a000000030004060200030500000000055554462d380000001000000001000400090000000178","typeof":"character","visible":true}
+{"src":"is.na(c(1, NA, 3)); is.na(NA); is.na(NaN); is.na(\"a\"); is.na(c(\"a\", NA)); is.na(NULL)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000a00000000","typeof":"logical","visible":true}
+{"src":"is.na(c(a = 1, b = NA))","ok":true,"hex":"580a000000030004060200030500000000055554462d380000020a000000020000000000000001000004020000000100040009000000056e616d65730000001000000002000400090000000161000400090000000162000000fe","typeof":"logical","visible":true}
+{"src":"is.na(list(1, NA, c(1, 2), \"a\", NA_character_))","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000a000000050000000000000001000000000000000000000001","typeof":"logical","visible":true}
+{"src":"is.null(NULL); is.null(1); is.null(list()); is.null(c())","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000a0000000100000001","typeof":"logical","visible":true}
+{"src":"is.numeric(1); is.numeric(1L); is.numeric(\"a\"); is.numeric(TRUE); is.numeric(NULL)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000a0000000100000000","typeof":"logical","visible":true}
+{"src":"is.character(\"a\"); is.character(1); is.logical(TRUE); is.logical(NA); is.integer(1L); is.integer(1); is.double(1); is.double(1L)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000a0000000100000000","typeof":"logical","visible":true}
+{"src":"is.list(list()); is.list(1); is.atomic(1); is.atomic(list()); is.atomic(NULL)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000a0000000100000000","typeof":"logical","visible":true}
+{"src":"is.function(sum); is.function(function(x) x); is.function(1)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000a0000000100000000","typeof":"logical","visible":true}
+{"src":"is.symbol(quote(x)); is.name(quote(x)); is.call(quote(f(x))); is.call(quote(x)); is.symbol(1)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000a0000000100000000","typeof":"logical","visible":true}
+{"src":"f <- function(x) x + 1; f(2)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014008000000000000","typeof":"double","visible":true}
+{"src":"f <- function(x, y = 2) x * y; f(3); f(3, 4); f(y = 5, x = 2)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014024000000000000","typeof":"double","visible":true}
+{"src":"f <- function(x, y) x - y; f(y = 1, 10); f(10, y = 1); f(x = 1, 10)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e00000001c022000000000000","typeof":"double","visible":true}
+{"src":"f <- function(alpha, beta) alpha - beta; f(al = 10, be = 1)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014022000000000000","typeof":"double","visible":true}
+{"src":"f <- function(value, verbose) c(value, verbose); f(v = 1, 2)","ok":false,"error":"argument 1 matches multiple formal arguments","call":"f(v = 1, 2)"}
+{"src":"f <- function(value, verbose) 1; f(v = 1, v = 2)","ok":false,"error":"formal argument \"value\" matched by multiple actual arguments","call":"f(v = 1, v = 2)"}
+{"src":"f <- function(value, vector) 1; f(v = 1)","ok":false,"error":"argument 1 matches multiple formal arguments","call":"f(v = 1)"}
+{"src":"f <- function(x) 1; f(1, 2)","ok":false,"error":"unused argument (2)","call":"f(1, 2)"}
+{"src":"f <- function(x) 1; f(1, y = 2)","ok":false,"error":"unused argument (y = 2)","call":"f(1, y = 2)"}
+{"src":"f <- function(x) 1; f(1, 2, z = 3)","ok":false,"error":"unused arguments (2, z = 3)","call":"f(1, 2, z = 3)"}
+{"src":"f <- function(x, x2) 1; f(x = 1, x = 2)","ok":false,"error":"formal argument \"x\" matched by multiple actual arguments","call":"f(x = 1, x = 2)"}
+{"src":"f <- function(x) x; f()","ok":false,"error":"argument \"x\" is missing, with no default","call":"f()"}
+{"src":"f <- function(x) 1; f()","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000013ff0000000000000","typeof":"double","visible":true}
+{"src":"f <- function(x, y) { if (missing(y)) \"no y\" else y }; f(1); f(1, 2)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014000000000000000","typeof":"double","visible":true}
+{"src":"f <- function(x, y = 2) missing(y); f(1); f(1, 3)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000a0000000100000000","typeof":"logical","visible":true}
+{"src":"f <- function(x) missing(x); f(); f(1)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000a0000000100000000","typeof":"logical","visible":true}
+{"src":"f <- function(x) g(x); g <- function(y) missing(y); f()","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000a0000000100000001","typeof":"logical","visible":true}
+{"src":"f <- function(x) { x <- 5; missing(x) }; f()","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000a0000000100000000","typeof":"logical","visible":true}
+{"src":"f <- function(...) length(list(...)); f(); f(1); f(1, 2, 3)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d0000000100000003","typeof":"integer","visible":true}
+{"src":"f <- function(...) c(...); f(1, 2, 3)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000033ff000000000000040000000000000004008000000000000","typeof":"double","visible":true}
+{"src":"f <- function(...) list(...); f(a = 1, 2)","ok":true,"hex":"580a000000030004060200030500000000055554462d3800000213000000020000000e000000013ff00000000000000000000e000000014000000000000000000004020000000100040009000000056e616d657300000010000000020004000900000001610004000900000000000000fe","typeof":"list","visible":true}
+{"src":"f <- function(x, ...) list(x, ...); f(1, 2, a = 3)","ok":true,"hex":"580a000000030004060200030500000000055554462d3800000213000000030000000e000000013ff00000000000000000000e0000000140000000000000000000000e000000014008000000000000000004020000000100040009000000056e616d6573000000100000000300040009000000000004000900000000000400090000000161000000fe","typeof":"list","visible":true}
+{"src":"f <- function(..., last) c(..., last); f(1, 2, last = 3)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000033ff000000000000040000000000000004008000000000000","typeof":"double","visible":true}
+{"src":"f <- function(..., x) x; f(1, 2)","ok":false,"error":"argument \"x\" is missing, with no default","call":"f(1, 2)"}
+{"src":"f <- function(a, ...) a; f(b = 1, 2)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014000000000000000","typeof":"double","visible":true}
+{"src":"f <- function(x) { x; 1 }; f(1 + \"a\")","ok":false,"error":"non-numeric argument to binary operator","call":"1 + \"a\""}
+{"src":"f <- function(x) 1; f(1 + \"a\")","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000013ff0000000000000","typeof":"double","visible":true}
+{"src":"f <- function(x, y = x * 2) y; f(4)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014020000000000000","typeof":"double","visible":true}
+{"src":"f <- function(x, y = x * 2) { x <- 10; y }; f(4)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014034000000000000","typeof":"double","visible":true}
+{"src":"f <- function(x = y, y = x) x; f()","ok":false,"error":"promise already under evaluation: recursive default argument reference or earlier problems?","call":"f()"}
+{"src":"f <- function(x) { x; function() x }; g <- f(2); g()","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014000000000000000","typeof":"double","visible":true}
+{"src":"counter <- 0; f <- function() counter <<- counter + 1; f(); f(); counter","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014000000000000000","typeof":"double","visible":true}
+{"src":"f <- function() { x <- 1; g <- function() x <<- x + 1; g(); x }; f()","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014000000000000000","typeof":"double","visible":true}
+{"src":"x <- 10; f <- function() x; g <- function() { x <- 20; f() }; g()","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014024000000000000","typeof":"double","visible":true}
+{"src":"f <- function() { x <- 1; g <- function() x; x <- 2; g() }; f()","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014000000000000000","typeof":"double","visible":true}
+{"src":"add <- function(x) function(y) x + y; add(1)(2)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014008000000000000","typeof":"double","visible":true}
+{"src":"f <- function(n) if (n <= 1) 1 else n * f(n - 1); f(10)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e00000001414baf8000000000","typeof":"double","visible":true}
+{"src":"f <- function(n) if (n < 2) n else f(n - 1) + f(n - 2); f(15)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014083100000000000","typeof":"double","visible":true}
+{"src":"f <- function() return(5); f()","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014014000000000000","typeof":"double","visible":true}
+{"src":"f <- function() { return(1); 2 }; f()","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000013ff0000000000000","typeof":"double","visible":true}
+{"src":"f <- function() { for (i in 1:10) if (i == 3) return(i); 0 }; f()","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d0000000100000003","typeof":"integer","visible":true}
+{"src":"f <- function() invisible(7); f()","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e00000001401c000000000000","typeof":"double"}
+{"src":"f <- function() invisible(7); y <- f(); y","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e00000001401c000000000000","typeof":"double","visible":true}
+{"src":"f <- function(x) { if (x) return(\"yes\"); \"no\" }; f(TRUE); f(FALSE)","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000100000000100040009000000026e6f","typeof":"character","visible":true}
+{"src":"f <- function() return(); f()","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","visible":true}
+{"src":"f <- function() { g <- function() return(1); g(); 2 }; f()","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014000000000000000","typeof":"double","visible":true}
+{"src":"f <- function() { lapply_like <- function(g) g(); lapply_like(function() return(9)); 10 }; f()","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014024000000000000","typeof":"double","visible":true}
+{"src":"(function(x, y) x + y)(1, 2)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014008000000000000","typeof":"double","visible":true}
+{"src":"if (TRUE) 1 else 2","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000013ff0000000000000","typeof":"double","visible":true}
+{"src":"if (FALSE) 1 else 2","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014000000000000000","typeof":"double","visible":true}
+{"src":"if (FALSE) 1","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL"}
+{"src":"x <- if (FALSE) 1; x","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","visible":true}
+{"src":"if (1) \"one\"; if (0) \"zero\" else \"else\"; if (\"TRUE\") \"str\"; if (\"T\") \"T\"","ok":true,"hex":"580a000000030004060200030500000000055554462d380000001000000001000400090000000154","typeof":"character","visible":true}
+{"src":"if (NA) 1","ok":false,"error":"missing value where TRUE/FALSE needed","call":"if (NA) 1"}
+{"src":"if (NULL) 1","ok":false,"error":"argument is of length zero","call":"if (NULL) 1"}
+{"src":"if (as.logical(NULL)) 1","ok":false,"error":"argument is of length zero","call":"if (as.logical(NULL)) 1"}
+{"src":"if (c(TRUE, FALSE)) 1","ok":false,"error":"the condition has length > 1","call":"if (c(TRUE, FALSE)) 1"}
+{"src":"if (\"maybe\") 1","ok":false,"error":"argument is not interpretable as logical","call":"if (\"maybe\") 1"}
+{"src":"if (NA_integer_) 1","ok":false,"error":"argument is not interpretable as logical","call":"if (NA_integer_) 1"}
+{"src":"if (NaN) 1","ok":false,"error":"argument is not interpretable as logical","call":"if (NaN) 1"}
+{"src":"if (list(TRUE)) 1","ok":false,"error":"argument is not interpretable as logical","call":"if (list(TRUE)) 1"}
+{"src":"x <- 5; if (x > 3) \"big\" else \"small\"","ok":true,"hex":"580a000000030004060200030500000000055554462d3800000010000000010004000900000003626967","typeof":"character","visible":true}
+{"src":"if (TRUE) if (FALSE) 1 else 2","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014000000000000000","typeof":"double","visible":true}
+{"src":"for (i in 1:3) i","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL"}
+{"src":"x <- 0; for (i in 1:5) x <- x + i; x","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e00000001402e000000000000","typeof":"double","visible":true}
+{"src":"x <- 0; for (i in 1:10) { if (i %% 2 == 0) next; x <- x + i }; x","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014039000000000000","typeof":"double","visible":true}
+{"src":"x <- 0; for (i in 1:10) { if (i > 4) break; x <- x + i }; x","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014024000000000000","typeof":"double","visible":true}
+{"src":"for (i in NULL) 1 + \"a\"; \"done\"","ok":true,"hex":"580a000000030004060200030500000000055554462d3800000010000000010004000900000004646f6e65","typeof":"character","visible":true}
+{"src":"for (i in as.integer(NULL)) 1 + \"a\"; i_unset <- 1","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000013ff0000000000000","typeof":"double"}
+{"src":"for (i in 1:3) NULL; i","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d0000000100000003","typeof":"integer","visible":true}
+{"src":"for (x in c(1.5, 2.5)) y <- x * 2; y","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014014000000000000","typeof":"double","visible":true}
+{"src":"for (s in c(\"a\", \"b\")) last <- s; last","ok":true,"hex":"580a000000030004060200030500000000055554462d380000001000000001000400090000000162","typeof":"character","visible":true}
+{"src":"for (e in list(1, \"a\", TRUE)) last <- e; last","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000a0000000100000001","typeof":"logical","visible":true}
+{"src":"for (i in c(a = 1, b = 2)) last <- i; last","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014000000000000000","typeof":"double","visible":true}
+{"src":"r <- for (i in 1:3) i; r","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","visible":true}
+{"src":"i <- 100; for (i in 1:2) NULL; i","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d0000000100000002","typeof":"integer","visible":true}
+{"src":"for (i in 1:2) for (j in 1:2) last <- i * 10 + j; last","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014036000000000000","typeof":"double","visible":true}
+{"src":"for (i in 1:3) { for (j in 1:3) { if (j == 2) break }; last <- c(i, j) }; last","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d000000020000000300000002","typeof":"integer","visible":true}
+{"src":"for (i in function() 1) 1","ok":false,"error":"invalid for() loop sequence","call":"for (i in function() 1) 1"}
+{"src":"i <- 0; while (i < 5) i <- i + 1; i","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014014000000000000","typeof":"double","visible":true}
+{"src":"i <- 0; while (TRUE) { i <- i + 1; if (i >= 7) break }; i","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e00000001401c000000000000","typeof":"double","visible":true}
+{"src":"i <- 0; n <- 0; while (i < 10) { i <- i + 1; if (i %% 2 == 1) next; n <- n + 1 }; n","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014014000000000000","typeof":"double","visible":true}
+{"src":"while (FALSE) 1","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL"}
+{"src":"r <- while (FALSE) 1; r","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","visible":true}
+{"src":"i <- 0; repeat { i <- i + 1; if (i == 4) break }; i","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014010000000000000","typeof":"double","visible":true}
+{"src":"i <- 0; r <- repeat { i <- i + 1; if (i == 2) break }; r","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","visible":true}
+{"src":"f <- function() { i <- 0; repeat { i <- i + 1; if (i > 2) return(i) } }; f()","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014008000000000000","typeof":"double","visible":true}
+{"src":"while (NA) 1","ok":false,"error":"missing value where TRUE/FALSE needed","call":"while (NA) 1"}
+{"src":"while (c(TRUE, TRUE)) 1","ok":false,"error":"the condition has length > 1","call":"while (c(TRUE, TRUE)) 1"}
+{"src":"break","ok":false,"error":"no loop for break/next, jumping to top level"}
+{"src":"next","ok":false,"error":"no loop for break/next, jumping to top level"}
+{"src":"f <- function() break; f()","ok":false,"error":"no loop for break/next, jumping to top level","call":"f()"}
+{"src":"f <- function() { for (i in 1:3) g <- function() break; 1 }; f()","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000013ff0000000000000","typeof":"double","visible":true}
+{"src":"{ 1; 2; 3 }","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014008000000000000","typeof":"double","visible":true}
+{"src":"{}","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","visible":true}
+{"src":"{ x <- 1 }","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000013ff0000000000000","typeof":"double"}
+{"src":"(x <- 1)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000013ff0000000000000","typeof":"double","visible":true}
+{"src":"(invisible(2))","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014000000000000000","typeof":"double","visible":true}
+{"src":"quote(x + y)","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000060000000100040009000000012b00000002000000010004000900000001780000000200000001000400090000000179000000fe","typeof":"language","visible":true}
+{"src":"quote(f(x, y = 2))","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000600000001000400090000000166000000020000000100040009000000017800000402000000010004000900000001790000000e000000014000000000000000000000fe","typeof":"language","visible":true}
+{"src":"quote(x)","ok":true,"hex":"580a000000030004060200030500000000055554462d3800000001000400090000000178","typeof":"symbol","visible":true}
+{"src":"quote(1)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000013ff0000000000000","typeof":"double","visible":true}
+{"src":"quote(if (a) b else c)","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000060000000100040009000000026966000000020000000100040009000000016100000002000000010004000900000001620000000200000001000400090000000163000000fe","typeof":"language","visible":true}
+{"src":"quote(function(x, y = 1) x + y)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000600000001000400090000000866756e6374696f6e000000020000040200000001000400090000000178000000fb00000402000000010004000900000001790000000e000000013ff0000000000000000000fe00000002000000060000000100040009000000012b00000002000002ff00000002000003ff000000fe00000002000000fe000000fe","typeof":"language","visible":true}
+{"src":"quote(\"a\")","ok":true,"hex":"580a000000030004060200030500000000055554462d380000001000000001000400090000000161","typeof":"character","visible":true}
+{"src":"quote(x[1])","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000060000000100040009000000015b0000000200000001000400090000000178000000020000000e000000013ff0000000000000000000fe","typeof":"language","visible":true}
+{"src":"quote(-x)","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000060000000100040009000000012d0000000200000001000400090000000178000000fe","typeof":"language","visible":true}
+{"src":"quote(a <- b)","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000060000000100040009000000023c2d00000002000000010004000900000001610000000200000001000400090000000162000000fe","typeof":"language","visible":true}
+{"src":"quote()","ok":false,"error":"0 arguments passed to 'quote' which requires 1","call":"quote()"}
+{"src":"quote(a, b)","ok":false,"error":"2 arguments passed to 'quote' which requires 1","call":"quote(a, b)"}
+{"src":"class_of_quote <- is.call(quote(f(x))); class_of_quote","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000a0000000100000001","typeof":"logical","visible":true}
+{"src":"identity_fn <- function(x) x; identity_fn(quote(a + b))","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000060000000100040009000000012b00000002000000010004000900000001610000000200000001000400090000000162000000fe","typeof":"language","visible":true}
+{"src":"f <- function(x) quote(x); f(1)","ok":true,"hex":"580a000000030004060200030500000000055554462d3800000001000400090000000178","typeof":"symbol","visible":true}
+{"src":"\"x\" <- 5; x","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014014000000000000","typeof":"double","visible":true}
+{"src":"`my var` <- 3; `my var` + 1","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014010000000000000","typeof":"double","visible":true}
+{"src":"x <- y <- 2; x + y","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014010000000000000","typeof":"double","visible":true}
+{"src":"1 <- 2","ok":false,"error":"invalid (do_set) left-hand side to assignment","call":"1 <- 2"}
+{"src":"NULL <- 1","ok":false,"error":"invalid (do_set) left-hand side to assignment","call":"NULL <- 1"}
+{"src":"f <- function() { x <- 1; g <- function() { x <<- 2; x }; c(g(), x) }; f()","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e0000000240000000000000004000000000000000","typeof":"double","visible":true}
+{"src":"x <- 1; f <- function() x <<- 5; f(); x","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014014000000000000","typeof":"double","visible":true}
+{"src":"f <- function() newvar <<- 7; f(); newvar","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e00000001401c000000000000","typeof":"double","visible":true}
+{"src":"a_variable_that_does_not_exist","ok":false,"error":"object 'a_variable_that_does_not_exist' not found"}
+{"src":"f <- function() undefined_var; f()","ok":false,"error":"object 'undefined_var' not found","call":"f()"}
+{"src":"undefined_function(1)","ok":false,"error":"could not find function \"undefined_function\"","call":"undefined_function(1)"}
+{"src":"f <- function() undefined_function(1); f()","ok":false,"error":"could not find function \"undefined_function\"","call":"undefined_function(1)"}
+{"src":"(1)(2)","ok":false,"error":"attempt to apply non-function"}
+{"src":"\"a\"(1)","ok":false,"error":"could not find function \"a\"","call":"a(1)"}
+{"src":"x <- 5; x(1)","ok":false,"error":"could not find function \"x\"","call":"x(1)"}
+{"src":"f <- 1; f(2)","ok":false,"error":"could not find function \"f\"","call":"f(2)"}
+{"src":"sum <- 3; sum(1, 2)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014008000000000000","typeof":"double","visible":true}
+{"src":"c <- function(...) \"mine\"; c(1, 2)","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000100000000100040009000000046d696e65","typeof":"character","visible":true}
+{"src":"`+` <- function(a, b) \"plus\"; 1 + 2","ok":true,"hex":"580a000000030004060200030500000000055554462d3800000010000000010004000900000004706c7573","typeof":"character","visible":true}
+{"src":"`if` <- function(...) \"no\"; if (TRUE) 1","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000100000000100040009000000026e6f","typeof":"character","visible":true}
+{"src":"f <- function(x) UseMethod(\"f\"); 1","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000013ff0000000000000","typeof":"double","visible":true}
+{"src":"1 + \"a\"","ok":false,"error":"non-numeric argument to binary operator","call":"1 + \"a\""}
+{"src":"\"a\" + 1","ok":false,"error":"non-numeric argument to binary operator","call":"\"a\" + 1"}
+{"src":"-\"a\"","ok":false,"error":"invalid argument to unary operator","call":"-\"a\""}
+{"src":"-NULL","ok":false,"error":"invalid argument to unary operator","call":"-NULL"}
+{"src":"!\"a\"","ok":false,"error":"invalid argument type","call":"!\"a\""}
+{"src":"list(1) + 1","ok":false,"error":"non-numeric argument to binary operator","call":"list(1) + 1"}
+{"src":"sum(\"a\")","ok":false,"error":"invalid 'type' (character) of argument","call":"sum(\"a\")"}
+{"src":"f <- function(x) x + \"a\"; f(1)","ok":false,"error":"non-numeric argument to binary operator","call":"x + \"a\""}
+{"src":"f <- function(x) { y <- x + \"a\"; y }; f(1)","ok":false,"error":"non-numeric argument to binary operator","call":"x + \"a\""}
+{"src":"f <- function(n) f(n + 1); f(1)","ok":false,"error":"evaluation nested too deeply: infinite recursion / options(expressions=)?"}
+{"src":"sqrt(\"a\")","ok":false,"error":"non-numeric argument to mathematical function","call":"sqrt(\"a\")"}
+{"src":"TRUE & \"a\"","ok":false,"error":"operations are possible only for numeric, logical or complex types","call":"TRUE & \"a\""}
+{"src":"1:3 + 1:2","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d00000003000000020000000400000004","typeof":"integer","visible":true,"warnings":["longer object length is not a multiple of shorter object length"]}
+{"src":"identity <- function(x) x; identity(1:2) + 1:3","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d00000003000000020000000400000004","typeof":"integer","visible":true,"warnings":["longer object length is not a multiple of shorter object length"]}
+{"src":"as.integer(3.9); as.integer(-3.9); as.integer(TRUE); as.integer(\"12\"); as.integer(\" 7 \"); as.integer(\"0x10\")","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d0000000100000010","typeof":"integer","visible":true}
+{"src":"as.integer(\"a\")","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d0000000180000000","typeof":"integer","visible":true,"warnings":["NAs introduced by coercion"]}
+{"src":"as.integer(c(\"1\", \"x\", \"3\"))","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d00000003000000018000000000000003","typeof":"integer","visible":true,"warnings":["NAs introduced by coercion"]}
+{"src":"as.integer(3e9)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d0000000180000000","typeof":"integer","visible":true,"warnings":["NAs introduced by coercion to integer range"]}
+{"src":"as.integer(c(1.5, NA, NaN, Inf))","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d0000000400000001800000008000000080000000","typeof":"integer","visible":true,"warnings":["NAs introduced by coercion to integer range"]}
+{"src":"as.integer(NULL); as.integer(as.character(NULL))","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d00000000","typeof":"integer","visible":true}
+{"src":"as.integer(c(a = 1.5, b = 2.5))","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d000000020000000100000002","typeof":"integer","visible":true}
+{"src":"as.numeric(\"1.5\"); as.numeric(\"1e3\"); as.numeric(\" 2 \"); as.numeric(\"Inf\"); as.numeric(\"-inf\"); as.numeric(\"NaN\"); as.numeric(\"NA\"); as.numeric(TRUE); as.numeric(3L)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014008000000000000","typeof":"double","visible":true,"warnings":["NAs introduced by coercion"]}
+{"src":"as.numeric(\"abc\")","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000017ff00000000007a2","typeof":"double","visible":true,"warnings":["NAs introduced by coercion"]}
+{"src":"as.double(\"0x1A\"); as.double(\"1e-2\"); as.double(\".5\"); as.double(\"5.\")","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014014000000000000","typeof":"double","visible":true}
+{"src":"as.numeric(c(a = 1, b = 2))","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000023ff00000000000004000000000000000","typeof":"double","visible":true}
+{"src":"as.as.logical(NULL); as.logical(2); as.logical(NA); as.logical(\"TRUE\"); as.logical(\"T\"); as.logical(\"true\"); as.logical(\"yes\"); as.logical(\"F\"); as.logical(\"false\"); as.logical(0L); as.logical(NaN)","ok":false,"error":"could not find function \"as.as.logical\"","call":"as.as.logical(NULL)"}
+{"src":"as.logical(c(1, 0, NA))","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000a00000003000000010000000080000000","typeof":"logical","visible":true}
+{"src":"as.character(1); as.character(1.5); as.character(100000); as.character(123456); as.character(1e5 + 0.5); as.character(TRUE); as.character(10L); as.character(\"a\"); as.character(NA); as.character(0.1)","ok":true,"hex":"580a000000030004060200030500000000055554462d3800000010000000010004000900000003302e31","typeof":"character","visible":true}
+{"src":"as.character(c(1.5, NA, 3)); as.character(1e15); as.character(1e-5); as.character(0.5)","ok":true,"hex":"580a000000030004060200030500000000055554462d3800000010000000010004000900000003302e35","typeof":"character","visible":true}
+{"src":"as.character(quote(x))","ok":true,"hex":"580a000000030004060200030500000000055554462d380000001000000001000400090000000178","typeof":"character","visible":true}
+{"src":"as.character(NULL)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000001000000000","typeof":"character","visible":true}
+{"src":"abs(-3); abs(3L); abs(-3L); abs(TRUE); abs(c(-1.5, 2, NA)); abs(NA_integer_)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d0000000180000000","typeof":"integer","visible":true}
+{"src":"abs(c(a = -1, b = 2))","ok":true,"hex":"580a000000030004060200030500000000055554462d380000020e000000023ff00000000000004000000000000000000004020000000100040009000000056e616d65730000001000000002000400090000000161000400090000000162000000fe","typeof":"double","visible":true}
+{"src":"abs(\"a\")","ok":false,"error":"non-numeric argument to mathematical function","call":"abs(\"a\")"}
+{"src":"sqrt(16); sqrt(2.25); sqrt(0); sqrt(Inf); sqrt(NA)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000017ff00000000007a2","typeof":"double","visible":true}
+{"src":"sqrt(-1)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000017ff8000000000000","typeof":"double","visible":true,"warnings":["NaNs produced"]}
+{"src":"sqrt(c(4, -4, 9))","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e0000000340000000000000007ff80000000000004008000000000000","typeof":"double","visible":true,"warnings":["NaNs produced"]}
+{"src":"exp(0); exp(-Inf); exp(NA)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000017ff00000000007a2","typeof":"double","visible":true}
+{"src":"floor(2.7); floor(-2.7); ceiling(2.1); ceiling(-2.1); floor(3L); ceiling(3L); floor(NA); floor(Inf)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000017ff0000000000000","typeof":"double","visible":true}
+{"src":"sum(1:10); sum(1, 2, 3); sum(1L, 2L); sum(1L, 2.5); sum(); sum(NULL); sum(TRUE, TRUE, NA, na.rm = TRUE); sum(c(1, NA), na.rm = TRUE)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000013ff0000000000000","typeof":"double","visible":true}
+{"src":"sum(c(1, NA)); sum(NA_integer_, 1L); sum(1:3, NA)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d0000000180000000","typeof":"integer","visible":true}
+{"src":"sum(2147483647L, 1L)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e0000000141e0000000000000","typeof":"double","visible":true}
+{"src":"sum(1:100000)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e0000000141f2a06b55000000","typeof":"double","visible":true}
+{"src":"prod(1:5); prod(); prod(2, 3.5); prod(c(2, NA), na.rm = TRUE); prod(as.integer(NULL)); prod(1:20)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e0000000143c0e1b3be415a00","typeof":"double","visible":true}
+{"src":"min(3, 1, 2); max(3, 1, 2); min(1:5); max(c(1.5, 2.5)); min(2L, 1.5); max(TRUE, FALSE); min(c(1, NA), na.rm = TRUE); max(NA, 1)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000017ff00000000007a2","typeof":"double","visible":true}
+{"src":"min(as.numeric(NULL))","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000017ff0000000000000","typeof":"double","visible":true,"warnings":["no non-missing arguments to min; returning Inf"]}
+{"src":"max(as.integer(NULL))","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e00000001fff0000000000000","typeof":"double","visible":true,"warnings":["no non-missing arguments to max; returning -Inf"]}
+{"src":"max(NULL)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e00000001fff0000000000000","typeof":"double","visible":true,"warnings":["no non-missing arguments to max; returning -Inf"]}
+{"src":"min(c(2L, NA)); max(c(2L, NA), na.rm = TRUE); min(NaN, 1); max(c(NaN, NA))","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000017ff00000000007a2","typeof":"double","visible":true}
+{"src":"any(TRUE, FALSE); any(FALSE, FALSE); all(TRUE, TRUE); all(TRUE, FALSE); any(); all(); any(NA, TRUE); any(NA, FALSE); all(NA, FALSE); all(NA, TRUE); all(as.logical(NULL)); any(as.logical(NULL))","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000a0000000100000000","typeof":"logical","visible":true}
+{"src":"any(c(0, 1)); all(1:3); any(NA, na.rm = TRUE); all(NA, na.rm = TRUE)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000a0000000100000001","typeof":"logical","visible":true,"warnings":["coercing argument of type 'double' to logical"]}
+{"src":"any(\"a\")","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000a0000000180000000","typeof":"logical","visible":true,"warnings":["coercing argument of type 'character' to logical"]}
+{"src":"seq_len(5); seq_len(0); seq_along(c(\"a\", \"b\", \"c\")); seq_along(NULL); seq_along(list(1, 2))","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d000000020000000100000002","typeof":"integer","visible":true}
+{"src":"seq_len(-1)","ok":false,"error":"argument must be coercible to non-negative integer","call":"seq_len(-1)"}
+{"src":"seq_len(NA)","ok":false,"error":"argument must be coercible to non-negative integer","call":"seq_len(NA)"}
+{"src":"seq_len(c(1, 2))","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d0000000100000001","typeof":"integer","visible":true,"warnings":["first element used of 'length.out' argument"]}
+{"src":"seq_len(2.9)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d000000020000000100000002","typeof":"integer","visible":true}

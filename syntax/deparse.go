@@ -1033,3 +1033,7 @@ func PrimitiveNames() map[string]bool {
 	}
 	return m
 }
+
+// FormatNumber writes x as R does with 15 significant digits (the text of
+// as.character(x) and of a deparsed double constant).
+func FormatNumber(x float64) string { return formatReal15(x) }

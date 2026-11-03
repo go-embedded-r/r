@@ -252,3 +252,84 @@ func ReadJSONL[T any](path string) ([]T, error) {
 	}
 	return out, nil
 }
+
+// EvalRecord is one line of eval.jsonl: what R's evaluator does with a snippet.
+type EvalRecord struct {
+	Src      string   `json:"src"`
+	OK       bool     `json:"ok"`
+	Hex      string   `json:"hex,omitempty"` // serialize() of the last value
+	Typeof   string   `json:"typeof,omitempty"`
+	Visible  bool     `json:"visible,omitempty"`
+	Warnings []string `json:"warnings,omitempty"`
+	Error    string   `json:"error,omitempty"` // conditionMessage
+	Call     string   `json:"call,omitempty"`  // deparsed conditionCall
+}
+
+// EvalGolden asks R to evaluate each snippet as a cell.
+func EvalGolden(o parity.Oracle, snippets []string) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	for _, s := range snippets {
+		r, err := o.Call("evalcase", s)
+		if err != nil {
+			return nil, fmt.Errorf("gen: %q: %w", s, err)
+		}
+		l, ok := r.Value.(*rds.List)
+		if !ok {
+			return nil, fmt.Errorf("gen: evalcase of %q returned %T", s, r.Value)
+		}
+		names, _ := l.Attr("names").(*rds.Character)
+		f := map[string]rds.Value{}
+		for i, n := range names.V {
+			f[n.S] = l.V[i]
+		}
+		str := func(k string) string {
+			if c, ok := f[k].(*rds.Character); ok && len(c.V) > 0 {
+				return c.V[0].S
+			}
+			return ""
+		}
+		rec := EvalRecord{Src: s}
+		if lg, ok := f["ok"].(*rds.Logical); ok && len(lg.V) == 1 && lg.V[0] == 1 {
+			rec.OK = true
+			if raw, ok := f["bytes"].(*rds.Raw); ok {
+				rec.Hex = hex.EncodeToString(raw.V)
+			}
+			rec.Typeof = str("typeof")
+			if v, ok := f["visible"].(*rds.Logical); ok && len(v.V) == 1 {
+				rec.Visible = v.V[0] == 1
+			}
+		} else {
+			rec.Error, rec.Call = str("message"), str("call")
+		}
+		if w, ok := f["warnings"].(*rds.Character); ok {
+			for _, x := range w.V {
+				rec.Warnings = append(rec.Warnings, x.S)
+			}
+		}
+		if err := enc.Encode(rec); err != nil {
+			return nil, err
+		}
+	}
+	return buf.Bytes(), nil
+}
+
+// EvalInputs reads the snippets under testdata/eval.
+func EvalInputs(root string) ([]string, error) {
+	entries, err := os.ReadDir(filepath.Join(root, "testdata/eval"))
+	if err != nil {
+		return nil, err
+	}
+	var all []string
+	for _, e := range entries {
+		if strings.HasSuffix(e.Name(), ".R") {
+			s, err := ReadSnippets(root, "testdata/eval/"+e.Name())
+			if err != nil {
+				return nil, err
+			}
+			all = append(all, s...)
+		}
+	}
+	return all, nil
+}
