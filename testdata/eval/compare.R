@@ -129,3 +129,5 @@ is.list(list()); is.list(1); is.atomic(1); is.atomic(list()); is.atomic(NULL)
 is.function(sum); is.function(function(x) x); is.function(1)
 #---
 is.symbol(quote(x)); is.name(quote(x)); is.call(quote(f(x))); is.call(quote(x)); is.symbol(1)
+#---
+is.environment(1); is.environment(NULL); is.environment(sum)

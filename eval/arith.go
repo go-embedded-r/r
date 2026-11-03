@@ -152,18 +152,31 @@ func (s *Session) arith(op string, c *callInfo) Value {
 				out[i] = rpow(a[i%nx], b[i%ny])
 			}
 		case "%%":
-			warned := false
 			for i := range out {
 				var w bool
 				out[i], w = rmod(a[i%nx], b[i%ny])
-				if w && !warned {
-					warned = true
+				if w {
 					s.warningf(c.call, "probable complete loss of accuracy in modulus")
 				}
 			}
 		case "%/%":
 			for i := range out {
 				out[i] = rintdiv(a[i%nx], b[i%ny])
+			}
+		}
+		if kx <= kInteger && ky <= kInteger && (op == "/" || op == "^") {
+			// two integer-like operands: R stores NA_real_ for an NA element
+			// without computing, so its bits stay those of NA_real_; for the
+			// power, 1^NA and NA^0 are 1
+			ia, ib := asInts(x), asInts(y)
+			for i := range out {
+				p, q := ia[i%nx], ib[i%ny]
+				switch {
+				case op == "^" && (p == 1 || q == 0):
+					out[i] = 1
+				case p == naInt || q == naInt:
+					out[i] = naReal
+				}
 			}
 		}
 		return &Double{V: out, Attr: attrs}
@@ -268,7 +281,11 @@ func rpow(x, y float64) float64 {
 		if y == 2 {
 			return x * x
 		}
-		return math.Pow(x, y)
+		r := math.Pow(x, y)
+		if math.IsNaN(r) {
+			return rNaN // C's pow gives the hardware NaN, Go's a different payload
+		}
+		return r
 	}
 	if math.IsNaN(x) || math.IsNaN(y) {
 		return x + y
@@ -304,7 +321,7 @@ func rpow(x, y float64) float64 {
 			return 0
 		}
 	}
-	return math.NaN()
+	return rNaN
 }
 
 const dblEpsilon = 2.220446049250313e-16
@@ -313,7 +330,7 @@ const dblEpsilon = 2.220446049250313e-16
 // accuracy.
 func rmod(x1, x2 float64) (float64, bool) {
 	if x2 == 0 {
-		return math.NaN(), false
+		return rNaN, false
 	}
 	if math.Abs(x2)*dblEpsilon > 1 && !math.IsInf(x1, 0) && !math.IsNaN(x1) && math.Abs(x1) <= math.Abs(x2) {
 		switch {
@@ -329,9 +346,14 @@ func rmod(x1, x2 float64) (float64, bool) {
 	if !math.IsInf(q, 0) && !math.IsNaN(q) && math.Abs(q)*dblEpsilon > 1 {
 		warn = true
 	}
-	tmp := x1 - math.Floor(q)*x2
+	// R compiled for arm64 fuses these multiply-subtracts (a NaN negated by the
+	// fusion keeps the sign bit); written as FMA, the result is the same on every
+	// platform
+	// (the multiplicands are passed in the order that gives the negated
+	// floor(q) priority when both are NaN, as in R's compiled code)
+	tmp := math.FMA(x2, -math.Floor(q), x1)
 	q = math.Floor(tmp / x2)
-	return tmp - q*x2, warn
+	return math.FMA(x2, -q, tmp), warn
 }
 
 // rintdiv is x %/% y for doubles.
@@ -349,7 +371,7 @@ func rintdiv(x1, x2 float64) float64 {
 		}
 		return 0
 	}
-	tmp := x1 - math.Floor(q)*x2
+	tmp := math.FMA(x2, -math.Floor(q), x1)
 	return math.Floor(q) + math.Floor(tmp/x2)
 }
 

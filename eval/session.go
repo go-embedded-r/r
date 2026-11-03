@@ -2,6 +2,7 @@ package eval
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/go-embedded-r/r/syntax"
@@ -174,4 +175,14 @@ func (s *Session) currentCall() *Lang {
 		return s.frames[n-1].call
 	}
 	return nil
+}
+
+// Builtins returns the names of the primitives this evaluator provides.
+func Builtins() []string {
+	out := make([]string, 0, len(builtins))
+	for n := range builtins {
+		out = append(out, n)
+	}
+	sort.Strings(out)
+	return out
 }

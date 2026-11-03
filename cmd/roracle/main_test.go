@@ -22,7 +22,12 @@ func (f fakeSession) Deparse(string) (*oracle.Reply, error) {
 	return &oracle.Reply{OK: true, Value: &rds.List{V: []rds.Value{rds.Strings("x")}}}, nil
 }
 
-func (f fakeSession) Call(string, ...any) (*oracle.Reply, error) {
+func (f fakeSession) Call(op string, _ ...any) (*oracle.Reply, error) {
+	if op == "evalcase" {
+		l := &rds.List{V: []rds.Value{&rds.Logical{V: []int32{0}}, rds.Strings("boom"), rds.Strings("")}}
+		l.Attrs = []rds.Attr{{Name: "names", Value: rds.Strings("ok", "message", "call")}}
+		return &oracle.Reply{OK: true, Value: l}, nil
+	}
 	return &oracle.Reply{OK: true, Value: &rds.List{V: []rds.Value{
 		&rds.Raw{V: []byte{1}}, rds.Strings("raw"), &rds.Integer{V: []int32{1}}, rds.Strings("raw"),
 	}}}, nil
@@ -72,6 +77,18 @@ func repoCopy(t *testing.T) string {
 		os.MkdirAll(filepath.Dir(filepath.Join(dir, f)), 0o755)
 		os.WriteFile(filepath.Join(dir, f), b, 0o644)
 	}
+	entries, err := os.ReadDir("../../testdata/eval")
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.MkdirAll(filepath.Join(dir, "testdata/eval"), 0o755)
+	for _, e := range entries {
+		b, err := os.ReadFile(filepath.Join("../../testdata/eval", e.Name()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		os.WriteFile(filepath.Join(dir, "testdata/eval", e.Name()), b, 0o644)
+	}
 	return dir
 }
 
@@ -114,7 +131,7 @@ func TestRegenWritesGoldens(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, f := range []string{"testdata/golden/deparse.jsonl", "testdata/golden/rds.jsonl", "testdata/golden/parse.jsonl"} {
+	for _, f := range []string{"testdata/golden/deparse.jsonl", "testdata/golden/rds.jsonl", "testdata/golden/parse.jsonl", "testdata/golden/eval.jsonl"} {
 		if !strings.Contains(out, "wrote "+f) {
 			t.Errorf("no report for %s in %q", f, out)
 		}
@@ -127,7 +144,7 @@ func TestRegenWritesGoldens(t *testing.T) {
 func TestRegenFailures(t *testing.T) {
 	withFake(t, fakeSession{}, nil)
 	empty := t.TempDir() // no inputs
-	for _, c := range []string{"deparse", "rds", "parse"} {
+	for _, c := range []string{"deparse", "rds", "parse", "evalgolden"} {
 		if _, _, err := run(t, c, "-C", empty); err == nil {
 			t.Errorf("%s: missing inputs accepted", c)
 		}
@@ -194,7 +211,7 @@ func TestLiveRegen(t *testing.T) {
 	if _, _, err := run(t, "regen", "-C", dir); err != nil {
 		t.Fatal(err)
 	}
-	for _, f := range []string{"testdata/golden/deparse.jsonl", "testdata/golden/rds.jsonl", "testdata/golden/parse.jsonl"} {
+	for _, f := range []string{"testdata/golden/deparse.jsonl", "testdata/golden/rds.jsonl", "testdata/golden/parse.jsonl", "testdata/golden/eval.jsonl"} {
 		got, _ := os.ReadFile(filepath.Join(dir, f))
 		want, _ := os.ReadFile(filepath.Join("../..", f))
 		if !bytes.Equal(got, want) {

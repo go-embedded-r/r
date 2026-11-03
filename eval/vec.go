@@ -261,7 +261,7 @@ func (s *Session) colon(c *callInfo) Value {
 		case kString:
 			f, ok := parseNumber(asStrings(v)[0])
 			if !ok {
-				return math.NaN()
+				return rNaN
 			}
 			return f
 		}

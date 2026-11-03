@@ -280,6 +280,9 @@ func EvalGolden(o parity.Oracle, snippets []string) ([]byte, error) {
 			return nil, fmt.Errorf("gen: evalcase of %q returned %T", s, r.Value)
 		}
 		names, _ := l.Attr("names").(*rds.Character)
+		if names == nil || len(names.V) != len(l.V) {
+			return nil, fmt.Errorf("gen: evalcase of %q returned an unnamed list", s)
+		}
 		f := map[string]rds.Value{}
 		for i, n := range names.V {
 			f[n.S] = l.V[i]
@@ -332,4 +335,18 @@ func EvalInputs(root string) ([]string, error) {
 		}
 	}
 	return all, nil
+}
+
+// ParseJSONL decodes golden data already in memory.
+func ParseJSONL[T any](b []byte) ([]T, error) {
+	var out []T
+	dec := json.NewDecoder(bytes.NewReader(b))
+	for dec.More() {
+		var t T
+		if err := dec.Decode(&t); err != nil {
+			return nil, err
+		}
+		out = append(out, t)
+	}
+	return out, nil
 }

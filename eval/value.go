@@ -6,6 +6,7 @@ package eval
 
 import (
 	"math"
+	"runtime"
 	"sync"
 
 	"github.com/go-embedded-r/r/rds"
@@ -24,6 +25,15 @@ const (
 )
 
 var naReal = math.Float64frombits(rds.NAReal)
+
+// rNaN is R_NaN: the NaN the hardware makes of 0/0 (the sign bit is set on
+// x86, clear on arm64), which is what R serializes for it.
+var rNaN = func() float64 {
+	if runtime.GOARCH == "amd64" || runtime.GOARCH == "386" {
+		return math.Float64frombits(0xFFF8000000000000)
+	}
+	return math.Float64frombits(0x7FF8000000000000)
+}()
 
 // isNAReal: R's ISNA, the NaN whose low word is 1954.
 func isNAReal(x float64) bool {

@@ -33,7 +33,7 @@ func parseNumber(s Str) (float64, bool) {
 	case body == "NA":
 		return naReal, true
 	case body == "NaN":
-		return math.NaN(), true
+		return rNaN, true
 	case body == "Inf" || strings.EqualFold(body, "infinity"):
 		return signed(math.Inf(1)), true
 	}
@@ -67,6 +67,15 @@ func parseNumber(s Str) (float64, bool) {
 	return f, true
 }
 
+// firstArg is the data argument of as.integer() and friends, which are
+// primitives that ignore any further argument.
+func firstArg(c *callInfo) Value {
+	if len(c.args) == 0 {
+		return Null
+	}
+	return c.args[0]
+}
+
 func (s *Session) nargs1(c *callInfo, name string) Value {
 	if len(c.args) != 1 {
 		s.errorf(c.call, "%d arguments passed to '%s' which requires 1", len(c.args), name)
@@ -75,7 +84,7 @@ func (s *Session) nargs1(c *callInfo, name string) Value {
 }
 
 func (s *Session) asDouble(c *callInfo, name string) Value {
-	x := s.nargs1(c, name)
+	x := firstArg(c)
 	switch v := x.(type) {
 	case nullT:
 		return &Double{V: []float64{}}
@@ -103,7 +112,7 @@ func (s *Session) asDouble(c *callInfo, name string) Value {
 }
 
 func (s *Session) asInteger(c *callInfo) Value {
-	x := s.nargs1(c, "as.integer")
+	x := firstArg(c)
 	switch v := x.(type) {
 	case nullT:
 		return &Integer{V: []int32{}}
@@ -149,7 +158,7 @@ func (s *Session) asInteger(c *callInfo) Value {
 }
 
 func (s *Session) asLogical(c *callInfo) Value {
-	x := s.nargs1(c, "as.logical")
+	x := firstArg(c)
 	switch v := x.(type) {
 	case nullT:
 		return &Logical{V: []int32{}}
@@ -178,7 +187,7 @@ func (s *Session) asLogical(c *callInfo) Value {
 }
 
 func (s *Session) asCharacter(c *callInfo) Value {
-	x := s.nargs1(c, "as.character")
+	x := firstArg(c)
 	switch v := x.(type) {
 	case nullT:
 		return &String{V: []Str{}}
@@ -219,7 +228,7 @@ func (s *Session) math1(name string, f func(float64) float64, keepInt bool) func
 		out := make([]float64, len(d))
 		nan := false
 		for i, e := range d {
-			if isNAReal(e) {
+			if math.IsNaN(e) && name != "abs" { // abs is fabs: it clears the sign of a NaN too
 				out[i] = e
 				continue
 			}
@@ -251,6 +260,13 @@ func (s *Session) summary(name string) func(s *Session, c *callInfo) Value {
 	return func(s *Session, c *callInfo) Value {
 		data, rm := s.narm(c)
 		allInt := true
+		if name == "min" || name == "max" {
+			for _, a := range data {
+				if _, isStr := a.(*String); isStr {
+					return s.strExtreme(c, name, data, rm)
+				}
+			}
+		}
 		for _, a := range data {
 			switch a.(type) {
 			case nullT, *Logical, *Integer:
@@ -322,16 +338,26 @@ func (s *Session) summary(name string) func(s *Session, c *callInfo) Value {
 		case "max":
 			acc = math.Inf(-1)
 		}
-		sawAny, sawNaN := false, false
+		sawAny, sawNaN, exactNA, intNA := false, false, false, false
 		var naVal float64
 		for _, a := range data {
+			_, isDbl := a.(*Double)
 			for _, e := range asDoubles(a) {
 				if math.IsNaN(e) {
 					if rm {
 						continue
 					}
-					if !sawNaN || isNAReal(e) {
+					if name == "sum" && !isDbl {
+						intNA = true
+					}
+					first := !sawNaN
+					if name == "min" || name == "max" {
+						// min and max: any NA trumps all the NaNs
+						first = first || (isNAReal(e) && !isNAReal(naVal))
+					}
+					if first {
 						naVal = e
+						exactNA = !isDbl && isNAReal(e) && name == "sum" // an integer NA is stored by sum, not added
 					}
 					sawNaN = true
 					continue
@@ -343,15 +369,24 @@ func (s *Session) summary(name string) func(s *Session, c *callInfo) Value {
 				case "prod":
 					acc *= e
 				case "min":
-					acc = math.Min(acc, e)
+					if e < acc { // not math.Min: min(0, -0) is 0
+						acc = e
+					}
 				case "max":
-					acc = math.Max(acc, e)
+					if e > acc {
+						acc = e
+					}
 				}
 			}
 		}
 		if sawNaN {
-			if name == "sum" || name == "prod" {
-				return mkDouble(naVal + acc)
+			switch {
+			case name == "sum" && intNA:
+				return mkDouble(naReal) // an integer NA ends the sum, exactly
+			case name == "sum" && !exactNA:
+				return mkDouble(quiet(naVal)) // the first NaN, quieted by the addition
+			case name == "prod":
+				return mkDouble(quiet(naVal))
 			}
 			return mkDouble(naVal)
 		}
@@ -467,8 +502,11 @@ func init() {
 				d = []float64{f}
 			}
 		}
-		if len(d) == 0 || math.IsNaN(d[0]) || d[0] < 0 {
+		if len(d) == 0 || math.IsNaN(d[0]) || math.IsInf(d[0], 0) || d[0] < 0 {
 			s.errorf(c.call, "argument must be coercible to non-negative integer")
+		}
+		if d[0] > 1<<52 {
+			s.errorf(c.call, "result would be too long a vector")
 		}
 		n := int(d[0])
 		s.checkLen(c.call, n)
@@ -492,4 +530,42 @@ func init() {
 		}
 		return Null
 	})
+}
+
+// quiet sets the quiet bit of a NaN, as an arithmetic operation on it does.
+func quiet(x float64) float64 {
+	return math.Float64frombits(math.Float64bits(x) | 0x0008000000000000)
+}
+
+// strExtreme is min or max when an argument is a character vector: all the
+// arguments are compared as strings.
+func (s *Session) strExtreme(c *callInfo, name string, data []Value, rm bool) Value {
+	var best Str
+	have, na := false, false
+	for _, a := range data {
+		switch a.(type) {
+		case nullT, *Logical, *Integer, *Double, *String:
+		default:
+			s.errorf(c.call, "invalid 'type' (%s) of argument", typeName(a))
+		}
+		for _, e := range asStrings(a) {
+			if e.NA {
+				if !rm {
+					na = true
+				}
+				continue
+			}
+			if !have || (name == "min" && e.S < best.S) || (name == "max" && e.S > best.S) {
+				best, have = e, true
+			}
+		}
+	}
+	if na {
+		return &String{V: []Str{{NA: true}}}
+	}
+	if !have {
+		inf := map[string]string{"min": "Inf", "max": "-Inf"}[name]
+		s.errorf(c.call, "no non-missing arguments to %s; returning %s", name, inf)
+	}
+	return &String{V: []Str{best}}
 }

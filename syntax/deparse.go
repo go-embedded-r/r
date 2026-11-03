@@ -366,6 +366,9 @@ func formatReal15(x float64) string {
 	case math.IsInf(x, -1):
 		return "-Inf"
 	}
+	if x == 0 {
+		x = 0 // -0 is written 0
+	}
 	neg, kpower, nsig, rw := scientific(x)
 	left := kpower + 1
 	if rw {
