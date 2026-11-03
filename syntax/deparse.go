@@ -366,6 +366,9 @@ func formatReal15(x float64) string {
 	case math.IsInf(x, -1):
 		return "-Inf"
 	}
+	if x == 0 {
+		x = 0 // -0 is written 0
+	}
 	neg, kpower, nsig, rw := scientific(x)
 	left := kpower + 1
 	if rw {
@@ -1033,3 +1036,7 @@ func PrimitiveNames() map[string]bool {
 	}
 	return m
 }
+
+// FormatNumber writes x as R does with 15 significant digits (the text of
+// as.character(x) and of a deparsed double constant).
+func FormatNumber(x float64) string { return formatReal15(x) }

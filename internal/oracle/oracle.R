@@ -215,6 +215,37 @@ local({
         }
       })
     },
+    # evalcase(source): evaluate every expression in a fresh child of the
+    # global environment, as a notebook cell: the serialized last value, its
+    # visibility, the warnings (messages), or the error (message and call).
+    evalcase = function(args) {
+      warnings <- character()
+      res <- tryCatch(
+        withCallingHandlers({
+          env <- new.env(parent = globalenv())
+          exprs <- parse(text = args[[1L]], keep.source = FALSE)
+          wv <- list(value = NULL, visible = FALSE)
+          for (e in exprs) wv <- withVisible(eval(e, env))
+          val <- wv$value
+          if (is.atomic(val) && !is.null(val)) {   # version 2 has no ALTREP: 1:3 becomes a plain vector
+            val <- unserialize(serialize(val, NULL, xdr = TRUE, version = 2L))
+          }
+          list(ok = TRUE, bytes = serialize(val, NULL, xdr = TRUE, version = 3L),
+               typeof = typeof(wv$value), visible = wv$visible)
+        }, warning = function(w) {
+          warnings <<- c(warnings, conditionMessage(w))
+          invokeRestart("muffleWarning")
+        }),
+        error = function(e) list(ok = FALSE, message = conditionMessage(e),
+          call = {
+            cl <- paste(deparse(conditionCall(e)), collapse = "\n")
+            # the harness's own eval() is not part of what a cell sees
+            if (is.null(conditionCall(e)) || cl %in% c("eval(e, env)", "eval(expr, p)")) "" else cl
+          })
+      )
+      res$warnings <- warnings
+      guarded(res)
+    },
     # sleep(seconds): for the timeout test.
     sleep = function(args) {
       guarded(Sys.sleep(as.numeric(args[[1L]])))

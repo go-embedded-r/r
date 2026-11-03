@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -251,4 +252,148 @@ func ReadJSONL[T any](path string) ([]T, error) {
 		out = append(out, t)
 	}
 	return out, nil
+}
+
+// EvalRecord is one line of eval.jsonl: what R's evaluator does with a snippet.
+type EvalRecord struct {
+	Src      string   `json:"src"`
+	OK       bool     `json:"ok"`
+	Hex      string   `json:"hex,omitempty"` // serialize() of the last value
+	Typeof   string   `json:"typeof,omitempty"`
+	Visible  bool     `json:"visible,omitempty"`
+	Warnings []string `json:"warnings,omitempty"`
+	Error    string   `json:"error,omitempty"` // conditionMessage
+	Call     string   `json:"call,omitempty"`  // deparsed conditionCall
+}
+
+// EvalGolden asks R to evaluate each snippet as a cell.
+func EvalGolden(o parity.Oracle, snippets []string) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	for _, s := range snippets {
+		r, err := o.Call("evalcase", s)
+		if err != nil {
+			return nil, fmt.Errorf("gen: %q: %w", s, err)
+		}
+		l, ok := r.Value.(*rds.List)
+		if !ok {
+			return nil, fmt.Errorf("gen: evalcase of %q returned %T", s, r.Value)
+		}
+		names, _ := l.Attr("names").(*rds.Character)
+		if names == nil || len(names.V) != len(l.V) {
+			return nil, fmt.Errorf("gen: evalcase of %q returned an unnamed list", s)
+		}
+		f := map[string]rds.Value{}
+		for i, n := range names.V {
+			f[n.S] = l.V[i]
+		}
+		str := func(k string) string {
+			if c, ok := f[k].(*rds.Character); ok && len(c.V) > 0 {
+				return c.V[0].S
+			}
+			return ""
+		}
+		rec := EvalRecord{Src: s}
+		if lg, ok := f["ok"].(*rds.Logical); ok && len(lg.V) == 1 && lg.V[0] == 1 {
+			rec.OK = true
+			if raw, ok := f["bytes"].(*rds.Raw); ok {
+				v, _, err := rds.Decode(raw.V, rds.Limits{})
+				if err != nil {
+					return nil, fmt.Errorf("gen: value of %q: %w", s, err)
+				}
+				norm, err := rds.Encode(NormalizeNaN(v))
+				if err != nil {
+					return nil, err
+				}
+				rec.Hex = hex.EncodeToString(norm)
+			}
+			rec.Typeof = str("typeof")
+			if v, ok := f["visible"].(*rds.Logical); ok && len(v.V) == 1 {
+				rec.Visible = v.V[0] == 1
+			}
+		} else {
+			rec.Error, rec.Call = str("message"), str("call")
+		}
+		if w, ok := f["warnings"].(*rds.Character); ok {
+			for _, x := range w.V {
+				rec.Warnings = append(rec.Warnings, x.S)
+			}
+		}
+		if err := enc.Encode(rec); err != nil {
+			return nil, err
+		}
+	}
+	return buf.Bytes(), nil
+}
+
+// EvalInputs reads the snippets under testdata/eval.
+func EvalInputs(root string) ([]string, error) {
+	entries, err := os.ReadDir(filepath.Join(root, "testdata/eval"))
+	if err != nil {
+		return nil, err
+	}
+	var all []string
+	for _, e := range entries {
+		if strings.HasSuffix(e.Name(), ".R") {
+			s, err := ReadSnippets(root, "testdata/eval/"+e.Name())
+			if err != nil {
+				return nil, err
+			}
+			all = append(all, s...)
+		}
+	}
+	return all, nil
+}
+
+// ParseJSONL decodes golden data already in memory.
+func ParseJSONL[T any](b []byte) ([]T, error) {
+	var out []T
+	dec := json.NewDecoder(bytes.NewReader(b))
+	for dec.More() {
+		var t T
+		if err := dec.Decode(&t); err != nil {
+			return nil, err
+		}
+		out = append(out, t)
+	}
+	return out, nil
+}
+
+// NormalizeNaN rewrites, in place, the NaNs of every double vector of v to
+// one NaN and one NA: the bits of a NaN (its sign, whether it is quiet) are
+// whatever the hardware made of it (the sign bit of 0/0 differs between
+// x86-64 and arm64), so goldens keep only whether an element is NA or NaN.
+func NormalizeNaN(v rds.Value) rds.Value {
+	switch x := v.(type) {
+	case *rds.Real:
+		for i, f := range x.V {
+			if f != f {
+				if math.Float64bits(f)&0xFFFFFFFF == 1954 {
+					x.V[i] = math.Float64frombits(rds.NAReal)
+				} else {
+					x.V[i] = math.Float64frombits(0x7FF8000000000000)
+				}
+			}
+		}
+		normAttrs(x.Meta)
+	case *rds.List:
+		for _, e := range x.V {
+			NormalizeNaN(e)
+		}
+		normAttrs(x.Meta)
+	case *rds.Integer:
+		normAttrs(x.Meta)
+	case *rds.Logical:
+		normAttrs(x.Meta)
+	case *rds.Character:
+		normAttrs(x.Meta)
+	}
+	return v
+}
+
+func normAttrs(m rds.Meta) {
+	for _, a := range m.Attrs {
+		NormalizeNaN(a.Value)
+	}
 }

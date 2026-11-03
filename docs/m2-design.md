@@ -1,6 +1,6 @@
 # M2 design: the evaluator core
 
-Status: design, before code. Scope: milestone M2 of
+Status: design; the first slice (§7) is implemented in package `eval` (README, "M2"). Scope: milestone M2 of
 [`bib/r.md`](https://github.com/go-scikit/roadmap/blob/main/bib/r.md) (§2.3, §2.4, §5):
 SEXPs, environments, promises, argument matching, closures, contexts and
 conditions, S3, and the 210 primitives, in package `eval`.
@@ -205,6 +205,8 @@ overflow gives `NA` with the warning `NAs produced by integer overflow`), and
 **type promotion** (logical < integer < double < complex, `/` and `^` always
 double, `%/%` and `%%` on integers stay integer). Results are compared with the
 oracle on goldens generated from our own snippets (§9).
+
+Implemented in the first slice, 71 primitives: `quote function { ( invisible if while repeat for break next return <- = <<- missing + - * / ^ %% %/% == != < <= > >= & | ! && || : c list length is.na is.null is.logical is.integer is.double is.numeric is.character is.list is.function is.symbol is.name is.call is.environment is.atomic as.integer as.double as.numeric as.logical as.character abs sqrt exp floor ceiling sum prod min max any all seq_len seq_along names`.
 
 ## 8. Order of the primitives
 

@@ -38,7 +38,29 @@ are GPL-2-or-later, so:
 |---|---|---|
 | M0 oracle harness | `internal/oracle`, `cmd/roracle`, `rds` (serialization reader/writer), golden files | **done** |
 | M1 parser | `syntax`: lexer, parser, AST with source map, tokens, R's parse errors, `deparse`, `TopLevelNames` | **done** |
-| M2 – M8 | evaluator, base, stats, regex, graphics, notebook bridge, wasm playground, CRAN ports | planned |
+| M2 evaluator core | `eval`: values, environments, promises, closures with R's argument matching, control flow, 71 of the 210 primitives (first slice) | **slice 1 done**, see [docs/m2-design.md](docs/m2-design.md) |
+| M3 – M8 | base, stats, regex, graphics, notebook bridge, wasm playground, CRAN ports | planned |
+
+### M2: the evaluator (package `eval`)
+
+```go
+s := eval.NewSession(eval.Options{})   // one global environment that persists
+res, err := s.Eval("f <- function(x, y = 2) x * y; f(21)")
+res.Value, res.Visible, res.Warnings   // the last value, whether R would print it, warnings
+// err is *eval.Error (R's message and call), *syntax.Error or *syntax.LimitError
+```
+
+The design is in [docs/m2-design.md](docs/m2-design.md). The first slice: constants and symbols, environments, `<-`/`=`/`<<-`, `function` and closures with R's three-pass argument matching, promises (lazy arguments, `missing`, `...`), `{`, `if`, `for`, `while`, `repeat`, `break`, `next`, `return`, `quote`, and arithmetic, comparison and logic with R's recycling, NA rules, type promotion and integer overflow; `c`, `list`, `length`, `is.*`, `as.*`, `sum`/`prod`/`min`/`max`/`any`/`all`, `abs`/`sqrt`/`floor`/`ceiling`/`exp`, `seq_len`, `seq_along`. **71 of R's 210 primitives**, each exercised by the goldens; the rest of the primitives raise `could not find function` until their slice. Complex assignment targets (`x[i] <- v`), S3 dispatch and the condition system are the next slices. Errors and warnings are R's own: `Error in f(1) : object 'y' not found`.
+
+Judged by the oracle, never by expectations written by hand:
+
+| check | result |
+|---|---|
+| goldens: 314 snippets of `testdata/eval` (arithmetic, comparison, sequences, coercion, summaries, closures, matching, laziness, loops, errors), each compared with R 4.6.2's serialized value (byte for byte), visibility, warnings, and error message and call; replayed by `go test` without R | **314 / 314** |
+| differential fuzz: random arithmetic/logic/summary expressions, R against Go (`go run ./cmd/rparity evalfuzz`; seeds 6, 7, 8) | **179 998 / 180 000** |
+| `FuzzEval`: random source never panics, hangs or allocates without bound (session limits: depth, steps, vector length) | 8.6 million executions, clean |
+
+Known divergences, all from the platform rather than the semantics: the bits of a NaN (its sign, whether it is quiet) are whatever the hardware made of it, so goldens and the fuzz compare NA against NaN, not their payloads; `exp` and the power with a fractional or negative exponent can differ from the C library's `pow`/`exp` in the last bit (the fuzz keeps the exponents integral and leaves `exp` out; they come with go-numerics in M4); the 2 of 180 000 above are one of each (a `pow` last bit, and `NA %% 3` added to a NaN); `min`/`max` of a character vector mixed with numbers is not collated like R's. The modulus family is written with explicit fused multiply-adds, as R is compiled on arm64, so it gives the same result everywhere; R on x86-64 Linux does not fuse, so its `%%` of huge doubles can differ there (the CI lane reports the evaluator fuzz on Linux, it does not gate it).
 
 ### M1: the parser (package `syntax`)
 
