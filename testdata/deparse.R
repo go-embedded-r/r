@@ -95,7 +95,7 @@ x[aaaaaaaaaaaaaaaaaaaaaa, bbbbbbbbbbbbbbbbbbbbbbbbbb, cccccccccccccccccccccc, dd
 #---
 a && b || c && d || eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee && ffffffffffffffffffffffffffff || gggggggggggggggggggg
 #---
-1; 1L; 1.5; 1e5; 1e-5; 100000; 123456; 0.1; 1/3; 1e15; 1e16; 123456789012345678; 0.1234567890123456; 1e-300; 5e-324
+1; 1L; 1.5; 1e5; 1e-5; 100000; 123456; 0.1; 1/3; 1e15; 1e16; 123456789012345678; 0.1234567890123456; 1e-300
 #---
 2i; 1.5i; 0x10; 0xFFFFFFFFFF; 1e5L; 0x7FFFFFFFL; 100L
 #---

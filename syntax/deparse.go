@@ -1023,3 +1023,14 @@ func rPrintable(r rune) bool {
 	}
 	return true
 }
+
+// PrimitiveNames returns the names bound to primitives in R's base
+// environment (a copy; see prims_gen.go).
+func PrimitiveNames() map[string]bool {
+	m := make(map[string]bool, len(primitiveNames))
+	for k, v := range primitiveNames {
+		m[k] = v
+	}
+	return m
+}
+
