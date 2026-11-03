@@ -1033,4 +1033,3 @@ func PrimitiveNames() map[string]bool {
 	}
 	return m
 }
-
