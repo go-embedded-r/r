@@ -26,11 +26,12 @@ type flowSignal struct {
 
 // callInfo is what a primitive receives.
 type callInfo struct {
-	call  *Lang
-	env   *Env
-	raw   []Arg   // the arguments as written (specials)
-	args  []Value // the evaluated arguments (builtins)
-	names []string
+	tmpCall *Lang // for replacements: the `f<-`(`*tmp*`, ..., value = v) call R shows in some errors
+	call    *Lang
+	env     *Env
+	raw     []Arg   // the arguments as written (specials)
+	args    []Value // the evaluated arguments (builtins)
+	names   []string
 }
 
 var builtins = map[string]*Builtin{}

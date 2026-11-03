@@ -178,7 +178,7 @@ func formatElements(v Value, quote bool) (items []string, left bool) {
 			items = append(items, strings.TrimLeft(f.encode(e), " "))
 		}
 	case *String:
-		left = quote
+		left = true
 		for _, e := range x.V {
 			switch {
 			case e.NA && quote:
@@ -309,7 +309,11 @@ func (s *Session) printValueTagged(v Value, prefix string, env *Env) {
 	case nullT:
 		s.out.WriteString("NULL\n")
 	case *Logical, *Integer, *Double, *String:
-		s.printVector(v, true)
+		if d := dimsOf(v); len(d) >= 2 {
+			s.printArray(v, d, true)
+		} else {
+			s.printVector(v, true)
+		}
 		s.printAttributes(v, prefix, env)
 	case *List:
 		if len(x.V) == 0 {
@@ -324,7 +328,9 @@ func (s *Session) printValueTagged(v Value, prefix string, env *Env) {
 		nm := namesOf(x)
 		for i, e := range x.V {
 			tag := prefix + "[[" + strconv.Itoa(i+1) + "]]"
-			if nm != nil && !nm.V[i].NA && nm.V[i].S != "" {
+			if nm != nil && nm.V[i].NA {
+				tag = prefix + "$<NA>"
+			} else if nm != nil && nm.V[i].S != "" {
 				if syntacticName(nm.V[i].S) {
 					tag = prefix + "$" + nm.V[i].S
 				} else {
@@ -367,7 +373,7 @@ func (s *Session) printValueTagged(v Value, prefix string, env *Env) {
 
 func (s *Session) printAttributes(v Value, prefix string, env *Env) {
 	for _, a := range attrsOf(v) {
-		if a.Name == "names" {
+		if a.Name == "names" || ((a.Name == "dim" || a.Name == "dimnames") && len(dimsOf(v)) >= 2) {
 			continue
 		}
 		s.out.WriteString(prefix + "attr(,\"" + a.Name + "\")\n")
@@ -388,6 +394,10 @@ func (s *Session) printObject(v Value, prefix string, env *Env) {
 		}
 		if cl == "condition" {
 			s.printCondition(v)
+			return
+		}
+		if cl == "factor" && kindOf(v) == kInteger {
+			s.printFactor(v)
 			return
 		}
 	}

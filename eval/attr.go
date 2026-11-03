@@ -243,6 +243,8 @@ func (s *Session) setClass(c *callInfo, x, value Value) Value {
 	switch v := value.(type) {
 	case nullT:
 		return setAttr(x, "class", Null)
+	case *Logical, *Integer, *Double:
+		return s.setClass(c, x, &String{V: asStrings(v)})
 	case *String:
 		if len(v.V) == 0 {
 			return setAttr(x, "class", Null)
@@ -414,6 +416,52 @@ func init() {
 			s.errorf(c.call, "2 arguments are required")
 		}
 		return s.setDim(c, c.args[0], c.args[1])
+	})
+	regBuiltin("levels<-", func(s *Session, c *callInfo) Value {
+		if len(c.args) != 2 {
+			s.errorf(c.call, "2 arguments are required")
+		}
+		s.needVector(c, c.args[0], "levels")
+		return setAttr(c.args[0], "levels", c.args[1])
+	})
+	regBuiltin("dimnames<-", func(s *Session, c *callInfo) Value {
+		if len(c.args) != 2 {
+			s.errorf(c.call, "2 arguments are required")
+		}
+		x := c.args[0]
+		dims := dimsOf(x)
+		switch v := c.args[1].(type) {
+		case nullT:
+			return setAttr(x, "dimnames", Null)
+		case *List:
+			if len(dims) == 0 {
+				s.errorf(c.call, "'dimnames' applied to non-array")
+			}
+			if len(v.V) != len(dims) {
+				s.errorf(c.call, "length of 'dimnames' [%d] must match that of 'dims' [%d]", len(v.V), len(dims))
+			}
+			out := &List{V: make([]Value, len(v.V)), Attr: attrsOf(v)}
+			for i, e := range v.V {
+				switch ev := e.(type) {
+				case nullT:
+					out.V[i] = Null
+				case *Logical, *Integer, *Double, *String:
+					if Length(ev) == 0 {
+						out.V[i] = Null
+						continue
+					}
+					if Length(ev) != dims[i] {
+						s.errorf(c.call, "length of 'dimnames' [%d] not equal to array extent", i+1)
+					}
+					out.V[i] = &String{V: asStrings(ev)}
+				default:
+					s.errorf(c.call, "invalid type (%s) for 'dimnames' (must be a vector)", typeName(e))
+				}
+			}
+			return setAttr(x, "dimnames", out)
+		}
+		s.errorf(c.call, "'dimnames' must be a list")
+		return nil
 	})
 	regBuiltin("dimnames", func(s *Session, c *callInfo) Value {
 		if d := getAttr(s.nargs1(c, "dimnames"), "dimnames"); d != nil {

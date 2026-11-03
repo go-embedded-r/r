@@ -66,7 +66,7 @@ func (s *Session) resolveIndex(c *callInfo, idx Value, n int, names *String) (po
 			}
 		}
 		if neg > 0 && posCount > 0 {
-			s.errorf(c.call, "can't mix positive and negative subscripts")
+			s.errorf(c.call, "only 0's may be mixed with negative subscripts")
 		}
 		if neg > 0 {
 			drop := make([]bool, n)
@@ -249,10 +249,7 @@ func (s *Session) subset1(c *callInfo) Value {
 		names := make([]Str, len(pos))
 		for i, p := range pos {
 			if p < 0 || p >= n {
-				names[i] = Str{S: "<NA>", NA: true}
-				if _, isList := x.(*List); isList {
-					names[i] = Str{S: "<NA>"}
-				}
+				names[i] = Str{NA: true}
 			} else {
 				names[i] = nm.V[p]
 			}
@@ -281,6 +278,9 @@ func (s *Session) subsetArray(c *callInfo, x Value, idx []Value, dims []int, dro
 		var names *String
 		if dn != nil && d < len(dn.V) {
 			names, _ = dn.V[d].(*String)
+		}
+		if _, isStr := idx[d].(*String); isStr && names == nil {
+			s.errorf(c.call, "no 'dimnames' attribute for array")
 		}
 		pos, _ := s.resolveIndex(c, idx[d], dims[d], names)
 		for _, p := range pos {
@@ -443,7 +443,7 @@ func (s *Session) getElement(c *callInfo, x Value, idx Value, exact bool) Value 
 		d := asDoubles(iv)
 		if len(d) != 1 {
 			if len(d) == 0 {
-				s.errorf(c.call, "subscript of length 0")
+				s.errorf(c.call, "attempt to select less than one element in get1index")
 			}
 			s.errorf(c.call, "attempt to select more than one element in vectorIndex")
 		}
@@ -453,7 +453,7 @@ func (s *Session) getElement(c *callInfo, x Value, idx Value, exact bool) Value 
 			if _, isList := x.(*List); isList {
 				return Null
 			}
-			return takeElems(x, []int{naPos})
+			s.errorf(c.call, "subscript out of bounds")
 		case f >= 1:
 			p = int(f) - 1
 		case f <= -1:
@@ -462,10 +462,10 @@ func (s *Session) getElement(c *callInfo, x Value, idx Value, exact bool) Value 
 			} else if n == 2 && f == -2 {
 				p = 0
 			} else {
-				s.errorf(c.call, "invalid negative subscript in get1index <real>")
+				s.errorf(c.call, "invalid negative subscript in get1index%s", idxKind(idx))
 			}
 		default:
-			s.errorf(c.call, "attempt to select less than one element in get1index <real>")
+			s.errorf(c.call, "attempt to select less than one element in get1index%s", idxKind(idx))
 		}
 		if p >= n {
 			s.errorf(c.call, "subscript out of bounds")
@@ -622,4 +622,11 @@ func init() {
 		return s.subset2(c)
 	})
 	regSpecial("$", func(s *Session, c *callInfo) Value { return s.dollar(c) })
+}
+
+func idxKind(idx Value) string {
+	if _, ok := idx.(*Integer); ok {
+		return " <integer>"
+	}
+	return " <real>"
 }

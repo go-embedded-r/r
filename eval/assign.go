@@ -43,7 +43,7 @@ func (s *Session) targetValue(c *callInfo, inner Value, super bool) Value {
 		b, _ = start.find(sym)
 	}
 	if b == nil {
-		s.errorf(c.call, "object '%s' not found", sym.Name)
+		s.errorf(nil, "object '%s' not found", sym.Name)
 	}
 	switch v := b.val.(type) {
 	case *Promise:
@@ -74,6 +74,9 @@ func (s *Session) complexAssign(c *callInfo, target Value, value Value, super bo
 			s.errorf(c.call, "invalid assignment target")
 		}
 		inner := t.Args[0].Value
+		if _, isNull := inner.(nullT); isNull {
+			s.errorf(c.call, "invalid (NULL) left side of assignment")
+		}
 		cur := s.targetValue(c, inner, super)
 		nv := s.callReplacement(c, f.Name, cur, t.Args[1:], value)
 		s.complexAssign(c, inner, nv, super)
@@ -87,7 +90,8 @@ func (s *Session) callReplacement(c *callInfo, fname string, cur Value, extra []
 	fn := s.findFun(rname, c.env, c.call)
 	switch f := fn.(type) {
 	case *Builtin:
-		ci := &callInfo{call: c.call, env: c.env, args: []Value{cur}, names: []string{""}}
+		tmp := &Lang{Fun: rname, Args: append([]Arg{{Value: Intern("*tmp*")}}, extra...)}
+		ci := &callInfo{call: c.call, tmpCall: tmp, env: c.env, args: []Value{cur}, names: []string{""}}
 		for i, a := range extra {
 			if sym, isSym := a.Value.(*Symbol); isSym && (fname == "$" || fname == "@") && i == 0 {
 				ci.args = append(ci.args, mkString(sym.Name))
@@ -108,6 +112,7 @@ func (s *Session) callReplacement(c *callInfo, fname string, cur Value, extra []
 		}
 		ci.args = append(ci.args, value)
 		ci.names = append(ci.names, "value")
+		tmp.Args = append(tmp.Args, Arg{Name: "value", HasName: true, Value: value})
 		return f.fn(s, ci)
 	case *Closure:
 		supplied := []Arg{{Value: cur}}

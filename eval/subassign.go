@@ -313,10 +313,17 @@ func (s *Session) subassignArray(c *callInfo, x Value, idx []Value, dims []int, 
 		if dn != nil && d < len(dn.V) {
 			names, _ = dn.V[d].(*String)
 		}
+		if _, isStr := idx[d].(*String); isStr && names == nil {
+			s.errorf(c.call, "no 'dimnames' attribute for array")
+		}
 		pos, _ := s.resolveIndex(c, idx[d], dims[d], names)
 		for _, p := range pos {
 			if p >= dims[d] || p == naPos {
-				s.errorf(c.call, "subscript out of bounds")
+				call := c.call
+				if c.tmpCall != nil {
+					call = c.tmpCall
+				}
+				s.errorf(call, "subscript out of bounds")
 			}
 		}
 		sel[d] = pos
@@ -371,11 +378,7 @@ func (s *Session) subassign2(c *callInfo) Value {
 		if _, vnull := value.(nullT); vnull {
 			return Null
 		}
-		k := kindOf(value)
-		if k == kOther || Length(value) != 1 {
-			k = kList
-		}
-		x = emptyOf(k)
+		x = emptyOf(kList)
 	}
 	if !isVector(x) {
 		s.errorf(c.call, "object of type '%s' is not subsettable", typeName(x))
@@ -513,7 +516,7 @@ func (s *Session) subassignDollar(c *callInfo) Value {
 		return v
 	case nullT:
 		if _, vnull := value.(nullT); vnull {
-			return &List{V: []Value{}}
+			return Null
 		}
 		x = &List{V: []Value{}}
 	case *Logical, *Integer, *Double, *String:

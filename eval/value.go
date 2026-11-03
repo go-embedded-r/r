@@ -193,6 +193,13 @@ func mkInt(i int32) *Integer     { return &Integer{V: []int32{i}} }
 func mkDouble(f float64) *Double { return &Double{V: []float64{f}} }
 func mkString(s string) *String  { return &String{V: []Str{{S: s}}} }
 
+const (
+	rds0Lgl = rds.LGLSXP
+	rds0Int = rds.INTSXP
+	rds0Dbl = rds.REALSXP
+	rds0Str = rds.STRSXP
+)
+
 // Length is length(x) for the types of this slice.
 func Length(v Value) int {
 	switch x := v.(type) {
@@ -335,6 +342,9 @@ func toSyntax(v Value) syntax.Node {
 	case nullT:
 		return &syntax.Const{Kind: syntax.Null}
 	case *Logical:
+		if len(x.V) != 1 || namesOf(x) != nil {
+			return atomicToSyntax(x)
+		}
 		if len(x.V) == 1 {
 			c := &syntax.Const{Kind: syntax.Logical}
 			if x.V[0] == naInt {
@@ -345,23 +355,32 @@ func toSyntax(v Value) syntax.Node {
 			return c
 		}
 	case *Integer:
+		if len(x.V) != 1 || namesOf(x) != nil {
+			return atomicToSyntax(x)
+		}
 		if len(x.V) == 1 {
 			c := &syntax.Const{Kind: syntax.Integer, Int: x.V[0]}
 			c.NA = x.V[0] == naInt
 			return c
 		}
 	case *Double:
+		if len(x.V) != 1 || namesOf(x) != nil {
+			return atomicToSyntax(x)
+		}
 		if len(x.V) == 1 {
 			c := &syntax.Const{Kind: syntax.Double, Double: x.V[0]}
 			c.NA = isNAReal(x.V[0])
 			return c
 		}
 	case *String:
-		if len(x.V) == 1 {
-			return &syntax.Const{Kind: syntax.String, Str: x.V[0].S, NA: x.V[0].NA}
+		if len(x.V) != 1 || namesOf(x) != nil {
+			return atomicToSyntax(x)
 		}
+		return &syntax.Const{Kind: syntax.String, Str: x.V[0].S, NA: x.V[0].NA}
 	case *Promise:
 		return toSyntax(x.Expr)
+	case *List:
+		return vecToSyntax("list", x.V, x)
 	case *Lang:
 		if s, ok := x.Fun.(*Symbol); ok && s.Name == "function" && len(x.Args) == 2 {
 			if f, ok := x.Args[0].Value.(*Formals); ok {
@@ -383,6 +402,53 @@ func toSyntax(v Value) syntax.Node {
 		return c
 	}
 	return &syntax.Sym{Name: "<object>"}
+}
+
+// vecToSyntax writes a vector of length other than one as the call that
+// builds it, as deparse() does: c(...), a:b for a run of integers, list(...),
+// or integer(0) and the like.
+func vecToSyntax(head string, elems []Value, v Value) syntax.Node {
+	nm := namesOf(v)
+	call := &syntax.Call{Fun: &syntax.Sym{Name: head}}
+	for i, e := range elems {
+		a := syntax.Arg{Value: toSyntax(e)}
+		if nm != nil && !nm.V[i].NA && nm.V[i].S != "" {
+			a.Name, a.HasName = nm.V[i].S, true
+		}
+		call.Args = append(call.Args, a)
+	}
+	return call
+}
+
+func atomicToSyntax(v Value) syntax.Node {
+	n := Length(v)
+	if n == 0 {
+		name := map[Type]string{rds0Lgl: "logical", rds0Int: "integer", rds0Dbl: "numeric", rds0Str: "character"}[v.Type()]
+		return &syntax.Call{Fun: &syntax.Sym{Name: name}, Args: []syntax.Arg{{Value: &syntax.Const{Kind: syntax.Double, Double: 0}}}}
+	}
+	if iv, ok := v.(*Integer); ok && n > 1 && namesOf(v) == nil {
+		run := true
+		d := float64(iv.V[1]) - float64(iv.V[0])
+		if iv.V[0] == naInt || iv.V[1] == naInt || (d != 1 && d != -1) {
+			run = false
+		}
+		for i := 2; run && i < n; i++ {
+			if iv.V[i] == naInt || float64(iv.V[i])-float64(iv.V[i-1]) != d {
+				run = false
+			}
+		}
+		if run {
+			return &syntax.Call{Fun: &syntax.Sym{Name: ":"}, Args: []syntax.Arg{{Value: toSyntax(mkInt(iv.V[0]))}, {Value: toSyntax(mkInt(iv.V[n-1]))}}}
+		}
+	}
+	elems := make([]Value, n)
+	for i := range elems {
+		elems[i] = element(v, i)
+	}
+	if n == 1 && namesOf(v) == nil {
+		return toSyntax(v)
+	}
+	return vecToSyntax("c", elems, v)
 }
 
 // ToRDS converts a value to the serialization tree, so that it can be

@@ -181,6 +181,7 @@ func (s *Session) paste(c *callInfo, defSep string) Value {
 		var parts []string
 		for _, col := range cols {
 			if len(col) == 0 {
+				parts = append(parts, "") // a zero-length argument is ""
 				continue
 			}
 			e := col[i%len(col)]

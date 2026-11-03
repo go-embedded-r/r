@@ -143,6 +143,22 @@ func TestPrimitiveCoverage(t *testing.T) {
 			case *syntax.Call:
 				if s, ok := x.Fun.(*syntax.Sym); ok {
 					used[s.Name] = true
+					if (s.Name == "<-" || s.Name == "=" || s.Name == "<<-") && len(x.Args) == 2 {
+						// f(g(x), i) <- v calls `f<-`(...) and then `g<-`(...)
+						for t := x.Args[0].Value; ; {
+							tc, ok := t.(*syntax.Call)
+							if !ok {
+								break
+							}
+							if fs, ok := tc.Fun.(*syntax.Sym); ok {
+								used[fs.Name+"<-"] = true
+							}
+							if len(tc.Args) == 0 {
+								break
+							}
+							t = tc.Args[0].Value
+						}
+					}
 				} else {
 					walk(x.Fun)
 				}
