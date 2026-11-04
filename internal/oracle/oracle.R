@@ -234,8 +234,8 @@ local({
             if (wv$visible) print(wv$value)   # the console's auto-print
           }
           val <- wv$value
-          if (is.atomic(val) && !is.null(val)) {   # version 2 has no ALTREP: 1:3 becomes a plain vector
-            val <- unserialize(serialize(val, NULL, xdr = TRUE, version = 2L))
+          if ((is.atomic(val) && !is.null(val)) || is.list(val)) {   # version 2 has no ALTREP: 1:3 becomes a plain vector, nested ones too
+            val <- tryCatch(unserialize(serialize(val, NULL, xdr = TRUE, version = 2L)), error = function(e) val)
           }
           list(ok = TRUE, bytes = serialize(val, NULL, xdr = TRUE, version = 3L),
                typeof = typeof(wv$value), visible = wv$visible)

@@ -438,7 +438,7 @@ func atomicToSyntax(v Value) syntax.Node {
 			}
 		}
 		if run {
-			return &syntax.Call{Fun: &syntax.Sym{Name: ":"}, Args: []syntax.Arg{{Value: toSyntax(mkInt(iv.V[0]))}, {Value: toSyntax(mkInt(iv.V[n-1]))}}}
+			return &syntax.Call{Fun: &syntax.Sym{Name: ":"}, Args: []syntax.Arg{{Value: &syntax.Const{Kind: syntax.Double, Double: float64(iv.V[0])}}, {Value: &syntax.Const{Kind: syntax.Double, Double: float64(iv.V[n-1])}}}}
 		}
 	}
 	elems := make([]Value, n)

@@ -465,7 +465,7 @@ func init() {
 			}
 		}
 		if expr == nil {
-			return Null
+			s.errorf(c.call, "argument \"expr\" is missing, with no default")
 		}
 		id := s.nextID
 		s.nextID++

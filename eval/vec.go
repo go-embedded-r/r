@@ -546,7 +546,7 @@ func init() {
 	regBuiltin("!", func(s *Session, c *callInfo) Value { return s.not(c) })
 	regSpecial("&&", func(s *Session, c *callInfo) Value {
 		if len(c.raw) != 2 {
-			s.errorf(c.call, "'&&' operator requires 2 arguments")
+			s.errorf(nil, "'&&' operator requires 2 arguments")
 		}
 		x := s.scalarLogical(c, s.eval(c.raw[0].Value, c.env), "x")
 		if x == 0 {
@@ -563,7 +563,7 @@ func init() {
 	})
 	regSpecial("||", func(s *Session, c *callInfo) Value {
 		if len(c.raw) != 2 {
-			s.errorf(c.call, "'||' operator requires 2 arguments")
+			s.errorf(nil, "'||' operator requires 2 arguments")
 		}
 		x := s.scalarLogical(c, s.eval(c.raw[0].Value, c.env), "x")
 		if x == 1 {

@@ -1,5 +1,7 @@
 package eval
 
+import "math"
+
 // coerceTo promotes a vector to the given kind (logical < integer < double
 // < character < list), keeping its attributes.
 func coerceTo(x Value, kind int) Value {
@@ -181,6 +183,23 @@ func (s *Session) commonKind(c *callInfo, x, value Value) (Value, Value) {
 	return x, value
 }
 
+// commonKindFlat is commonKind for a subscript that treats x as a plain
+// vector: coercing an atomic array to a list keeps its names only.
+func (s *Session) commonKindFlat(c *callInfo, x, value Value) (Value, Value) {
+	kx := kindOf(x)
+	cx, cv := s.commonKind(c, x, value)
+	if _, isList := cx.(*List); isList && kx != kList {
+		var keep []Attr
+		for _, a := range attrsOf(cx) {
+			if a.Name == "names" {
+				keep = append(keep, a)
+			}
+		}
+		cx = withAttr(cx, keep)
+	}
+	return cx, cv
+}
+
 func (s *Session) subassign1(c *callInfo) Value {
 	if len(c.args) < 3 {
 		s.errorf(c.call, "invalid subscript in assignment")
@@ -190,6 +209,9 @@ func (s *Session) subassign1(c *callInfo) Value {
 	idx := c.args[1 : len(c.args)-1]
 	if _, isNull := x.(nullT); isNull {
 		if _, vnull := value.(nullT); vnull {
+			return Null
+		}
+		if l, isL := value.(*List); isL && len(l.V) == 0 {
 			return Null
 		}
 		k := kindOf(value)
@@ -204,6 +226,9 @@ func (s *Session) subassign1(c *callInfo) Value {
 	dims := dimsOf(x)
 	if len(idx) >= 2 {
 		if len(idx) != len(dims) {
+			if len(idx) == 2 {
+				s.errorf(c.call, "incorrect number of subscripts on matrix")
+			}
 			s.errorf(c.call, "incorrect number of subscripts")
 		}
 		return s.subassignArray(c, x, idx, dims, value)
@@ -218,12 +243,10 @@ func (s *Session) subassign1(c *callInfo) Value {
 		pos, newName = s.resolveIndex(c, idx[0], n, nm)
 	}
 	// x[i] <- NULL deletes from a list
-	if _, vnull := value.(nullT); vnull {
+	_, xIsL := x.(*List)
+	if _, vnull := value.(nullT); vnull && (xIsL || len(pos) > 0) {
 		l, isList := x.(*List)
 		if !isList {
-			if len(pos) == 0 {
-				return x
-			}
 			s.errorf(c.call, "replacement has length zero")
 		}
 		drop := make([]bool, n)
@@ -255,8 +278,24 @@ func (s *Session) subassign1(c *callInfo) Value {
 	if kindOf(value) == kOther {
 		lv = 1
 	}
+	// a logical subscript longer than x extends x, even when it selects nothing
+	ext := 0
+	if len(idx) > 0 {
+		if lg, ok := idx[0].(*Logical); ok {
+			ext = len(lg.V)
+		}
+	}
 	if len(pos) == 0 {
-		return x
+		cx := x
+		if _, vnull := value.(nullT); !vnull {
+			cx, _ = s.commonKindFlat(c, x, value)
+		}
+		if ext > n {
+			s.checkLen(c.call, ext)
+			res := assignAt(cx, nil, emptyOf(kindOf(cx)), ext)
+			return withAttr(res, dropDims(extendNames(cx, n, ext, nil)))
+		}
+		return cx
 	}
 	if lv == 0 {
 		s.errorf(c.call, "replacement has length zero")
@@ -278,8 +317,11 @@ func (s *Session) subassign1(c *callInfo) Value {
 		s.warningf(c.call, "number of items to replace is not a multiple of replacement length")
 	}
 	newN := maxp + 1
+	if ext > newN {
+		newN = ext
+	}
 	s.checkLen(c.call, newN)
-	cx, cv := s.commonKind(c, x, value)
+	cx, cv := s.commonKindFlat(c, x, value)
 	res := assignAt(cx, pos, cv, newN)
 	if newN > n {
 		attr := extendNames(cx, n, newN, newName)
@@ -314,26 +356,45 @@ func (s *Session) subassignArray(c *callInfo, x Value, idx []Value, dims []int, 
 			names, _ = dn.V[d].(*String)
 		}
 		if _, isStr := idx[d].(*String); isStr && names == nil {
-			s.errorf(c.call, "no 'dimnames' attribute for array")
+			call := c.call
+			if c.tmpCall != nil {
+				call = c.tmpCall
+			}
+			s.errorf(call, "no 'dimnames' attribute for array")
 		}
 		pos, _ := s.resolveIndex(c, idx[d], dims[d], names)
+		var kept []int
 		for _, p := range pos {
-			if p >= dims[d] || p == naPos {
+			if p == naPos {
+				if _, vnull := value.(nullT); vnull || Length(value) > 1 {
+					s.errorf(c.call, "NAs are not allowed in subscripted assignments")
+				}
+				continue
+			}
+			if p >= dims[d] {
 				call := c.call
 				if c.tmpCall != nil {
 					call = c.tmpCall
 				}
 				s.errorf(call, "subscript out of bounds")
 			}
+			kept = append(kept, p)
 		}
-		sel[d] = pos
-		total *= len(pos)
+		sel[d] = kept
+		total *= len(kept)
 	}
 	lv := Length(value)
 	if total == 0 {
-		return x
+		if _, vnull := value.(nullT); vnull {
+			return x
+		}
+		cx, _ := s.commonKindFlat(c, x, value)
+		return cx
 	}
 	if lv == 0 {
+		if _, vnull := value.(nullT); vnull {
+			s.errorf(c.call, "number of items to replace is not a multiple of replacement length")
+		}
 		s.errorf(c.call, "replacement has length zero")
 	}
 	if total%lv != 0 {
@@ -356,7 +417,7 @@ func (s *Session) subassignArray(c *callInfo, x Value, idx []Value, dims []int, 
 			counter[d] = 0
 		}
 	}
-	cx, cv := s.commonKind(c, x, value)
+	cx, cv := s.commonKindFlat(c, x, value)
 	return assignAt(cx, flat, cv, Length(x))
 }
 
@@ -374,11 +435,13 @@ func (s *Session) subassign2(c *callInfo) Value {
 		}
 		s.errorf(c.call, "wrong args for environment subassignment")
 	}
+	wasNull := false
 	if _, isNull := x.(nullT); isNull {
 		if _, vnull := value.(nullT); vnull {
 			return Null
 		}
 		x = emptyOf(kList)
+		wasNull = true
 	}
 	if !isVector(x) {
 		s.errorf(c.call, "object of type '%s' is not subsettable", typeName(x))
@@ -397,28 +460,92 @@ func (s *Session) subassign2(c *callInfo) Value {
 	if _, miss := i.(missingT); miss {
 		s.errorf(c.call, "[[ ]] with missing subscript")
 	}
+	// the first subscript decides several of R's error messages
+	firstSub := func() {
+		if k := kindOf(i); (k == kLogical || k == kInteger || k == kDouble) && Length(i) > 0 {
+			nx := Length(x)
+			f := asDoubles(i)[0]
+			single := Length(i) == 1
+			less := func(kind string) {
+				s.errorf(c.call, "attempt to select less than one element in %s", kind)
+			}
+			switch {
+			case k == kLogical && single && f == 0:
+				less("integerOneIndex")
+			case single && math.IsNaN(f):
+				if nx == 0 {
+					less("integerOneIndex")
+				}
+				s.errorf(c.call, "attempt to select more than one element in integerOneIndex")
+			case k != kLogical && f > -1 && f < 1 && !math.IsNaN(f):
+				less("OneIndex" + idxKind(i))
+			case k != kLogical && f <= -1 && nx <= 1:
+				less("OneIndex" + idxKind(i))
+			case k != kLogical && f <= -1 && nx >= 3:
+				s.errorf(c.call, "attempt to select more than one element in OneIndex%s", idxKind(i))
+			}
+			if k == kLogical && single && f == 1 {
+				i = mkInt(1)
+			}
+		}
+	}
+	if Length(i) > 1 {
+		firstSub()
+	}
 	// recursive: x[[c(1, 2)]] <- v is x[[1]][[2]] <- v
 	if Length(i) > 1 {
 		l, isList := x.(*List)
+		if wasNull {
+			call := c.call
+			if c.tmpCall != nil {
+				call = c.tmpCall
+			}
+			s.errorf(call, "no such index at level 1\n")
+		}
 		if !isList {
-			s.errorf(c.call, "[[ ]] subscript out of bounds")
+			call := c.call
+			if c.tmpCall != nil {
+				call = c.tmpCall
+			}
+			s.errorf(call, "attempt to select more than one element in vectorIndex")
 		}
 		first, rest := element(i, 0), dropFirst(i)
 		sub := s.getElement(c, l, first, true)
 		inner := s.subassign2(&callInfo{call: c.call, env: c.env, args: []Value{sub, rest, value}, names: []string{"", "", ""}})
 		return s.subassign2(&callInfo{call: c.call, env: c.env, args: []Value{x, first, inner}, names: []string{"", "", ""}})
 	}
-	if Length(i) == 0 {
-		s.errorf(c.call, "[[ ]] with missing subscript")
-	}
 	n := Length(x)
 	nm := namesOf(x)
+	_, xIsList := x.(*List)
+	flat := wasNull || !xIsList
+	if !xIsList && Length(value) == 0 && kindOf(value) != kOther {
+		s.errorf(c.call, "replacement has length zero")
+	}
+	if !xIsList && Length(value) > 1 && kindOf(value) != kOther {
+		s.errorf(c.call, "more elements supplied than there are to replace")
+	}
+	if Length(i) == 0 {
+		s.errorf(c.call, "attempt to select less than one element in OneIndex")
+	}
+	firstSub()
 	pos, newName := s.resolveIndex(c, i, n, nm)
+	if lg, isLgl := i.(*Logical); isLgl && len(pos) == 0 && len(lg.V) == 1 {
+		s.errorf(c.call, "attempt to select less than one element in integerOneIndex")
+	}
+	if flat && len(pos) == 1 && pos[0] == naPos {
+		if n == 0 {
+			s.errorf(c.call, "attempt to select less than one element in integerOneIndex")
+		}
+		s.errorf(c.call, "attempt to select more than one element in integerOneIndex")
+	}
+	if flat && len(pos) == 0 {
+		s.errorf(c.call, "attempt to select less than one element in OneIndex <real>")
+	}
 	if len(pos) != 1 || pos[0] == naPos {
 		s.errorf(c.call, "[[ ]] subscript out of bounds")
 	}
 	p := pos[0]
-	if f := asDoublesOrNil(i); f != nil && f[0] < 0 {
+	if f := asDoublesOrNil(i); f != nil && f[0] <= -1 && n != 2 {
 		s.errorf(c.call, "invalid negative subscript in get1index <real>")
 	}
 	if l, isList := x.(*List); isList {
@@ -475,7 +602,7 @@ func (s *Session) subassign2(c *callInfo) Value {
 		newN = p + 1
 	}
 	s.checkLen(c.call, newN)
-	cx, cv := s.commonKind(c, x, value)
+	cx, cv := s.commonKindFlat(c, x, value)
 	if lst, ok := value.(*List); ok {
 		cv = &List{V: []Value{lst}}
 	}
@@ -524,7 +651,13 @@ func (s *Session) subassignDollar(c *callInfo) Value {
 		x = &List{V: []Value{}}
 	case *Logical, *Integer, *Double, *String:
 		s.warningf(c.call, "Coercing LHS to a list")
-		x = coerceTo(x, kList)
+		var keep []Attr
+		for _, a := range attrsOf(x) {
+			if a.Name == "names" {
+				keep = append(keep, a)
+			}
+		}
+		x = withAttr(coerceTo(x, kList), keep)
 	case *List:
 	default:
 		s.errorf(c.call, "object of type '%s' is not subsettable", typeName(x))

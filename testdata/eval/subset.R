@@ -109,3 +109,32 @@ x <- structure(1:3, class = "foo", extra = 1); x[1]
 x <- structure(c(a = 1, b = 2), extra = 1); x[1]; x[[1]]
 #---
 f <- structure(1:3, levels = c("a", "b", "c"), class = "factor"); f[2]; f[c(1, 3)]
+
+#---
+matrix(1:6, 2); matrix(1:6, ncol = 2); matrix(1:6, 2, byrow = TRUE); matrix(0, 2, 2)
+#---
+matrix(1:4, 2, dimnames = list(c("a", "b"), c("x", "y")))
+#---
+matrix(c("a", "b", "c", "d"), 2)
+#---
+matrix(numeric(0), 2, 2)
+#---
+matrix(1:6, 2, 3, 4, 5, 6, 7)
+#---
+array(1:24, c(2, 3, 4))
+#---
+array(0, c(2, 2)); array(1:3); array(1:4, c(2, 2), list(c("a", "b"), NULL))
+#---
+m <- matrix(1:6, 2, dimnames = list(c("r1", "r2"), c("A", "B", "C"))); m[0, c(1, 2)]; m[integer(0), 0]; m[, "B"]; m["r2", ]
+#---
+x <- c(a = 1, b = 2); x[NULL]; x[[-1.9]]; x[-1]
+#---
+x <- c(TRUE, FALSE, NA); x[[NULL]]
+#---
+x <- c("p", "q", "r"); x[[c("a", "c")]]
+#---
+x <- c(x = "p", y = "q"); x[[FALSE]]
+#---
+letters[1:3]; LETTERS[24:26]
+#---
+x <- 1:5; names(x) <- letters; x

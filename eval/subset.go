@@ -96,6 +96,8 @@ func (s *Session) resolveIndex(c *callInfo, idx Value, n int, names *String) (po
 			}
 		}
 		return
+	case nullT:
+		return nil, nil
 	case *String:
 		newName = map[int]string{}
 		next := n
@@ -334,6 +336,9 @@ func (s *Session) subsetArray(c *callInfo, x Value, idx []Value, dims []int, dro
 		if !ok {
 			return Null
 		}
+		if len(sel[d]) == 0 {
+			return Null
+		}
 		out := make([]Str, len(sel[d]))
 		for i, p := range sel[d] {
 			if p == naPos {
@@ -392,6 +397,9 @@ func (s *Session) subsetArray(c *callInfo, x Value, idx []Value, dims []int, dro
 				any = true
 			}
 		}
+		if total == 0 {
+			any = true
+		}
 		if any {
 			var l = &List{V: ndn}
 			if dnn := namesOf(dn); dnn != nil {
@@ -410,6 +418,11 @@ func (s *Session) getElement(c *callInfo, x Value, idx Value, exact bool) Value 
 	var p int
 	switch iv := idx.(type) {
 	case *String:
+		if len(iv.V) > 1 {
+			if _, isList := x.(*List); !isList {
+				s.errorf(c.call, "attempt to select more than one element in vectorIndex")
+			}
+		}
 		if len(iv.V) != 1 {
 			s.errorf(c.call, "subscript out of bounds")
 		}
@@ -457,19 +470,24 @@ func (s *Session) getElement(c *callInfo, x Value, idx Value, exact bool) Value 
 		case f >= 1:
 			p = int(f) - 1
 		case f <= -1:
-			if n == 2 && f == -1 {
+			if n == 2 && math.Trunc(f) == -1 {
 				p = 1
-			} else if n == 2 && f == -2 {
+			} else if n == 2 && math.Trunc(f) == -2 {
 				p = 0
 			} else {
 				s.errorf(c.call, "invalid negative subscript in get1index%s", idxKind(idx))
 			}
 		default:
+			if _, isLgl := iv.(*Logical); isLgl {
+				s.errorf(c.call, "attempt to select less than one element in integerOneIndex")
+			}
 			s.errorf(c.call, "attempt to select less than one element in get1index%s", idxKind(idx))
 		}
 		if p >= n {
 			s.errorf(c.call, "subscript out of bounds")
 		}
+	case nullT:
+		s.errorf(c.call, "attempt to select less than one element in get1index")
 	default:
 		s.errorf(c.call, "invalid subscript type '%s'", typeName(idx))
 	}

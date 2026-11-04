@@ -19,6 +19,10 @@ func (s *Session) printMatrix(v Value, base, nr, nc int, rowNames, colNames *Str
 	if nr > maxPrintRows || nc > maxPrintRows {
 		s.errorf(nil, "matrix too large to print: more than %d rows or columns", maxPrintRows)
 	}
+	if nr == 0 && nc == 0 {
+		s.out.WriteString("<0 x 0 matrix>\n")
+		return
+	}
 	rw := len(strconv.Itoa(nr)) + 3
 	if rowNames != nil {
 		rw = 0

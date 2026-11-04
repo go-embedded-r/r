@@ -242,3 +242,56 @@ x <- 0; x[[1]] <- list()
 x <- 0; x[[1]] <- list(1, 2)
 #---
 x <- c(a = 1); x[["b"]] <- list(2); x
+
+#---
+x <- numeric(0); x[FALSE] <- "s"; x
+#---
+x <- numeric(0); x[NA] <- "s"; x
+#---
+x <- NULL; x[c(TRUE, NA)] <- 99; x
+#---
+x <- NULL; x[FALSE] <- list(); x
+#---
+x <- NULL; x[[c(1, 1)]] <- 1:3
+#---
+x <- NULL; names(x) <- NULL; x
+#---
+m <- matrix(1:6, 2); m[integer(0)] <- list(1); m
+#---
+m <- matrix(1:6, 2); m[[4]] <- list(1); m
+#---
+m <- matrix(1:6, 2); m[1, 1] <- list(5); m
+#---
+m <- matrix(1:6, 2); m[NA, TRUE] <- c(7, 8)
+#---
+m <- matrix(1:6, 2); m[1, 1:3] <- c(7, 8)
+#---
+m <- matrix(1:6, 2); m[c(1, 2), c(1, 2)] <- NULL
+#---
+x <- 1:5; x[[c(1, 1)]] <- "s"
+#---
+x <- 1:5; x[[NA_integer_]] <- 1L
+#---
+x <- 1:5; x[[0]] <- 1L
+#---
+x <- c(a = 1, b = 2); x[[-2]] <- 99; x
+#---
+x <- 1:5; x[[TRUE]] <- 9L; x
+#---
+x <- 1:5; x[[FALSE]] <- 9L
+#---
+x <- 1:5; x[[NULL]] <- 9L
+#---
+x <- c(a = 1, b = 2, c = 3); x[[-1.9]] <- list()
+#---
+x <- 1:5; x[1, 2] <- 0L
+#---
+m <- matrix(1:6, 2); names(m) <- c("a", NA); m
+#---
+x <- 1:3; x[2] <- list(7); x
+#---
+x <- list(a = 1); x$new <- list(1); x
+#---
+x <- 0; x[[1]] <- list(1, 2)
+#---
+`&&`()

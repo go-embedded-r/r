@@ -264,8 +264,8 @@ type EvalRecord struct {
 	Warnings []string `json:"warnings,omitempty"`
 	Output   string   `json:"output,omitempty"` // what the cell printed on standard output
 	Stderr   string   `json:"stderr,omitempty"` // message() output
-	Error    string   `json:"error,omitempty"` // conditionMessage
-	Call     string   `json:"call,omitempty"`  // deparsed conditionCall
+	Error    string   `json:"error,omitempty"`  // conditionMessage
+	Call     string   `json:"call,omitempty"`   // deparsed conditionCall
 }
 
 // EvalGolden asks R to evaluate each snippet as a cell.

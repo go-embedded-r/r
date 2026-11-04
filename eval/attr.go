@@ -166,6 +166,11 @@ func (s *Session) needVector(c *callInfo, x Value, what string) {
 
 // setNames implements names(x) <- value.
 func (s *Session) setNames(c *callInfo, x, value Value) Value {
+	if _, xNull := x.(nullT); xNull {
+		if _, vNull := value.(nullT); vNull {
+			return Null
+		}
+	}
 	s.needVector(c, x, "names")
 	if _, isNull := value.(nullT); isNull {
 		return setAttr(x, "names", Null)

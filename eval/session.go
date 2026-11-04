@@ -146,6 +146,12 @@ func NewSession(opts Options) *Session {
 	for name, b := range builtins {
 		s.Base.Set(name, b)
 	}
+	lower, upper := make([]string, 26), make([]string, 26)
+	for i := range lower {
+		lower[i], upper[i] = string(rune('a'+i)), string(rune('A'+i))
+	}
+	s.Base.Set("letters", strVec(lower))
+	s.Base.Set("LETTERS", strVec(upper))
 	s.Global = &Env{parent: s.Base, name: "R_GlobalEnv"}
 	return s
 }

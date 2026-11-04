@@ -383,7 +383,7 @@ func hasString(l []string, w string) bool {
 
 func (s *Session) printAttributes(v Value, prefix string, env *Env) {
 	for _, a := range attrsOf(v) {
-		if a.Name == "names" || ((a.Name == "dim" || a.Name == "dimnames") && len(dimsOf(v)) >= 2) {
+		if (a.Name == "names" && len(dimsOf(v)) < 2) || ((a.Name == "dim" || a.Name == "dimnames") && len(dimsOf(v)) >= 1) {
 			continue
 		}
 		s.out.WriteString("attr(,\"" + a.Name + "\")\n")
