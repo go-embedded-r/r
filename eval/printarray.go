@@ -93,6 +93,10 @@ func (s *Session) printMatrix(v Value, base, nr, nc int, rowNames, colNames *Str
 	}
 }
 
+// maxPrintSlices bounds the matrix slices printArray emits; beyond it the
+// print is refused (R would run for ever or exhaust memory).
+const maxPrintSlices = 1 << 20
+
 func dimnamesOf(v Value, d int) *String {
 	if dn, ok := getAttr(v, "dimnames").(*List); ok && d < len(dn.V) {
 		if nm, ok := dn.V[d].(*String); ok {
@@ -114,9 +118,14 @@ func (s *Session) printArray(v Value, dims []int, quote bool) {
 	nslices := 1
 	for _, d := range dims[2:] {
 		nslices *= d
+		if nslices > maxPrintSlices || nslices < 0 {
+			// an array with a zero extent and astronomically many slices
+			s.errorf(nil, "array too large to print: more than %d slices", maxPrintSlices)
+		}
 	}
 	counter := make([]int, len(dims)-2)
 	for k := 0; k < nslices; k++ {
+		s.checkInterrupt()
 		label := ", , "
 		for i, c := range counter {
 			if i > 0 {

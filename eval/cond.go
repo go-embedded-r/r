@@ -457,11 +457,11 @@ func init() {
 		for i, a := range c.raw {
 			switch {
 			case a.HasName && a.Name == "silent":
-				silent = logicalOf(s, nil2(c), s.eval(a.Value, c.env), "invalid 'silent' argument")[0] == 1
+				silent = silentArg(s, c, a.Value)
 			case a.HasName && a.Name == "expr", !a.HasName && i == 0:
 				expr = a.Value
 			case !a.HasName && i == 1:
-				silent = logicalOf(s, nil2(c), s.eval(a.Value, c.env), "invalid 'silent' argument")[0] == 1
+				silent = silentArg(s, c, a.Value)
 			}
 		}
 		if expr == nil {
@@ -504,3 +504,11 @@ func init() {
 func nil2(c *callInfo) *callInfo { return c }
 
 var _ = syntax.Deparse
+
+func silentArg(s *Session, c *callInfo, e Value) bool {
+	l := logicalOf(s, nil2(c), s.eval(e, c.env), "invalid 'silent' argument")
+	if len(l) == 0 {
+		s.errorf(c.call, "invalid 'silent' argument")
+	}
+	return l[0] == 1
+}
