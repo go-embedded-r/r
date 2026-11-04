@@ -73,6 +73,10 @@ func Command() ([]string, error) {
 	if err != nil {
 		return nil, ErrNoR
 	}
+	// an R of another release on PATH (a CI image may carry one) is no oracle
+	if out, err := exec.Command(p, "--version").CombinedOutput(); err != nil || !strings.Contains(string(out), "version "+Version) {
+		return nil, ErrNoR
+	}
 	return []string{p}, nil
 }
 

@@ -33,7 +33,7 @@ func (s *Session) makeVector(c *callInfo, kind int, n Value) Value {
 		if len(d) != 1 || d[0] != d[0] || d[0] < 0 {
 			s.errorf(c.call, "invalid 'length' argument")
 		}
-		length = int(d[0])
+		length = int(min(d[0], float64(s.opts.MaxVector)+1))
 	default:
 		s.errorf(c.call, "invalid 'length' argument")
 	}

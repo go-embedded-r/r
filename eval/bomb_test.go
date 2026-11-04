@@ -3,6 +3,7 @@ package eval_test
 import (
 	"context"
 	"errors"
+	"runtime"
 	"runtime/debug"
 	"strings"
 	"testing"
@@ -17,6 +18,7 @@ import (
 
 func underMemoryLimit(t *testing.T) {
 	t.Helper()
+	skipOnWasm(t)
 	old := debug.SetMemoryLimit(768 << 20)
 	t.Cleanup(func() { debug.SetMemoryLimit(old) })
 }
@@ -42,7 +44,15 @@ func refused(t *testing.T, s *eval.Session, src string, want ...string) {
 	}
 }
 
+func skipOnWasm(t *testing.T) {
+	t.Helper()
+	if runtime.GOARCH == "wasm" {
+		t.Skip("the bombs run natively; wasm hosts have their own memory limits")
+	}
+}
+
 func TestDefaultsAreNonZero(t *testing.T) {
+	skipOnWasm(t)
 	// the zero Options is bounded
 	s := eval.NewSession(eval.Options{})
 	refused(t, s, "while (TRUE) 0", "step limit", "time limit")
@@ -65,6 +75,7 @@ func TestAllocLimit(t *testing.T) {
 }
 
 func TestTimeoutAndCancel(t *testing.T) {
+	skipOnWasm(t)
 	s := eval.NewSession(eval.Options{MaxSteps: eval.Unbounded, Timeout: 150 * time.Millisecond})
 	_, err := s.Eval("while (TRUE) 0")
 	if !errors.Is(err, context.DeadlineExceeded) {
@@ -80,6 +91,7 @@ func TestTimeoutAndCancel(t *testing.T) {
 }
 
 func TestUnboundedIsStamped(t *testing.T) {
+	skipOnWasm(t)
 	// the explicit opt-out works...
 	s := eval.NewSession(eval.Options{MaxSteps: eval.Unbounded, MaxAlloc: eval.Unbounded, Timeout: eval.Unbounded})
 	res, err := s.Eval("s <- 0; for (i in 1:100000) s <- s + i; s")
