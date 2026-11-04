@@ -76,6 +76,7 @@ func evalfuzzCmd() *cobra.Command {
 	var n int
 	var seed int64
 	var maxFail int
+	var mode string
 	cmd := &cobra.Command{
 		Use:   "evalfuzz",
 		Short: "differential fuzz of the evaluator: random arithmetic expressions, R against Go",
@@ -93,7 +94,11 @@ func evalfuzzCmd() *cobra.Command {
 			for done := 0; done < n; done += batch {
 				srcs := make([]string, batch)
 				for i := range srcs {
-					srcs[i] = fuzzExpr(r, 3)
+					if mode == "subset" {
+						srcs[i] = fuzzSubset(r)
+					} else {
+						srcs[i] = fuzzExpr(r, 3)
+					}
 				}
 				data, err := gen.EvalGolden(p, srcs)
 				if err != nil {
@@ -126,6 +131,7 @@ func evalfuzzCmd() *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().StringVar(&mode, "mode", "arith", "arith or subset")
 	cmd.Flags().IntVar(&n, "n", 2000, "expressions")
 	cmd.Flags().Int64Var(&seed, "seed", 1, "random seed")
 	cmd.Flags().IntVar(&maxFail, "max-diff", 15, "differences to print")

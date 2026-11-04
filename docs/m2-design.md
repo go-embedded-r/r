@@ -1,6 +1,6 @@
 # M2 design: the evaluator core
 
-Status: design; the first slice (§7) is implemented in package `eval` (README, "M2"). Scope: milestone M2 of
+Status: the first two slices (§7, §12) are implemented in package `eval` (README, "M2"). Scope: milestone M2 of
 [`bib/r.md`](https://github.com/go-scikit/roadmap/blob/main/bib/r.md) (§2.3, §2.4, §5):
 SEXPs, environments, promises, argument matching, closures, contexts and
 conditions, S3, and the 210 primitives, in package `eval`.
@@ -282,6 +282,10 @@ interpreter); `TopLevelNames` (package `syntax`) tells the notebook which names
 a cell defines. The session is not safe for concurrent use; cells run one at a
 time. `Value` converts to and from Go (`float64`, `[]float64`, `string`, ...) in
 `eval/bridge.go`, following the value bridge of bib/r.md §5 (M6).
+
+## 12. Slice 2 (implemented)
+
+Replacement functions with always-copy semantics (the ownership optimisation of §1 stays deferred), subsetting, attributes, S3 dispatch, the condition system, value printing and the `Eval` API with limits (`Timeout`, `MaxAlloc`, `MaxSteps`, `MaxDepth`, `MaxVector`; a cancelled context). Handlers are a stack on the session: exiting handlers unwind with a typed panic caught by their `tryCatch`, calling handlers run with the stack truncated below them, restarts are found by name. Errors are signalled as conditions before they end the evaluation, so `tryCatch(error=)` and `withCallingHandlers(error=)` see them. The oracle's `evalcase` captures printed output and standard error with `sink`, auto-prints visible values, and expands ALTREP (compact sequences) by a version-2 serialize round trip, nested lists included. The differential fuzz has two modes: `arith` and `subset`.
 
 ## 11. Risks
 

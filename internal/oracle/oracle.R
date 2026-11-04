@@ -220,15 +220,22 @@ local({
     # visibility, the warnings (messages), or the error (message and call).
     evalcase = function(args) {
       warnings <- character()
+      oc <- rawConnection(raw(0), "wb")
+      ec <- rawConnection(raw(0), "wb")
+      sink(oc)
+      sink(ec, type = "message")
       res <- tryCatch(
         withCallingHandlers({
           env <- new.env(parent = globalenv())
           exprs <- parse(text = args[[1L]], keep.source = FALSE)
           wv <- list(value = NULL, visible = FALSE)
-          for (e in exprs) wv <- withVisible(eval(e, env))
+          for (e in exprs) {
+            wv <- withVisible(eval(e, env))
+            if (wv$visible) print(wv$value)   # the console's auto-print
+          }
           val <- wv$value
-          if (is.atomic(val) && !is.null(val)) {   # version 2 has no ALTREP: 1:3 becomes a plain vector
-            val <- unserialize(serialize(val, NULL, xdr = TRUE, version = 2L))
+          if ((is.atomic(val) && !is.null(val)) || is.list(val)) {   # version 2 has no ALTREP: 1:3 becomes a plain vector, nested ones too
+            val <- tryCatch(unserialize(serialize(val, NULL, xdr = TRUE, version = 2L)), error = function(e) val)
           }
           list(ok = TRUE, bytes = serialize(val, NULL, xdr = TRUE, version = 3L),
                typeof = typeof(wv$value), visible = wv$visible)
@@ -243,6 +250,12 @@ local({
             if (is.null(conditionCall(e)) || cl %in% c("eval(e, env)", "eval(expr, p)")) "" else cl
           })
       )
+      sink(type = "message")
+      sink()
+      res$output <- rawToChar(rawConnectionValue(oc))
+      res$stderr <- rawToChar(rawConnectionValue(ec))
+      close(oc)
+      close(ec)
       res$warnings <- warnings
       guarded(res)
     },
