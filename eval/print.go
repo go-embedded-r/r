@@ -115,6 +115,9 @@ func formatRealVec(x []float64, digits int) realFormat {
 
 func (f realFormat) encode(x float64) string {
 	var s string
+	if x == 0 {
+		x = 0 // -0 is written 0
+	}
 	switch {
 	case isNAReal(x):
 		s = "NA"
@@ -127,9 +130,6 @@ func (f realFormat) encode(x float64) string {
 	case f.e:
 		s = strconv.FormatFloat(x, 'e', f.d, 64)
 	default:
-		if x == 0 {
-			x = 0 // -0 is written 0
-		}
 		s = strconv.FormatFloat(x, 'f', f.d, 64)
 	}
 	return padLeft(s, f.w)
@@ -175,7 +175,7 @@ func formatElements(v Value, quote bool) (items []string, left bool) {
 	case *Double:
 		f := formatRealVec(x.V, printDigits)
 		for _, e := range x.V {
-			items = append(items, strings.TrimLeft(f.encode(e), " "))
+			items = append(items, f.encode(e))
 		}
 	case *String:
 		left = true

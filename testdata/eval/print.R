@@ -165,3 +165,14 @@ c(10, 200, 3000) / 7
 x <- c(0.1, 0.12, 0.123); x
 #---
 exp(0); sqrt(2); sqrt(16)
+
+#---
+array(0, c(2, 0), list(c("")))
+#---
+matrix(1:4, 2, dimnames = list("a"))
+#---
+matrix(1:4, 2, dimnames = list(c("a", "b", "c"), NULL))
+#---
+matrix(1:4, 2, dimnames = 5)
+#---
+c(-2.5, 0, 1e308, NaN); c(-1, 1e308, NA_real_, 7); -c(7, -1e308, 0)

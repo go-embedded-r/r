@@ -154,7 +154,7 @@ func init() {
 		res = setAttr(withAttr(res, nil), "dim", &Integer{V: []int32{int32(nr), int32(nc)}})
 		if a[4] != nil {
 			if _, isNull := a[4].(nullT); !isNull {
-				res = setAttr(res, "dimnames", a[4])
+				res = setAttr(res, "dimnames", s.checkDimnames(c, a[4], []int32{int32(nr), int32(nc)}))
 			}
 		}
 		return res
@@ -196,9 +196,39 @@ func init() {
 		res := setAttr(withAttr(recycleData(data, n), nil), "dim", &Integer{V: dims})
 		if a[2] != nil {
 			if _, isNull := a[2].(nullT); !isNull {
-				res = setAttr(res, "dimnames", a[2])
+				res = setAttr(res, "dimnames", s.checkDimnames(c, a[2], dims))
 			}
 		}
 		return res
 	})
+}
+
+// checkDimnames validates the dimnames argument of matrix() and array().
+func (s *Session) checkDimnames(c *callInfo, dn Value, dims []int32) Value {
+	l, ok := dn.(*List)
+	if !ok {
+		s.errorf(c.call, "'dimnames' must be a list")
+	}
+	if len(l.V) > len(dims) {
+		s.errorf(c.call, "length of 'dimnames' [%d] must match that of 'dims' [%d]", len(l.V), len(dims))
+	}
+	for i, e := range l.V {
+		if _, isNull := e.(nullT); isNull {
+			continue
+		}
+		if k := kindOf(e); k != kString && k != kInteger && k != kDouble && k != kLogical {
+			s.errorf(c.call, "invalid type (%s) for 'dimnames' (must be a vector)", typeName(e))
+		}
+		if n := Length(e); n != 0 && n != int(dims[i]) {
+			s.errorf(c.call, "length of 'dimnames' [%d] not equal to array extent", i+1)
+		}
+	}
+	if len(l.V) < len(dims) {
+		padded := &List{V: append([]Value(nil), l.V...), Attr: l.Attr}
+		for len(padded.V) < len(dims) {
+			padded.V = append(padded.V, Null)
+		}
+		return padded
+	}
+	return l
 }
