@@ -16,8 +16,8 @@ func labelOrNA(s Str) string {
 // printMatrix prints a two-dimensional slice of v (elements at offset base,
 // nr rows, nc columns) as R does.
 func (s *Session) printMatrix(v Value, base, nr, nc int, rowNames, colNames *String, quote bool) {
-	if nr > maxPrintRows {
-		s.errorf(nil, "matrix too large to print: more than %d rows", maxPrintRows)
+	if nr > maxPrintRows || nc > maxPrintRows {
+		s.errorf(nil, "matrix too large to print: more than %d rows or columns", maxPrintRows)
 	}
 	rw := len(strconv.Itoa(nr)) + 3
 	if rowNames != nil {
