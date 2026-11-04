@@ -134,9 +134,26 @@ func listOf(vals []Value, names *String) *List {
 		l.V = []Value{}
 	}
 	if names != nil {
-		l.Attr = namesAttr(names.V)
+		if len(vals) == 0 {
+			l.Attr = namesAttr(names.V)
+		} else {
+			l.Attr = namesAttr(fitNames(names.V, len(vals)))
+		}
 	}
 	return l
+}
+
+// fitNames pads names with NA, or cuts them, to n, as names<- does.
+func fitNames(nm []Str, n int) []Str {
+	out := make([]Str, n)
+	for i := range out {
+		if i < len(nm) {
+			out[i] = nm[i]
+		} else {
+			out[i] = Str{NA: true}
+		}
+	}
+	return out
 }
 
 // simplify2array for the cases sapply and mapply produce: all results of one
@@ -166,10 +183,26 @@ func (s *Session) simplify(c *callInfo, vals []Value, names *String) Value {
 			}
 		}
 		cc := &callInfo{call: c.call, env: c.env, args: vals, names: make([]string, len(vals))}
+		inner := false
+		for _, v := range vals {
+			if namesOf(v) != nil {
+				inner = true
+			}
+		}
+		if names != nil && !inner {
+			for i := range vals {
+				vals[i] = withAttr(vals[i], nil)
+			}
+			res := s.combine(cc)
+			return withAttr(res, namesAttr(fitNames(names.V, len(vals))))
+		}
 		if names != nil {
+			fn := fitNames(names.V, len(vals))
 			for i := range cc.names {
-				if !names.V[i].NA {
-					cc.names[i] = names.V[i].S
+				if fn[i].NA {
+					cc.names[i] = "NA"
+				} else {
+					cc.names[i] = fn[i].S
 				}
 			}
 		}
@@ -191,7 +224,7 @@ func (s *Session) simplify(c *callInfo, vals []Value, names *String) Value {
 	}
 	var coln Value = Null
 	if names != nil {
-		coln = names
+		coln = &String{V: fitNames(names.V, len(vals))}
 	}
 	if rown != Null || coln != Null {
 		res = setAttr(res, "dimnames", &List{V: []Value{rown, coln}})
@@ -200,11 +233,11 @@ func (s *Session) simplify(c *callInfo, vals []Value, names *String) Value {
 }
 
 func (s *Session) useNames(x Value, names *String, use bool) *String {
-	if !use {
-		return nil
-	}
 	if names != nil {
 		return names
+	}
+	if !use {
+		return nil
 	}
 	if st, ok := x.(*String); ok {
 		return &String{V: append([]Str(nil), st.V...)}
@@ -282,6 +315,9 @@ func init() {
 			}
 		}
 		if len(vals) == 0 {
+			if n != 1 {
+				return setAttr(emptyOf(kindOf(fv)), "dim", &Integer{V: []int32{int32(n), 0}})
+			}
 			return emptyOf(kindOf(fv))
 		}
 		conv := make([]Value, len(vals))
@@ -308,8 +344,20 @@ func init() {
 				maxLen = lens[i]
 			}
 		}
-		if anyZero && maxLen > 0 {
-			s.errorf(c.call, "zero-length inputs cannot be mixed with those of non-zero length")
+		if anyZero {
+			maxLen = 0
+			if useNames && len(dots) > 0 {
+				if nm := namesOf(dots[0].Value); nm != nil && len(nm.V) > 0 {
+					s.errorf(&Lang{Fun: Intern("<-"), Args: []Arg{{Value: &Lang{Fun: Intern("names"), Args: []Arg{{Value: Intern("answer")}}}}, {Value: Intern("names1")}}},
+						"'names' attribute [%d] must be the same length as the vector [0]", len(nm.V))
+				}
+			}
+		}
+		for _, l := range lens {
+			if maxLen > 0 && l > 0 && maxLen%l != 0 {
+				s.warningf(c.call, "longer argument not a multiple of length of shorter")
+				break
+			}
 		}
 		out := make([]Value, maxLen)
 		for k := 0; k < maxLen; k++ {
@@ -471,15 +519,21 @@ func init() {
 		}
 		fn := s.matchFun(c, a[0], c.env)
 		elems := s.asListElems(c, a[1])
-		var pos []int
-		for i, e := range elems {
+		var flat []int32
+		for _, e := range elems {
 			r := s.callWith(fn, c.call, []Arg{{Value: e}}, c.env)
-			l := logicalOf(s, c, r, "invalid argument")
-			if len(l) > 0 && l[0] != naInt && l[0] != 0 {
-				pos = append(pos, i)
+			flat = append(flat, logicalOf(s, c, r, "invalid argument")...)
+		}
+		var idx []int32
+		for i, v := range flat {
+			if v != 0 && v != naInt {
+				idx = append(idx, int32(i+1))
 			}
 		}
-		return s.subsetPositions(a[1], pos)
+		if idx == nil {
+			idx = []int32{}
+		}
+		return s.callWith(builtins["["], c.call, []Arg{{Value: a[1]}, {Value: &Integer{V: idx}}}, c.env)
 	})
 	findPos := func(name string) {
 		regBuiltin(name, func(s *Session, c *callInfo) Value {
@@ -699,6 +753,9 @@ func init() {
 			s.errorf(c.call, "attempt to replicate an object of type 'NULL'")
 		}
 		if _, isNull := x.(nullT); isNull {
+			if a[3] != nil {
+				s.warningf(c.call, "'x' is NULL so the result will be NULL")
+			}
 			return Null
 		}
 		if !isVector(x) {
@@ -720,11 +777,18 @@ func init() {
 		case a[3] != nil:
 			lo := s.countOf(c, a[3], "length.out")
 			s.checkLen(c.call, lo)
-			if len(base) > 0 {
+			if len(base) == 0 && lo > 0 {
+				pos = make([]int, lo)
+				for i := range pos {
+					pos[i] = -1
+				}
+			} else if len(base) > 0 {
 				for i := 0; i < lo; i++ {
 					pos = append(pos, base[i%len(base)])
 				}
 			}
+		case a[1] != nil && len(base) == 0:
+			pos = nil
 		case a[1] != nil:
 			t := asDoublesOrNil(a[1])
 			if len(t) == len(base) && len(t) > 1 {
@@ -821,12 +885,7 @@ func init() {
 			for i := range out {
 				out[i] = from + float64(i)*by
 			}
-			if a[2] == nil && (a[1] == nil || a[0] == nil) || (a[2] != nil && isInt(a[2]) && (a[0] == nil || isInt(a[0]))) {
-				if allWhole(out) {
-					return toIntVec(out)
-				}
-			}
-			if a[1] != nil && a[0] != nil && a[2] == nil && allWhole(out) {
+			if (a[0] == nil && a[1] == nil && a[2] == nil) || (a[2] != nil && isInt(a[2]) && a[1] == nil && (a[0] == nil || isInt(a[0]))) {
 				return toIntVec(out)
 			}
 			return &Double{V: out}
@@ -909,13 +968,17 @@ func (s *Session) subsetPositions(x Value, pos []int) Value {
 	if l, ok := x.(*List); ok {
 		out := make([]Value, len(pos))
 		for i, p := range pos {
-			out[i] = l.V[p]
+			if p < 0 || p >= len(l.V) {
+				out[i] = Null
+			} else {
+				out[i] = l.V[p]
+			}
 		}
 		res := &List{V: out}
 		if nm := namesOf(l); nm != nil {
 			names := make([]Str, len(pos))
 			for i, p := range pos {
-				names[i] = nm.V[p]
+				names[i] = nameAt(nm, p)
 			}
 			res.Attr = namesAttr(names)
 		}
@@ -925,7 +988,7 @@ func (s *Session) subsetPositions(x Value, pos []int) Value {
 	if nm := namesOf(x); nm != nil {
 		names := make([]Str, len(pos))
 		for i, p := range pos {
-			names[i] = nm.V[p]
+			names[i] = nameAt(nm, p)
 		}
 		res = withAttr(res, namesAttr(names))
 	}
@@ -1006,4 +1069,11 @@ func partName(base, tag string, i, n int) string {
 		return base
 	}
 	return tag
+}
+
+func nameAt(nm *String, p int) Str {
+	if p < 0 || p >= len(nm.V) {
+		return Str{NA: true}
+	}
+	return nm.V[p]
 }

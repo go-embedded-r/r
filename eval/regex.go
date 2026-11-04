@@ -492,7 +492,10 @@ func init() {
 				out[i] = &Integer{V: []int32{naInt}, Attr: []Attr{{Name: "match.length", Value: &Integer{V: []int32{naInt}}}}}
 				continue
 			}
-			ms := m.gregexprMatches(e.S)
+			var ms [][]int
+			if e.S != "" { // R finds no match, empty or not, in an empty text
+				ms = m.gregexprMatches(e.S)
+			}
 			if len(ms) == 0 {
 				out[i] = &Integer{V: []int32{-1}, Attr: matchAttrs([]int32{-1}, ascii)}
 				continue

@@ -4,7 +4,6 @@ import (
 	"math"
 	"strconv"
 	"strings"
-	"unicode/utf8"
 
 	"github.com/go-embedded-r/r/syntax"
 )
@@ -139,14 +138,14 @@ func (f realFormat) encode(x float64) string {
 }
 
 func padLeft(s string, w int) string {
-	if n := utf8.RuneCountInString(s); n < w {
+	if n := displayWidth(s); n < w {
 		return strings.Repeat(" ", w-n) + s
 	}
 	return s
 }
 
 func padRight(s string, w int) string {
-	if n := utf8.RuneCountInString(s); n < w {
+	if n := displayWidth(s); n < w {
 		return s + strings.Repeat(" ", w-n)
 	}
 	return s
@@ -201,7 +200,7 @@ func formatElements(v Value, quote bool) (items []string, left bool) {
 func maxWidth(items []string) int {
 	w := 0
 	for _, s := range items {
-		if n := utf8.RuneCountInString(s); n > w {
+		if n := displayWidth(s); n > w {
 			w = n
 		}
 	}

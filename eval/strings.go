@@ -205,7 +205,13 @@ func init() {
 			}
 			out[i] = Str{S: substrRunes(e.S, int(b), int(f))}
 		}
-		return &String{V: out}
+		res := &String{V: out}
+		if n == len(x) {
+			if nm := namesOf(a[0]); nm != nil {
+				res.Attr = namesAttr(nm.V)
+			}
+		}
+		return res
 	})
 	caseFn := func(name string, f func(string) string) {
 		regBuiltin(name, func(s *Session, c *callInfo) Value {
@@ -387,17 +393,10 @@ func init() {
 					break
 				}
 				if loc[1] == 0 {
-					// an empty match splits off one character
+					// the match ends at the start: one character is split off
 					n := nextChar(rest, 0)
 					parts = append(parts, Str{S: rest[:n]})
 					rest = rest[n:]
-					continue
-				}
-				if loc[0] == loc[1] {
-					parts = append(parts, Str{S: rest[:loc[0]]})
-					n := nextChar(rest, loc[0])
-					parts[len(parts)-1].S = rest[:loc[0]+n]
-					rest = rest[loc[0]+n:]
 					continue
 				}
 				parts = append(parts, Str{S: rest[:loc[0]]})
@@ -503,6 +502,10 @@ func init() {
 }
 
 // ---- sprintf -----------------------------------------------------------
+
+// maxFieldWidth bounds one formatted field: a width of 10^9 would be a
+// memory bomb.
+const maxFieldWidth = 1 << 24
 
 func (s *Session) sprintf(c *callInfo) Value {
 	if len(c.args) == 0 {
@@ -638,6 +641,11 @@ func (s *Session) sprintf1(c *callInfo, f string, args []Value, row int, used []
 		for i < len(f) && (f[i] == 'l' || f[i] == 'h') {
 			i++
 		}
+		for _, num := range []string{width, prec} {
+			if v, err := strconv.Atoi(num); num != "" && (err != nil || v > maxFieldWidth) {
+				s.errorf(c.call, "required resulting string length is greater than maximal %d", maxFieldWidth)
+			}
+		}
 		if i >= len(f) {
 			s.errorf(c.call, "unrecognised format specification '%s'", f[start:])
 		}
@@ -684,6 +692,9 @@ func (s *Session) sprintf1(c *callInfo, f string, args []Value, row int, used []
 			}
 			if strings.Contains(flags, "-") {
 				return str + strings.Repeat(" ", w-n)
+			}
+			if strings.Contains(flags, "0") && conv != 's' {
+				return strings.Repeat("0", w-n) + str
 			}
 			return strings.Repeat(" ", w-n) + str
 		}
@@ -755,12 +766,14 @@ func (s *Session) sprintf1(c *callInfo, f string, args []Value, row int, used []
 		case 'x', 'X', 'o':
 			var x int64
 			switch v := arg.(type) {
-			case *Integer, *Logical:
+			case *Logical:
+				s.errorf(c.call, "invalid format '%s'; use format %%d or %%i for logical objects", spec)
+			case *Integer:
 				if isNAv() {
 					b.WriteString(padStr("NA"))
 					continue
 				}
-				x = int64(asInts(v)[idx])
+				x = int64(uint32(asInts(v)[idx]))
 			case *Double:
 				if isNAv() {
 					b.WriteString(padStr("NA"))
@@ -853,6 +866,9 @@ func (s *Session) format(c *callInfo) Value {
 	if a[5] != nil {
 		if _, isNull := a[5].(nullT); !isNull {
 			width = s.intArg(c, a[5], "width")
+			if width > maxFieldWidth {
+				s.errorf(c.call, "invalid 'width' argument")
+			}
 		}
 	}
 	scipen := 0

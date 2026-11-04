@@ -81,3 +81,13 @@ format(42L, width = 6); format(3.5, width = 8); format(c(1, 22, 333), trim = TRU
 format(matrix(1:4, 2))
 #---
 format(list(1))
+#---
+c(a = "é", b = "日本語")
+#---
+c("日本語", "本語", "a")
+#---
+sprintf("%x", TRUE)
+#---
+sprintf("%05d", NA_integer_); sprintf("%x", -3L); sprintf("%05d", 42L)
+#---
+substring(c(a = "x", b = "yy"), 1); substring(c(a = "x", b = "yy"), 1:2)
