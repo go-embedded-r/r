@@ -464,7 +464,7 @@ func (s *Session) subassign2(c *callInfo) Value {
 	if _, vnull := value.(nullT); vnull {
 		s.errorf(c.call, "replacement has length zero")
 	}
-	if kindOf(value) != kList && kindOf(value) != kOther && lv != 1 {
+	if kindOf(value) != kOther && lv != 1 {
 		if lv == 0 {
 			s.errorf(c.call, "replacement has length zero")
 		}
@@ -476,6 +476,9 @@ func (s *Session) subassign2(c *callInfo) Value {
 	}
 	s.checkLen(c.call, newN)
 	cx, cv := s.commonKind(c, x, value)
+	if lst, ok := value.(*List); ok {
+		cv = &List{V: []Value{lst}}
+	}
 	res := assignAt(cx, []int{p}, cv, newN)
 	if newN > n {
 		res = withAttr(res, dropDims(extendNames(cx, n, newN, newName)))
