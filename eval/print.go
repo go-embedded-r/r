@@ -20,7 +20,10 @@ type realFormat struct {
 	e    bool
 }
 
-func formatRealVec(x []float64, digits int) realFormat {
+func formatRealVec(x []float64, digits int) realFormat { return formatRealVecSci(x, digits, 0) }
+
+// formatRealVecSci is formatRealVec with R's scipen penalty on scientific notation.
+func formatRealVecSci(x []float64, digits, scipen int) realFormat {
 	naflag, nanflag, posinf, neginf := false, false, false, false
 	neg := 0
 	mxl, rgt, mxsl, mxns, mnl := math.MinInt32, math.MinInt32, math.MinInt32, math.MinInt32, math.MaxInt32
@@ -92,7 +95,7 @@ func formatRealVec(x []float64, digits int) realFormat {
 		if d > 0 {
 			w++
 		}
-		if wF <= w {
+		if wF <= w+scipen {
 			f = realFormat{w: wF, d: rgt}
 		} else {
 			f = realFormat{w: w, d: d, e: true}

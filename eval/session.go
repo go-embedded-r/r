@@ -126,7 +126,7 @@ func (e *Error) Unwrap() error { return e.err }
 // Session is one interpreter: a global environment that persists from one
 // Eval to the next. It is not safe for concurrent use.
 type Session struct {
-	Base, Global *Env
+	Base, Global, Empty *Env
 	opts         Options
 
 	frames   []*frame
@@ -178,7 +178,8 @@ type rError struct {
 func NewSession(opts Options) *Session {
 	installS3()
 	s := &Session{opts: opts.withDefaults()}
-	s.Base = &Env{name: "base"}
+	s.Empty = &Env{name: "R_EmptyEnv"}
+	s.Base = &Env{name: "base", parent: s.Empty}
 	for name, b := range builtins {
 		s.Base.Set(name, b)
 	}
@@ -186,6 +187,9 @@ func NewSession(opts Options) *Session {
 	for i := range lower {
 		lower[i], upper[i] = string(rune('a'+i)), string(rune('A'+i))
 	}
+	s.Base.Set("pi", mkDouble(math.Pi))
+	s.Base.Set("T", mkLogical(true))
+	s.Base.Set("F", mkLogical(false))
 	s.Base.Set("letters", strVec(lower))
 	s.Base.Set("LETTERS", strVec(upper))
 	s.Global = &Env{parent: s.Base, name: "R_GlobalEnv"}

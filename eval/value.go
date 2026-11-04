@@ -467,6 +467,15 @@ func ToRDS(v Value) rds.Value {
 	switch x := v.(type) {
 	case nullT:
 		return rds.Null
+	case *Env:
+		switch x.name {
+		case "R_GlobalEnv":
+			return rds.GlobalEnv
+		case "base":
+			return rds.BaseEnv
+		case "R_EmptyEnv":
+			return rds.EmptyEnv
+		}
 	case *Symbol:
 		return &rds.Sym{Name: x.Name, Gp: rds.NewStr(x.Name).Gp}
 	case missingT:
