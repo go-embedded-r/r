@@ -221,6 +221,12 @@ func (s *Session) loopBody(body Value, env *Env) (brk bool) {
 	if s.tick&127 == 0 {
 		s.checkInterrupt()
 	}
+	if s.opts.MaxSteps > 0 {
+		s.steps++
+		if s.steps > s.opts.MaxSteps {
+			s.errorf(nil, "evaluation step limit reached")
+		}
+	}
 	s.evalStmt(body, env)
 	switch s.flow {
 	case flowBreak:

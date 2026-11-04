@@ -1,0 +1,2 @@
+go test fuzz v1
+string("x<-numeric();dim(x)<-c(2555555550,0);x")

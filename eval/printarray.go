@@ -16,6 +16,9 @@ func labelOrNA(s Str) string {
 // printMatrix prints a two-dimensional slice of v (elements at offset base,
 // nr rows, nc columns) as R does.
 func (s *Session) printMatrix(v Value, base, nr, nc int, rowNames, colNames *String, quote bool) {
+	if nr > maxPrintRows {
+		s.errorf(nil, "matrix too large to print: more than %d rows", maxPrintRows)
+	}
 	rw := len(strconv.Itoa(nr)) + 3
 	if rowNames != nil {
 		rw = 0
@@ -96,6 +99,9 @@ func (s *Session) printMatrix(v Value, base, nr, nc int, rowNames, colNames *Str
 // maxPrintSlices bounds the matrix slices printArray emits; beyond it the
 // print is refused (R would run for ever or exhaust memory).
 const maxPrintSlices = 1 << 20
+
+// maxPrintRows bounds the rows of a matrix printed with no column to show them.
+const maxPrintRows = 1 << 22
 
 func dimnamesOf(v Value, d int) *String {
 	if dn, ok := getAttr(v, "dimnames").(*List); ok && d < len(dn.V) {
