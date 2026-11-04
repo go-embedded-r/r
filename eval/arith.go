@@ -95,8 +95,8 @@ func (s *Session) checkLen(call *Lang, n int) {
 		s.errorf(call, "cannot allocate vector of length %d", n)
 	}
 	if s.opts.MaxAlloc > 0 {
-		s.alloc += 8 * n
-		if s.alloc > s.opts.MaxAlloc {
+		s.alloc += 8 * int64(n)
+		if s.alloc > int64(s.opts.MaxAlloc) {
 			s.abort("memory limit exceeded: more than "+itoa(s.opts.MaxAlloc)+" bytes of vectors allocated", nil)
 		}
 	}

@@ -37,6 +37,9 @@ jobs:
       - run: go build ./...
       - name: Test (-race)
         run: go test -race -timeout=30m ./...
+      - name: Bombs under a memory limit
+        if: matrix.os == 'ubuntu-latest'
+        run: ulimit -v 8000000 && GOMEMLIMIT=768MiB go test -count=1 -timeout=10m -run 'Bomb|Alloc|Timeout|Default' ./eval
 
   arch-native:
     name: arch ${{ matrix.label }}

@@ -3,6 +3,7 @@ package eval
 import (
 	"context"
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 	"time"
@@ -10,7 +11,25 @@ import (
 	"github.com/go-embedded-r/r/syntax"
 )
 
-// Options bound a session. A zero field selects its default.
+// Unbounded, given as MaxSteps, MaxAlloc or Timeout, removes that limit. It
+// is the only way to do so: a zero selects the default, and any other
+// negative value panics in NewSession. Use it only for trusted code.
+const Unbounded = -1
+
+// The defaults of Options, chosen by measurement (TestMeasureLimits): the
+// golden snippets and the heaviest cells a notebook runs on purpose (a loop
+// of 10^6 iterations: 3 million steps; a list grown by 20 000 assignments:
+// 1.6 GB of copies, 0.63 s) each get about ten times the largest legitimate
+// use.
+const (
+	DefaultMaxDepth = 5000
+	DefaultMaxSteps = 30_000_000
+	DefaultMaxAlloc = 16 << 30
+	DefaultTimeout  = 10 * time.Second
+)
+
+// Options bound a session. A zero field selects its default; Unbounded
+// (MaxSteps, MaxAlloc, Timeout only) removes the limit explicitly.
 type Options struct {
 	// MaxDepth bounds the nesting of evaluations: R's option "expressions"
 	// (default 5000). Exceeding it is R's error "evaluation nested too deeply".
@@ -18,12 +37,14 @@ type Options struct {
 	// MaxVector bounds the length of any vector the runtime allocates.
 	MaxVector int
 	// MaxAlloc bounds the bytes of vector storage one Eval allocates, in
-	// total (0: no bound). Exceeding it ends the evaluation with an error.
+	// total over the evaluation, copies included (default DefaultMaxAlloc).
+	// Exceeding it ends the evaluation with an error.
 	MaxAlloc int
-	// MaxSteps bounds the number of calls evaluated by one Eval (0: no bound).
+	// MaxSteps bounds the number of calls and loop iterations evaluated by
+	// one Eval (default DefaultMaxSteps).
 	MaxSteps int
-	// Timeout bounds the time one Eval may take (0: none); a context passed to
-	// EvalContext bounds it too.
+	// Timeout bounds the time one Eval may take (default DefaultTimeout); a
+	// context passed to EvalContext bounds it too.
 	Timeout time.Duration
 	// Parse bounds the source text of an Eval.
 	Parse syntax.Limits
@@ -31,11 +52,26 @@ type Options struct {
 
 func (o Options) withDefaults() Options {
 	if o.MaxDepth <= 0 {
-		o.MaxDepth = 5000
+		o.MaxDepth = DefaultMaxDepth
 	}
 	if o.MaxVector <= 0 {
 		o.MaxVector = 1 << 28
 	}
+	// inside the session, 0 means no limit
+	norm := func(v, def int64) int64 {
+		switch {
+		case v == 0:
+			return def
+		case v == Unbounded:
+			return 0
+		case v < 0:
+			panic("eval: a negative limit other than eval.Unbounded")
+		}
+		return v
+	}
+	o.MaxSteps = int(min(norm(int64(o.MaxSteps), DefaultMaxSteps), math.MaxInt))
+	o.MaxAlloc = int(min(norm(int64(o.MaxAlloc), DefaultMaxAlloc), math.MaxInt))
+	o.Timeout = time.Duration(norm(int64(o.Timeout), int64(DefaultTimeout)))
 	return o
 }
 
@@ -98,7 +134,7 @@ type Session struct {
 	visible  bool
 	steps    int
 	depth    int
-	alloc    int
+	alloc    int64
 	tick     int
 	ctx      context.Context
 	deadline time.Time
