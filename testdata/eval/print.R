@@ -175,4 +175,4 @@ matrix(1:4, 2, dimnames = list(c("a", "b", "c"), NULL))
 #---
 matrix(1:4, 2, dimnames = 5)
 #---
-c(-2.5, 0, 1e308, NaN); c(-1, 1e308, NA_real_, 7); -c(7, -1e308, 0)
+c(-2.5, 0, 2^1000, NaN); c(-1, 2^1000, NA_real_, 7); -c(7, -2^1000, 0)
