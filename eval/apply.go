@@ -1,6 +1,7 @@
 package eval
 
 import (
+	"math"
 	"strconv"
 	"strings"
 )
@@ -836,6 +837,9 @@ func init() {
 			if len(d) != 1 || d[0] != d[0] {
 				s.errorf(c.call, "'%s' must be of length 1", what)
 			}
+			if math.IsInf(d[0], 0) {
+				s.errorf(&Lang{Fun: Intern("seq.default"), Args: c.call.Args}, "'%s' must be a finite number", what)
+			}
 			return d[0]
 		}
 		isInt := func(v Value) bool { _, ok := v.(*Integer); return ok }
@@ -862,7 +866,7 @@ func init() {
 		allInt := (a[0] == nil || isInt(a[0]) || from == float64(int64(from))) && a[2] == nil
 		switch {
 		case a[3] != nil:
-			lo := int(num(a[3], "length.out"))
+			lo := int(math.Min(num(a[3], "length.out"), float64(s.opts.MaxVector)+1))
 			if lo < 0 {
 				s.errorf(c.call, "'length.out' must be a non-negative number")
 			}
@@ -897,7 +901,11 @@ func init() {
 			if (to-from)/by < 0 || by == 0 {
 				s.errorf(&Lang{Fun: Intern("seq.default"), Args: c.call.Args}, "wrong sign in 'by' argument")
 			}
-			n := int((to-from)/by + 1e-10)
+			nf := (to-from)/by + 1e-10
+			if nf > float64(s.opts.MaxVector) {
+				s.errorf(c.call, "vector size too large")
+			}
+			n := int(nf)
 			s.checkLen(c.call, n+1)
 			out := make([]float64, n+1)
 			for i := range out {

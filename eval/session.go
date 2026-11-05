@@ -127,7 +127,7 @@ func (e *Error) Unwrap() error { return e.err }
 // Eval to the next. It is not safe for concurrent use.
 type Session struct {
 	Base, Global, Empty *Env
-	opts         Options
+	opts                Options
 
 	frames   []*frame
 	warnings []Warning

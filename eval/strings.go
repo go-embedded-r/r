@@ -836,7 +836,7 @@ func (s *Session) format(c *callInfo) Value {
 	if a[2] != nil {
 		if _, isNull := a[2].(nullT); !isNull {
 			digits = s.intArg(c, a[2], "digits")
-			if digits < 0 || digits > 22 {
+			if digits < 1 || digits > 22 {
 				s.errorf(c.call, "invalid value %d for 'digits' argument", digits)
 			}
 		}

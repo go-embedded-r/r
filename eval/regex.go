@@ -515,8 +515,7 @@ func init() {
 		x := s.textOf(c, a[0])
 		invert := a[2] != nil && s.truthy(c, a[2], "invert")
 		runes := func(str string, start, length int) string {
-			rs := []rune(str)
-			return string(rs[start-1 : start-1+length])
+			return substrRunes(str, start, start+length-1)
 		}
 		switch m := a[1].(type) {
 		case *Integer:
@@ -556,9 +555,8 @@ func init() {
 					out[i] = &String{V: []Str{e}}
 					continue
 				}
-				rs := []rune(e.S)
 				st, ln := int(m.V[i]), int(ml.V[i])
-				out[i] = &String{V: []Str{{S: string(rs[:st-1])}, {S: string(rs[st-1+ln:])}}}
+				out[i] = &String{V: []Str{{S: substrRunes(e.S, 1, st-1)}, {S: substrRunes(e.S, st+ln, 1<<30)}}}
 			}
 			return listOfNamed(out, namesOf(a[0]))
 		case *List:
@@ -593,17 +591,16 @@ func init() {
 					out[i] = &String{V: parts}
 					continue
 				}
-				rs := []rune(e.S)
 				var parts []Str
-				prev := 0
+				prev := 1
 				for k, p := range mi.V {
 					if p < 0 || p == naInt {
 						continue
 					}
-					parts = append(parts, Str{S: string(rs[prev : int(p)-1])})
-					prev = int(p) - 1 + int(ml.V[k])
+					parts = append(parts, Str{S: substrRunes(e.S, prev, int(p)-1)})
+					prev = int(p) + int(ml.V[k])
 				}
-				parts = append(parts, Str{S: string(rs[prev:])})
+				parts = append(parts, Str{S: substrRunes(e.S, prev, 1<<30)})
 				out[i] = &String{V: parts}
 			}
 			return listOfNamed(out, namesOf(a[0]))
