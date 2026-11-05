@@ -1,6 +1,6 @@
 # M2 design: the evaluator core
 
-Status: the first two slices (§7, §12) are implemented in package `eval` (README, "M2"). Scope: milestone M2 of
+Status: the first three slices (§7, §12, §13) are implemented in package `eval` (README, "M2"). Scope: milestone M2 of
 [`bib/r.md`](https://github.com/go-scikit/roadmap/blob/main/bib/r.md) (§2.3, §2.4, §5):
 SEXPs, environments, promises, argument matching, closures, contexts and
 conditions, S3, and the 210 primitives, in package `eval`.
@@ -286,6 +286,10 @@ time. `Value` converts to and from Go (`float64`, `[]float64`, `string`, ...) in
 ## 12. Slice 2 (implemented)
 
 Replacement functions with always-copy semantics (the ownership optimisation of §1 stays deferred), subsetting, attributes, S3 dispatch, the condition system, value printing and the `Eval` API with limits (`Timeout`, `MaxAlloc`, `MaxSteps`, `MaxDepth`, `MaxVector`; a cancelled context). Handlers are a stack on the session: exiting handlers unwind with a typed panic caught by their `tryCatch`, calling handlers run with the stack truncated below them, restarts are found by name. Errors are signalled as conditions before they end the evaluation, so `tryCatch(error=)` and `withCallingHandlers(error=)` see them. The oracle's `evalcase` captures printed output and standard error with `sink`, auto-prints visible values, and expands ALTREP (compact sequences) by a version-2 serialize round trip, nested lists included. The differential fuzz has two modes: `arith` and `subset`.
+
+## 13. Slice 3 (implemented)
+
+Environments are values (`*Env`; `Session.Empty` is the root above base); `parent.frame(n)` and `sys.call` read the frame stack by environment, not by position, so they work from a builtin called inside any closure. The apply family is native Go that calls `callWith`, the one place that applies a function to already evaluated, possibly named arguments; `sapply` and `mapply` simplify as `simplify2array` does for vectors and matrices. Regular expressions are described in the README: TRE syntax translated onto Go's `regexp` in POSIX leftmost-longest mode (the design reason: a linear-time engine with no catastrophic backtracking, in the standard library, with the refusals listed there), with R's own loops for `gsub`, `gregexpr` and `strsplit` written on top. The differential fuzz has five modes: arith, subset, regex, strings, apply.
 
 ## 11. Risks
 
