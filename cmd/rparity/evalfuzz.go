@@ -94,7 +94,13 @@ func evalfuzzCmd() *cobra.Command {
 			for done := 0; done < n; done += batch {
 				srcs := make([]string, batch)
 				for i := range srcs {
-					if mode == "subset" {
+					if mode == "apply" {
+						srcs[i] = fuzzApply(r)
+					} else if mode == "regex" {
+						srcs[i] = fuzzRegex(r)
+					} else if mode == "strings" {
+						srcs[i] = fuzzStrings(r)
+					} else if mode == "subset" {
 						srcs[i] = fuzzSubset(r)
 					} else {
 						srcs[i] = fuzzExpr(r, 3)
@@ -131,7 +137,7 @@ func evalfuzzCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&mode, "mode", "arith", "arith or subset")
+	cmd.Flags().StringVar(&mode, "mode", "arith", "arith, subset, regex, strings or apply")
 	cmd.Flags().IntVar(&n, "n", 2000, "expressions")
 	cmd.Flags().Int64Var(&seed, "seed", 1, "random seed")
 	cmd.Flags().IntVar(&maxFail, "max-diff", 15, "differences to print")

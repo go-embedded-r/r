@@ -1,0 +1,2 @@
+go test fuzz v1
+string("format(1,digits=0)")

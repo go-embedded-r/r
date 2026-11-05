@@ -4,7 +4,6 @@ import (
 	"math"
 	"strconv"
 	"strings"
-	"unicode/utf8"
 
 	"github.com/go-embedded-r/r/syntax"
 )
@@ -20,7 +19,10 @@ type realFormat struct {
 	e    bool
 }
 
-func formatRealVec(x []float64, digits int) realFormat {
+func formatRealVec(x []float64, digits int) realFormat { return formatRealVecSci(x, digits, 0) }
+
+// formatRealVecSci is formatRealVec with R's scipen penalty on scientific notation.
+func formatRealVecSci(x []float64, digits, scipen int) realFormat {
 	naflag, nanflag, posinf, neginf := false, false, false, false
 	neg := 0
 	mxl, rgt, mxsl, mxns, mnl := math.MinInt32, math.MinInt32, math.MinInt32, math.MinInt32, math.MaxInt32
@@ -92,7 +94,7 @@ func formatRealVec(x []float64, digits int) realFormat {
 		if d > 0 {
 			w++
 		}
-		if wF <= w {
+		if wF <= w+scipen {
 			f = realFormat{w: wF, d: rgt}
 		} else {
 			f = realFormat{w: w, d: d, e: true}
@@ -136,14 +138,14 @@ func (f realFormat) encode(x float64) string {
 }
 
 func padLeft(s string, w int) string {
-	if n := utf8.RuneCountInString(s); n < w {
+	if n := displayWidth(s); n < w {
 		return strings.Repeat(" ", w-n) + s
 	}
 	return s
 }
 
 func padRight(s string, w int) string {
-	if n := utf8.RuneCountInString(s); n < w {
+	if n := displayWidth(s); n < w {
 		return s + strings.Repeat(" ", w-n)
 	}
 	return s
@@ -198,7 +200,7 @@ func formatElements(v Value, quote bool) (items []string, left bool) {
 func maxWidth(items []string) int {
 	w := 0
 	for _, s := range items {
-		if n := utf8.RuneCountInString(s); n > w {
+		if n := displayWidth(s); n > w {
 			w = n
 		}
 	}
