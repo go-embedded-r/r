@@ -276,7 +276,7 @@ func (s *Session) colon(c *callInfo) Value {
 	if nf > 1<<52 {
 		s.errorf(c.call, "result would be too long a vector")
 	}
-	n := int(nf)
+	n := int(math.Min(nf, float64(s.opts.MaxVector)+1)) // checkLen refuses it
 	s.checkLen(c.call, n)
 	useInt := a == math.Floor(a) && a <= math.MaxInt32 && a > math.MinInt32
 	if useInt {
