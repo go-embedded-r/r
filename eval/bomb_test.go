@@ -71,6 +71,7 @@ func TestBombsAreRefusedByDefault(t *testing.T) {
 	refused(t, s, "sprintf(\"%1000000000d\", 1L)", "maximal")
 	refused(t, s, "format(1, width = 1e9)", "width")
 	refused(t, s, "seq(1, 2, by = 1e-300)", "vector size", "too large", "limit")
+	refused(t, s, "seq(1, 2, by = 1e-300)", "vector size", "too large", "limit")
 	refused(t, s, "matrix(0, 1e6, 1e6)", "vector size", "too large", "limit")
 	refused(t, s, "array(0, c(1e5, 1e5, 10))", "too large", "vector size", "limit")
 }
