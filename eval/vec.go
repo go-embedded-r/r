@@ -276,6 +276,9 @@ func (s *Session) colon(c *callInfo) Value {
 	if nf > 1<<52 {
 		s.errorf(c.call, "result would be too long a vector")
 	}
+	if nf > float64(s.opts.MaxVector) {
+		s.errorf(c.call, "vector size too large")
+	}
 	n := int(nf)
 	s.checkLen(c.call, n)
 	useInt := a == math.Floor(a) && a <= math.MaxInt32 && a > math.MinInt32
