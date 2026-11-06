@@ -109,5 +109,3 @@ c(TRUE, FALSE) && TRUE
 "a" && TRUE
 #---
 TRUE && "a"
-#---
-Inf:Inf; -Inf:-Inf; length(Inf:Inf)

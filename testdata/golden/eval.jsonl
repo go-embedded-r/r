@@ -126,7 +126,6 @@
 {"src":"c(TRUE, FALSE) && TRUE","ok":false,"error":"'length = 2' in coercion to 'logical(1)'","call":"c(TRUE, FALSE) && TRUE"}
 {"src":"\"a\" && TRUE","ok":false,"error":"invalid 'x' type in 'x && y'","call":"\"a\" && TRUE"}
 {"src":"TRUE && \"a\"","ok":false,"error":"invalid 'y' type in 'x && y'","call":"TRUE && \"a\""}
-{"src":"Inf:Inf; -Inf:-Inf; length(Inf:Inf)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d0000000100000000","typeof":"integer","visible":true,"output":"numeric(0)\nnumeric(0)\n[1] 0\n"}
 {"src":"x <- 1:5; x[2] <- 10L; x","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d00000005000000010000000a000000030000000400000005","typeof":"integer","visible":true,"output":"[1]  1 10  3  4  5\n"}
 {"src":"x <- 1:5; x[2] <- 10; x","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000053ff00000000000004024000000000000400800000000000040100000000000004014000000000000","typeof":"double","visible":true,"output":"[1]  1 10  3  4  5\n"}
 {"src":"x <- 1:5; x[2] <- \"a\"; x","ok":true,"hex":"580a000000030004060200030500000000055554462d380000001000000005000400090000000131000400090000000161000400090000000133000400090000000134000400090000000135","typeof":"character","visible":true,"output":"[1] \"1\" \"a\" \"3\" \"4\" \"5\"\n"}

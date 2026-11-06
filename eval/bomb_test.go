@@ -136,3 +136,12 @@ func TestUnboundedIsStamped(t *testing.T) {
 	}()
 	eval.NewSession(eval.Options{MaxSteps: -5})
 }
+
+// Inf:Inf has a NaN length (Inf - Inf): the answer differs between platforms
+// in R (numeric(0) or an error), so it has no golden; it must not panic.
+func TestColonInfInf(t *testing.T) {
+	s := eval.NewSession(eval.Options{})
+	for _, src := range []string{"Inf:Inf", "-Inf:-Inf", "Inf:-Inf", "1:Inf"} {
+		s.Eval(src)
+	}
+}
