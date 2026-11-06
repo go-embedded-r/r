@@ -76,8 +76,10 @@ func TestBombsAreRefusedByDefault(t *testing.T) {
 	refused(t, s, "array(0, c(1e5, 1e5, 10))", "too large", "vector size", "limit")
 }
 
-// RE2 has no catastrophic backtracking: a classic bomb pattern is answered
-// at once, and a huge repetition is refused at compile time.
+// TRE's parallel matcher has no catastrophic backtracking: a classic bomb
+// pattern is answered at once; a huge repetition is refused at compile time;
+// a back-reference runs the exhaustive backtracking matcher, so a pattern that
+// is exponential for it is refused by the step limit instead of hanging.
 func TestRegexBombs(t *testing.T) {
 	skipOnWasm(t)
 	s := eval.NewSession(eval.Options{})
@@ -86,8 +88,14 @@ func TestRegexBombs(t *testing.T) {
 		t.Fatalf("the evil pattern should be answered: %v", err)
 	}
 	refused(t, s, "grepl(\"(((a{1000}){1000}){1000})\", \"a\")", "invalid regular expression")
+	refused(t, s, "grepl(\"((((a{255}){255}){255}){255})\", \"a\")", "invalid regular expression")
 	refused(t, s, "grepl(\"a\", \"a\", perl = TRUE)", "perl = TRUE is not supported")
-	refused(t, s, "grepl(\"(a)\\\\1\", \"aa\")", "back-references")
+	refused(t, s, "grepl(\"(a*)*\\\\1b\", paste(rep(\"a\", 60), collapse = \"\"))", "step limit")
+	// a back-reference is answered, not refused
+	res, err = s.Eval("grepl(\"(a)\\\\1\", \"aa\")")
+	if err != nil || res.Value == nil {
+		t.Fatalf("a back-reference should be answered: %v", err)
+	}
 }
 
 func TestAllocLimit(t *testing.T) {
@@ -127,4 +135,13 @@ func TestUnboundedIsStamped(t *testing.T) {
 		}
 	}()
 	eval.NewSession(eval.Options{MaxSteps: -5})
+}
+
+// Inf:Inf has a NaN length (Inf - Inf): the answer differs between platforms
+// in R (numeric(0) or an error), so it has no golden; it must not panic.
+func TestColonInfInf(t *testing.T) {
+	s := eval.NewSession(eval.Options{})
+	for _, src := range []string{"Inf:Inf", "-Inf:-Inf", "Inf:-Inf", "1:Inf"} {
+		s.Eval(src)
+	}
 }

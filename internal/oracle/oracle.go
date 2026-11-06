@@ -22,6 +22,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -68,6 +69,11 @@ var ErrR = errors.New("R error")
 func Command() ([]string, error) {
 	if r := os.Getenv("RGO_RSCRIPT"); r != "" {
 		return []string{r}, nil
+	}
+	if runtime.GOOS == "windows" {
+		// the goldens are those of the macOS and Linux builds; a Windows R on
+		// PATH (the CI image gained one) is a different platform's oracle
+		return nil, ErrNoR
 	}
 	p, err := exec.LookPath("Rscript")
 	if err != nil {

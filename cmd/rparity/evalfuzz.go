@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"math/rand"
+	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -89,6 +90,7 @@ func evalfuzzCmd() *cobra.Command {
 			defer p.Close()
 			r := rand.New(rand.NewSource(seed))
 			ok, bad := 0, 0
+			perFn := map[string][2]int{}
 			var failures []string
 			const batch = 200
 			for done := 0; done < n; done += batch {
@@ -117,17 +119,33 @@ func evalfuzzCmd() *cobra.Command {
 					return err
 				}
 				for _, rec := range recs {
+					fn := rec.Src
+					if i := strings.IndexByte(fn, '('); i > 0 {
+						fn = fn[:i]
+					}
+					t := perFn[fn]
 					if why := evalcheck.Check(rec); why != "" {
 						bad++
+						t[1]++
 						if len(failures) < maxFail {
 							failures = append(failures, fmt.Sprintf("%s: %s", rec.Src, why))
 						}
 					} else {
 						ok++
+						t[0]++
 					}
+					perFn[fn] = t
 				}
 			}
 			fmt.Fprintf(c.OutOrStdout(), "evalfuzz (seed %d): %d expressions, %d agree with R, %d differ\n", seed, ok+bad, ok, bad)
+			names := make([]string, 0, len(perFn))
+			for k := range perFn {
+				names = append(names, k)
+			}
+			sort.Strings(names)
+			for _, k := range names {
+				fmt.Fprintf(c.OutOrStdout(), "  %-10s %6d agree, %d differ\n", k, perFn[k][0], perFn[k][1])
+			}
 			for _, f := range failures {
 				fmt.Fprintln(c.OutOrStdout(), "  DIFF", f)
 			}

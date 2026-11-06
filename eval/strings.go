@@ -318,10 +318,10 @@ func init() {
 		}
 		var left, right *matcher
 		if which != "right" {
-			left = s.compileRegex(c, "^("+ws+")+", false, false, false)
+			left = s.compileRegex(c, "^("+ws+")+", s.charVec(c, a[0], "trimws"), false, false, false)
 		}
 		if which != "left" {
-			right = s.compileRegex(c, "("+ws+")+$", false, false, false)
+			right = s.compileRegex(c, "("+ws+")+$", s.charVec(c, a[0], "trimws"), false, false, false)
 		}
 		x := s.charVec(c, a[0], "trimws")
 		out := make([]Str, len(x))
@@ -361,6 +361,12 @@ func init() {
 			splits = []Str{{S: ""}}
 		}
 		cache := map[string]*matcher{}
+		wideSplit := false
+		for _, sp := range splits {
+			if !sp.NA && !allASCII(sp.S, x.V) {
+				wideSplit = true
+			}
+		}
 		out := make([]Value, len(x.V))
 		for i, e := range x.V {
 			if e.NA {
@@ -381,7 +387,7 @@ func init() {
 			}
 			m := cache[sp.S]
 			if m == nil {
-				m = s.compileRegex(c, sp.S, fixed, false, perl)
+				m = s.compileRegex(c, sp.S, x.V, fixed, false, perl)
 				cache[sp.S] = m
 			}
 			var parts []Str
@@ -395,7 +401,14 @@ func init() {
 				if loc[1] == 0 {
 					// the match ends at the start: one character is split off
 					n := nextChar(rest, 0)
-					parts = append(parts, Str{S: rest[:n]})
+					if wideSplit && allASCII(sp.S, []Str{e}) {
+						// R's wide-character branch builds the token of an
+						// ASCII text and split with the match start as its
+						// length: an empty match gives ""
+						parts = append(parts, Str{S: ""})
+					} else {
+						parts = append(parts, Str{S: rest[:n]})
+					}
 					rest = rest[n:]
 					continue
 				}

@@ -107,3 +107,19 @@ gregexpr("a", "café a")
 regexpr("a", "café")
 #---
 gsub("(?:a)+", "X", "caab"); gsub("(?i)b", "X", "aBb"); grepl("(?i)abc", "ABC")
+#---
+sub("a+?", "X", "caaab"); sub("a*?b", "X", "caaab"); regexpr("a+?", "caaab"); gsub("b??", "-", "abba")
+#---
+regmatches("aaa", regexpr("a{1,3}?", "aaa")); regmatches("foo bar", gregexpr("o+?", "foo bar"))
+#---
+grepl("(a)\\1", c("aa", "ab", "a")); sub("(a+)b\\1", "[\\1]", "caabaad"); gsub("(.)\\1", "<\\1>", "aabbcd")
+#---
+regexpr("(a*)\\1", "aaaa"); regexec <- NULL; grepl("([abc]+)\\w*\\1", c("banana", "foo bar"))
+#---
+gsub("\\<", "|", "ab cd"); gsub("\\>", "|", "ab cd"); gsub("\\bc", "X", "ab cd"); grepl("\\<ab\\>", c("ab", "cab", "ab c"))
+#---
+regmatches("abcd", regexpr("(a|ab)(c|bcd)(d*)", "abcd")); sub("(a*)*", "[\\1]", "aab"); sub("(a|ab)(c|bcd)(d*)", "\\1,\\2,\\3", "abcd")
+#---
+grepl("^a{,3}$", c("aaaa", "aaa")); grepl("a{256}", "a")
+#---
+strsplit(c("Abc", "héllo"), "\\d*"); grepl("b[^[:space:]]{1,3}", c("ab ab", "é"))
