@@ -1,119 +1,13 @@
 package eval
 
 import (
-	"regexp"
-	"regexp/syntax"
 	"strconv"
 	"strings"
 	"unicode/utf8"
 )
 
-// Regular expressions: R's default engine is TRE, a POSIX extended regular
-// expression matcher (leftmost-longest). This file maps TRE's syntax onto Go's
-// regexp package in POSIX leftmost-longest mode. The behaviours it does not
-// have (back-references in patterns, perl = TRUE) are refused with an error
-// that says so, never answered wrongly. See the README, "Regular expressions".
-
-type matcher struct {
-	fixed  bool
-	pat    string
-	re     *regexp.Regexp
-	reNB   *regexp.Regexp // the same with ^ unable to match: REG_NOTBOL
-	groups int
-}
-
-func goErrReason(err error) string {
-	if se, ok := err.(*syntax.Error); ok {
-		switch se.Code {
-		case syntax.ErrMissingParen:
-			return "Missing ')'"
-		case syntax.ErrUnexpectedParen:
-			return "Unmatched ( or )"
-		case syntax.ErrMissingBracket:
-			return "Missing ']'"
-		case syntax.ErrInvalidCharRange:
-			return "Invalid character range"
-		case syntax.ErrTrailingBackslash:
-			return "Trailing backslash"
-		case syntax.ErrInvalidRepeatSize:
-			return "Invalid contents of {}"
-		case syntax.ErrMissingRepeatArgument, syntax.ErrInvalidRepeatOp:
-			return "Invalid use of repetition operators"
-		case syntax.ErrInvalidNamedCapture:
-			return "Invalid regexp"
-		}
-	}
-	return "Invalid regexp"
-}
-
-// compile builds the matcher of a pattern, refusing what is not supported.
-func (s *Session) compileRegex(c *callInfo, pattern string, fixed, icase, perl bool) *matcher {
-	if perl {
-		s.errorf(c.call, "perl = TRUE is not supported yet (R's PCRE engine); use the default extended regular expressions")
-	}
-	if fixed {
-		if icase {
-			s.warningf(c.call, "argument 'ignore.case = TRUE' will be ignored")
-		}
-		if pattern == "" {
-			s.errorf(c.call, "zero-length pattern")
-		}
-		return &matcher{fixed: true, pat: pattern}
-	}
-	fail := func(reason string) {
-		s.warningf(c.call, "TRE pattern compilation error '%s'", reason)
-		s.errorf(c.call, "invalid regular expression '%s', reason '%s'", pattern, reason)
-	}
-	build := func(notbol bool) *regexp.Regexp {
-		goPat, lazy, reason := translateTRE(pattern, notbol)
-		if reason == "backref" {
-			s.errorf(c.call, "regular expressions with back-references are not supported yet (pattern '%s')", pattern)
-		}
-		if reason != "" {
-			fail(reason)
-		}
-		flags := "(?s)"
-		if icase {
-			flags = "(?is)"
-		}
-		re, err := regexp.Compile(flags + goPat)
-		if err != nil {
-			fail(goErrReason(err))
-		}
-		if !lazy {
-			re.Longest()
-		}
-		return re
-	}
-	m := &matcher{pat: pattern}
-	m.re = build(false)
-	m.reNB = build(true)
-	m.groups = m.re.NumSubexp()
-	return m
-}
-
-// find returns the submatch byte offsets (absolute) of the first match at or
-// after from, or nil. With from > 0 the text before is not seen, as with TRE's
-// REG_NOTBOL on the rest of the string.
-func (m *matcher) find(str string, from int) []int {
-	if m.fixed {
-		i := strings.Index(str[from:], m.pat)
-		if i < 0 {
-			return nil
-		}
-		return []int{from + i, from + i + len(m.pat)}
-	}
-	if from == 0 {
-		return m.re.FindStringSubmatchIndex(str)
-	}
-	loc := m.reNB.FindStringSubmatchIndex(str[from:])
-	for i := range loc {
-		if loc[i] >= 0 {
-			loc[i] += from
-		}
-	}
-	return loc
-}
+// The matcher type, its compilation and the search itself are in
+// regex_tre.go; this file holds the R-level functions built on them.
 
 // nextChar is the byte length of the character at str[i:].
 func nextChar(str string, i int) int {
@@ -320,9 +214,9 @@ func init() {
 			}
 			return &Logical{V: out}
 		}
-		m := s.compileRegex(c, pat, fl.fixed, fl.icase, fl.perl)
+		m := s.compileRegexGrep(c, pat, x, fl.fixed, fl.icase, fl.perl)
 		for i, e := range x {
-			if !e.NA && m.find(e.S, 0) != nil {
+			if !e.NA && m.matches(e.S) {
 				out[i] = 1
 			}
 		}
@@ -335,9 +229,9 @@ func init() {
 		fl := s.reFlags(c, map[string]Value{"ignore.case": a[2], "perl": a[3], "value": a[4], "fixed": a[5], "invert": a[7]})
 		var pos []int
 		if okp {
-			m := s.compileRegex(c, pat, fl.fixed, fl.icase, fl.perl)
+			m := s.compileRegexGrep(c, pat, x, fl.fixed, fl.icase, fl.perl)
 			for i, e := range x {
-				hit := !e.NA && m.find(e.S, 0) != nil
+				hit := !e.NA && m.matches(e.S)
 				if e.NA {
 					continue
 				}
@@ -402,7 +296,7 @@ func init() {
 				}
 				return &String{V: out}
 			}
-			m := s.compileRegex(c, pat, fl.fixed, fl.icase, fl.perl)
+			m := s.compileRegex(c, pat, x, fl.fixed, fl.icase, fl.perl)
 			repl, replNA := rs.V[0].S, rs.V[0].NA
 			for i, e := range x {
 				if e.NA {
@@ -456,7 +350,7 @@ func init() {
 		lens := make([]int32, len(x))
 		var m *matcher
 		if okp {
-			m = s.compileRegex(c, pat, fl.fixed, fl.icase, fl.perl)
+			m = s.compileRegexGrep(c, pat, x, fl.fixed, fl.icase, fl.perl)
 		}
 		for i, e := range x {
 			if !okp || e.NA {
@@ -483,7 +377,7 @@ func init() {
 		fl := s.reFlags(c, map[string]Value{"ignore.case": a[2], "perl": a[3], "fixed": a[4]})
 		var m *matcher
 		if okp {
-			m = s.compileRegex(c, pat, fl.fixed, fl.icase, fl.perl)
+			m = s.compileRegexGrep(c, pat, x, fl.fixed, fl.icase, fl.perl)
 		}
 		out := make([]Value, len(x))
 		ascii := okp && allASCII(pat, x)

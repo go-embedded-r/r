@@ -7,10 +7,22 @@ import (
 )
 
 var (
-	reAtoms  = []string{"a", "b", "c", ".", "[ab]", "[^a]", "[[:alpha:]]", "[[:digit:]]", "\\\\d", "\\\\w", "\\\\s", "x", "1", " ", "[a-c]", "\\\\."}
-	reQuants = []string{"", "", "", "*", "+", "?", "{2}", "{1,2}", "{0,1}"}
-	reTexts  = []string{"abc", "aab", "banana", "a b c", "abc123", "", "ccc", "a.b", "xyz", "1a2b3", "aaa", "b", "ab ab", "cab"}
+	reAtoms  = []string{"a", "b", "c", ".", "[ab]", "[^a]", "[[:alpha:]]", "[[:digit:]]", "\\\\d", "\\\\w", "\\\\s", "x", "1", " ", "[a-c]", "\\\\.", "\\\\<", "\\\\>", "\\\\b", "\\\\B", "[[:upper:]]", "[^[:space:]]", "é"}
+	reQuants = []string{"", "", "", "*", "+", "?", "{2}", "{1,2}", "{0,1}", "*?", "+?", "??", "{1,3}?", "{2,}", "{,2}"}
+	reTexts  = []string{"abc", "aab", "banana", "a b c", "abc123", "", "ccc", "a.b", "xyz", "1a2b3", "aaa", "b", "ab ab", "cab", "abab", "aabbaabb", "foo bar", "Abc", "héllo wörld", "abcabc", "baab"}
 )
+
+// fuzzRegexBackref returns a pattern with a back-reference (the group number
+// can exceed the groups: R then reports an error, as does the port).
+func fuzzRegexBackref(r *rand.Rand) string {
+	grp := []string{"(a*)", "(a|ab)", "([abc]+)", "(.)", "(a+?)", "(b*)"}
+	g := grp[r.Intn(len(grp))]
+	ref := "\\\\1"
+	if r.Intn(12) == 0 {
+		ref = "\\\\2"
+	}
+	return g + reAtoms[r.Intn(len(reAtoms))] + reQuants[r.Intn(len(reQuants))] + ref + reQuants[r.Intn(len(reQuants))]
+}
 
 func fuzzRegexAtom(r *rand.Rand, depth int) string {
 	if depth > 0 && r.Intn(5) == 0 {
@@ -29,6 +41,9 @@ func fuzzRegexAtom(r *rand.Rand, depth int) string {
 }
 
 func fuzzPattern(r *rand.Rand) string {
+	if r.Intn(6) == 0 {
+		return fuzzRegexBackref(r)
+	}
 	var b strings.Builder
 	if r.Intn(8) == 0 {
 		b.WriteString("^")
