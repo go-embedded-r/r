@@ -273,6 +273,9 @@ func (s *Session) colon(c *callInfo) Value {
 		s.errorf(c.call, "NA/NaN argument")
 	}
 	nf := math.Floor(math.Abs(a-b)+1e-10) + 1
+	if math.IsNaN(nf) { // Inf:Inf (Inf - Inf is NaN): R answers numeric(0)
+		return &Double{V: []float64{}}
+	}
 	if nf > 1<<52 {
 		s.errorf(c.call, "result would be too long a vector")
 	}
