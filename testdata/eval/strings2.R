@@ -67,3 +67,6 @@ match.arg("me", c("mean", "median")); match.arg("mea", c("mean", "median")); mat
 match.arg("m", c("mean", "median"))
 #---
 match.arg(NULL, c("x", "y"))
+
+#---
+sprintf("%#x", 0L); sprintf("%#x", 255L); sprintf("%#o", 8L); sprintf("%#o", 0L)

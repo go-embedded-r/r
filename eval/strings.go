@@ -801,7 +801,11 @@ func (s *Session) sprintf1(c *callInfo, f string, args []Value, row int, used []
 			default:
 				s.errorf(c.call, "invalid format '%s'; use format %%s for character objects", spec)
 			}
-			b.WriteString(fmt.Sprintf(goFlags+string(conv), x))
+			gf := goFlags
+			if x == 0 {
+				gf = strings.Replace(gf, "#", "", 1) // C prints no prefix for zero
+			}
+			b.WriteString(fmt.Sprintf(gf+string(conv), x))
 		case 's':
 			var str string
 			switch v := arg.(type) {
