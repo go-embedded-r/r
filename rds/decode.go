@@ -68,6 +68,8 @@ func Decode(b []byte, lim Limits) (Value, Header, error) {
 	if err != nil {
 		return nil, Header{}, err
 	}
+	d.ver = h.Version
+	d.budget = lim.MaxBytes / 8
 	v, err := d.item(0)
 	if err != nil {
 		return nil, Header{}, err
@@ -133,6 +135,10 @@ type decoder struct {
 	lim  Limits
 	refs []Value
 	syms map[string]*Sym
+	ver  int32 // the stream's version, once the header is read
+	// budget is how many elements a version-2 stream may still have
+	// expanded from ALTREP objects (see altrep).
+	budget int
 }
 
 func (d *decoder) fail(format string, a ...any) error {
@@ -669,5 +675,38 @@ func (d *decoder) altrep(f flags, depth int) (Value, error) {
 	if a.Attrs, err = d.attrs(depth); err != nil {
 		return nil, err
 	}
+	if d.ver < 3 {
+		// R reads ALTREP_SXP whatever the version (serialize.c ReadItem), but
+		// writes it only in version 3, where "version 2 ALTREP objects are
+		// serialized like non-ALTREP ones". A version-2 tree therefore holds
+		// the expanded vector, which the version-2 encoder can write back.
+		v, err := a.Materialize(d.budget)
+		if err != nil {
+			return nil, d.fail("ALTREP object in a version %d stream: %v", d.ver, err)
+		}
+		d.budget -= elemCount(v)
+		return v, nil
+	}
 	return a, nil
+}
+
+// elemCount is the number of elements of a vector value.
+func elemCount(v Value) int {
+	switch x := v.(type) {
+	case *Logical:
+		return len(x.V)
+	case *Integer:
+		return len(x.V)
+	case *Real:
+		return len(x.V)
+	case *Complex:
+		return len(x.V)
+	case *Raw:
+		return len(x.V)
+	case *Character:
+		return len(x.V)
+	case *List:
+		return len(x.V)
+	}
+	return 0
 }
