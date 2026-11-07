@@ -126,6 +126,18 @@
 {"src":"c(TRUE, FALSE) && TRUE","ok":false,"error":"'length = 2' in coercion to 'logical(1)'","call":"c(TRUE, FALSE) && TRUE"}
 {"src":"\"a\" && TRUE","ok":false,"error":"invalid 'x' type in 'x && y'","call":"\"a\" && TRUE"}
 {"src":"TRUE && \"a\"","ok":false,"error":"invalid 'y' type in 'x && y'","call":"TRUE && \"a\""}
+{"src":"m <- matrix(1:4, 2); m + m; m * 2; m > 1; m & m; 1:2 + m; m == matrix(1:4, 2)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000020a00000004000000010000000100000001000000010000040200000001000400090000000364696d0000000d000000020000000200000002000000fe","typeof":"logical","visible":true,"output":"     [,1] [,2]\n[1,]    2    6\n[2,]    4    8\n     [,1] [,2]\n[1,]    2    6\n[2,]    4    8\n      [,1] [,2]\n[1,] FALSE TRUE\n[2,]  TRUE TRUE\n     [,1] [,2]\n[1,] TRUE TRUE\n[2,] TRUE TRUE\n     [,1] [,2]\n[1,]    2    4\n[2,]    4    6\n     [,1] [,2]\n[1,] TRUE TRUE\n[2,] TRUE TRUE\n"}
+{"src":"matrix(1:4, 2) + matrix(1:6, 3)","ok":false,"error":"non-conformable arrays","call":"matrix(1:4, 2) + matrix(1:6, 3)"}
+{"src":"matrix(1:4, 2) - matrix(1:4, 1)","ok":false,"error":"non-conformable arrays","call":"matrix(1:4, 2) - matrix(1:4, 1)"}
+{"src":"matrix(1:4, 2) < matrix(1:6, 2)","ok":false,"error":"non-conformable arrays","call":"matrix(1:4, 2) < matrix(1:6, 2)"}
+{"src":"matrix(c(TRUE, FALSE), 1) & matrix(c(TRUE, FALSE), 2)","ok":false,"error":"non-conformable arrays","call":"matrix(c(TRUE, FALSE), 1) & matrix(c(TRUE, FALSE), 2)"}
+{"src":"matrix(c(TRUE, FALSE), 1) | matrix(c(TRUE, FALSE), 2)","ok":false,"error":"non-conformable arrays","call":"matrix(c(TRUE, FALSE), 1) | matrix(c(TRUE, FALSE), 2)"}
+{"src":"matrix(1:4, 2) + 1:6","ok":false,"warnings":["longer object length is not a multiple of shorter object length"],"error":"dims [product 4] do not match the length of object [6]"}
+{"src":"1:6 * matrix(1:4, 2)","ok":false,"warnings":["longer object length is not a multiple of shorter object length"],"error":"dims [product 4] do not match the length of object [6]"}
+{"src":"array(1:8, c(2, 2, 2)) + matrix(1:4, 2)","ok":false,"error":"non-conformable arrays","call":"array(1:8, c(2, 2, 2)) + matrix(1:4, 2)"}
+{"src":"matrix(1:2, 1) + array(1:2, 2)","ok":false,"error":"non-conformable arrays","call":"matrix(1:2, 1) + array(1:2, 2)"}
+{"src":"matrix(numeric(0), 0, 2) + 1","ok":true,"hex":"580a000000030004060200030500000000055554462d380000020e000000000000040200000001000400090000000364696d0000000d000000020000000000000002000000fe","typeof":"double","visible":true,"output":"     [,1] [,2]\n"}
+{"src":"matrix(1:4, 2) + numeric(0)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e00000000","typeof":"double","visible":true,"output":"numeric(0)\n"}
 {"src":"x <- 1:5; x[2] <- 10L; x","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d00000005000000010000000a000000030000000400000005","typeof":"integer","visible":true,"output":"[1]  1 10  3  4  5\n"}
 {"src":"x <- 1:5; x[2] <- 10; x","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000053ff00000000000004024000000000000400800000000000040100000000000004014000000000000","typeof":"double","visible":true,"output":"[1]  1 10  3  4  5\n"}
 {"src":"x <- 1:5; x[2] <- \"a\"; x","ok":true,"hex":"580a000000030004060200030500000000055554462d380000001000000005000400090000000131000400090000000161000400090000000133000400090000000134000400090000000135","typeof":"character","visible":true,"output":"[1] \"1\" \"a\" \"3\" \"4\" \"5\"\n"}
@@ -1200,3 +1212,5 @@
 {"src":"stopifnot(NA)","ok":false,"error":"NA is not TRUE"}
 {"src":"stopifnot(1)","ok":false,"error":"1 is not TRUE"}
 {"src":"rank(c(10, 30, 20, 20)); rank(c(10, 30, 20, 20), ties.method = \"min\"); rank(c(10, 30, 20, 20), ties.method = \"max\"); rank(c(10, 30, 20, 20), ties.method = \"first\"); rank(c(\"b\", \"a\", \"c\")); rank(c(a = 3, b = 1)); rank(numeric(0)); rank(c(2, NA, 1))","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e00000003400000000000000040080000000000003ff0000000000000","typeof":"double","visible":true,"output":"[1] 1.0 4.0 2.5 2.5\n[1] 1 4 2 2\n[1] 1 4 3 3\n[1] 1 4 2 3\n[1] 2 1 3\na b \n2 1 \nnumeric(0)\n[1] 2 3 1\n"}
+{"src":"dimnames(matrix(1:4, 2, dimnames = list(A = c(\"a\", \"b\"))))","ok":true,"hex":"580a000000030004060200030500000000055554462d3800000213000000020000001000000002000400090000000161000400090000000162000000fe000004020000000100040009000000056e616d657300000010000000020004000900000001410004000900000000000000fe","typeof":"list","visible":true,"output":"$A\n[1] \"a\" \"b\"\n\n[[2]]\nNULL\n\n"}
+{"src":"invisible(t(matrix(0, dimnames = list(A = c())))); 1","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000013ff0000000000000","typeof":"double","visible":true,"output":"[1] 1\n"}

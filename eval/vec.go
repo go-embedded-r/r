@@ -65,6 +65,7 @@ func (s *Session) compare(op string, c *callInfo) Value {
 	if kx > kString || ky > kString {
 		s.errorf(c.call, "comparison (%s) is possible only for atomic and list types", op)
 	}
+	s.conform(c, x, y)
 	nx, ny := Length(x), Length(y)
 	n := recycleLen(nx, ny)
 	s.checkLen(c.call, n)
@@ -170,6 +171,7 @@ func (s *Session) logic(op string, c *callInfo) Value {
 	x, y := c.args[0], c.args[1]
 	const msg = "operations are possible only for numeric, logical or complex types"
 	a, b := logicalOf(s, c, x, msg), logicalOf(s, c, y, msg)
+	s.conform(c, x, y)
 	nx, ny := len(a), len(b)
 	n := recycleLen(nx, ny)
 	s.checkLen(c.call, n)

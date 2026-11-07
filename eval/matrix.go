@@ -228,6 +228,9 @@ func (s *Session) checkDimnames(c *callInfo, dn Value, dims []int32) Value {
 		for len(padded.V) < len(dims) {
 			padded.V = append(padded.V, Null)
 		}
+		if nm := namesOf(l); nm != nil {
+			padded.Attr = namesAttr(fitNamesEmpty(nm.V, len(dims)))
+		}
 		return padded
 	}
 	return l

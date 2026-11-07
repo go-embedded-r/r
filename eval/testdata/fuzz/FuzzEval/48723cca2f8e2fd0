@@ -1,0 +1,2 @@
+go test fuzz v1
+string("outer(0:1,0)&outer(c(A=0),c(0,0))")

@@ -112,6 +112,28 @@ func recycleLen(nx, ny int) int {
 	return ny
 }
 
+// conform checks the dimensions of the operands of a binary operation: two
+// arrays must have the same dims, and an array must not be shorter than the
+// other operand.
+func (s *Session) conform(c *callInfo, x, y Value) {
+	dx, dy := dimsOf(x), dimsOf(y)
+	switch {
+	case len(dx) > 0 && len(dy) > 0:
+		if len(dx) != len(dy) {
+			s.errorf(c.call, "non-conformable arrays")
+		}
+		for i := range dx {
+			if dx[i] != dy[i] {
+				s.errorf(c.call, "non-conformable arrays")
+			}
+		}
+	case len(dx) > 0 && Length(x) > 0 && Length(y) > Length(x):
+		s.errorf(nil, "dims [product %d] do not match the length of object [%d]", Length(x), Length(y))
+	case len(dy) > 0 && Length(y) > 0 && Length(x) > Length(y):
+		s.errorf(nil, "dims [product %d] do not match the length of object [%d]", Length(y), Length(x))
+	}
+}
+
 func (s *Session) arith(op string, c *callInfo) Value {
 	switch len(c.args) {
 	case 1:
@@ -125,6 +147,7 @@ func (s *Session) arith(op string, c *callInfo) Value {
 	if kx > kDouble || ky > kDouble {
 		s.errorf(c.call, "non-numeric argument to binary operator")
 	}
+	s.conform(c, x, y)
 	nx, ny := Length(x), Length(y)
 	n := recycleLen(nx, ny)
 	s.checkLen(c.call, n)

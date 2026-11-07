@@ -109,3 +109,28 @@ c(TRUE, FALSE) && TRUE
 "a" && TRUE
 #---
 TRUE && "a"
+
+#---
+m <- matrix(1:4, 2); m + m; m * 2; m > 1; m & m; 1:2 + m; m == matrix(1:4, 2)
+#---
+matrix(1:4, 2) + matrix(1:6, 3)
+#---
+matrix(1:4, 2) - matrix(1:4, 1)
+#---
+matrix(1:4, 2) < matrix(1:6, 2)
+#---
+matrix(c(TRUE, FALSE), 1) & matrix(c(TRUE, FALSE), 2)
+#---
+matrix(c(TRUE, FALSE), 1) | matrix(c(TRUE, FALSE), 2)
+#---
+matrix(1:4, 2) + 1:6
+#---
+1:6 * matrix(1:4, 2)
+#---
+array(1:8, c(2, 2, 2)) + matrix(1:4, 2)
+#---
+matrix(1:2, 1) + array(1:2, 2)
+#---
+matrix(numeric(0), 0, 2) + 1
+#---
+matrix(1:4, 2) + numeric(0)

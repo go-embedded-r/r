@@ -539,7 +539,7 @@ func init() {
 			attr := []Attr{{Name: "dim", Value: &Integer{V: []int32{int32(nc), int32(nr)}}}}
 			if dn, ok := getAttr(x, "dimnames").(*List); ok && len(dn.V) == 2 {
 				l := &List{V: []Value{dn.V[1], dn.V[0]}}
-				if nn := namesOf(dn); nn != nil {
+				if nn := namesOf(dn); nn != nil && len(nn.V) == 2 {
 					l.Attr = namesAttr([]Str{nn.V[1], nn.V[0]})
 				}
 				attr = append(attr, Attr{Name: "dimnames", Value: l})
