@@ -145,3 +145,13 @@ func TestColonInfInf(t *testing.T) {
 		s.Eval(src)
 	}
 }
+
+// Text built by sprintf, formatC and strrep counts against MaxAlloc: many
+// strings of moderate width are a bomb as well.
+func TestTextBombs(t *testing.T) {
+	underMemoryLimit(t)
+	s := eval.NewSession(eval.Options{MaxAlloc: 64 << 20})
+	refused(t, s, "sprintf(\"%1$5555555A\", 800:0)", "memory limit")
+	refused(t, s, "formatC(1:2000, width = 1000000)", "memory limit")
+	refused(t, s, "strrep(\"abcdefghij\", rep(1e6, 100))", "memory limit")
+}

@@ -61,6 +61,7 @@ func init() {
 				if float64(len(e.S))*k > float64(s.opts.MaxVector) {
 					s.errorf(c.call, "vector size too large")
 				}
+				s.chargeBytes(len(e.S) * int(k))
 				out[i] = Str{S: strings.Repeat(e.S, int(k))}
 			}
 		}
@@ -364,6 +365,7 @@ func init() {
 					body = strings.Repeat(" ", width-w) + body
 				}
 			}
+			s.chargeBytes(len(body))
 			out[i] = Str{S: body}
 		}
 		return withAttr(&String{V: out}, keepShapeAttrs(x))

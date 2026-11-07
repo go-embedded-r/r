@@ -341,6 +341,7 @@ func init() {
 					str = str[:loc[0]]
 				}
 			}
+			s.chargeBytes(len(str))
 			out[i] = Str{S: str}
 		}
 		return withAttr(&String{V: out}, attrsOf(a[0]))
@@ -564,6 +565,7 @@ func (s *Session) sprintf(c *callInfo) Value {
 		if na {
 			out[i] = Str{NA: true}
 		} else {
+			s.chargeBytes(len(str))
 			out[i] = Str{S: str}
 		}
 	}

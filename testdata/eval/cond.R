@@ -197,3 +197,8 @@ cat("tab\there\n"); cat('quote"s\n')
 print("x"); print(1:3); print(NULL); invisible(print("p"))
 #---
 x <- print("returned"); x
+
+#---
+f <- function() { on.exit(cat("a\n"), TRUE); on.exit(cat("b\n"), add = TRUE, after = FALSE); 1 }; f()
+#---
+f <- function() { on.exit(, cat()) }; f()
