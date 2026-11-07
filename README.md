@@ -38,8 +38,9 @@ are GPL-2-or-later, so:
 |---|---|---|
 | M0 oracle harness | `internal/oracle`, `cmd/roracle`, `rds` (serialization reader/writer), golden files | **done** |
 | M1 parser | `syntax`: lexer, parser, AST with source map, tokens, R's parse errors, `deparse`, `TopLevelNames` | **done** |
-| M2 evaluator | `eval`: values, environments, promises, closures, control flow, replacement functions, subsetting, attributes, S3 dispatch, conditions, printing, the `Eval` API with limits; 175 of the 210 primitives and 110 base closures, environments as values, the apply family, character and regular-expression functions, the math group, factors, matching | **slices 1 to 4 done**; M3 (base R, clean-room) is planned in [docs/m3-plan.md](docs/m3-plan.md), see [docs/m2-design.md](docs/m2-design.md) |
-| M3 – M8 | base, stats, regex, graphics, notebook bridge, wasm playground, CRAN ports | planned |
+| M2 evaluator | `eval`: values, environments, promises, closures, control flow, replacement functions, subsetting, attributes, S3, conditions, printing, the `Eval` API with safe limits, apply family, strings, regular expressions (over `go-embedded-r/tre`), math group, factors; 175 of the 210 primitives implemented and the other 35 refused with an error that says why (complex, raw, S4, formulas, expression vectors, foreign calls, `.Internal`) | **done** (v0.7.0), see [docs/m2-design.md](docs/m2-design.md) |
+| M3 base R, clean-room | rewrite of base's 1 152 closures under BSD from the help pages and the oracle, never from R's sources; plan, order and coverage metric in [docs/m3-plan.md](docs/m3-plan.md); `go run ./cmd/rparity basecov` | **in progress**: 19.8 % of base's 1 362 exports agree with the oracle (v0.7.0) |
+| M4 – M8 | numerics, stats, graphics, notebook bridge, wasm playground, CRAN ports | planned |
 
 ### M2: the evaluator (package `eval`)
 
