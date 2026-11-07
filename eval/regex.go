@@ -73,6 +73,87 @@ func (m *matcher) allMatches(str string) [][]int {
 	return out
 }
 
+// eachMatch calls fn with each match of sub / gsub, in order, until fn returns
+// false: the same matches as allMatches, without building the list (sub stops
+// after the first, and a long text is not scanned for matches nobody uses).
+func (m *matcher) eachMatch(str string, fn func(loc []int) bool) {
+	pos, prevEnd := 0, -1
+	var scratch []int
+	for pos <= len(str) {
+		loc := m.findBuf(scratch, str, pos)
+		scratch = loc
+		if loc == nil {
+			return
+		}
+		if loc[1] == loc[0] && loc[0] == prevEnd {
+			if loc[0] >= len(str) {
+				return
+			}
+			pos = loc[0] + nextChar(str, loc[0])
+			continue
+		}
+		if !fn(loc) {
+			return
+		}
+		prevEnd = loc[1]
+		if loc[1] == loc[0] {
+			if loc[1] >= len(str) {
+				return
+			}
+			pos = loc[1] + nextChar(str, loc[1])
+		} else {
+			pos = loc[1]
+		}
+	}
+}
+
+// replPart is one piece of a parsed replacement: literal text, or group g.
+type replPart struct {
+	lit string
+	g   int // -1 for literal
+}
+
+// parseReplacement splits a sub/gsub replacement once, so that the loop over
+// the matches does no scanning of it.
+func parseReplacement(repl string) []replPart {
+	var parts []replPart
+	var lit []byte
+	flush := func() {
+		if len(lit) > 0 {
+			parts = append(parts, replPart{lit: string(lit), g: -1})
+			lit = lit[:0]
+		}
+	}
+	for i := 0; i < len(repl); i++ {
+		ch := repl[i]
+		if ch == '\\' && i+1 < len(repl) {
+			i++
+			n := repl[i]
+			if n >= '1' && n <= '9' {
+				flush()
+				parts = append(parts, replPart{g: int(n - '0')})
+				continue
+			}
+			lit = append(lit, n)
+			continue
+		}
+		lit = append(lit, ch)
+	}
+	flush()
+	return parts
+}
+
+func appendReplacement(dst []byte, parts []replPart, str string, loc []int) []byte {
+	for _, p := range parts {
+		if p.g < 0 {
+			dst = append(dst, p.lit...)
+		} else if 2*p.g+1 < len(loc) && loc[2*p.g] >= 0 {
+			dst = append(dst, str[loc[2*p.g]:loc[2*p.g+1]]...)
+		}
+	}
+	return dst
+}
+
 func charIndex(str string, byteOff int) int { return utf8.RuneCountInString(str[:byteOff]) }
 
 // expandReplacement applies \1..\9 (and \0) of a sub/gsub replacement.
@@ -298,37 +379,44 @@ func init() {
 			}
 			m := s.compileRegex(c, pat, x, fl.fixed, fl.icase, fl.perl)
 			repl, replNA := rs.V[0].S, rs.V[0].NA
+			parts := parseReplacement(repl)
+			if fl.fixed {
+				parts = []replPart{{lit: repl, g: -1}}
+			}
+			var buf []byte
 			for i, e := range x {
 				if e.NA {
 					out[i] = Str{NA: true}
 					continue
 				}
 				str := e.S
-				matches := m.allMatches(str)
-				if !global && len(matches) > 1 {
-					matches = matches[:1]
-				}
-				if len(matches) == 0 {
+				// most texts of a large input have no match: ask the engine for
+				// that alone, which needs no submatches
+				if !m.matches(str) {
 					out[i] = e
 					continue
 				}
-				if replNA {
-					out[i] = Str{NA: true}
-					continue
-				}
-				var b strings.Builder
-				last := 0
-				for _, loc := range matches {
-					b.WriteString(str[last:loc[0]])
-					if fl.fixed {
-						b.WriteString(repl)
-					} else {
-						b.WriteString(expandReplacement(repl, str, loc))
+				buf = buf[:0]
+				last, n := 0, 0
+				m.eachMatch(str, func(loc []int) bool {
+					n++
+					if replNA {
+						return false
 					}
+					buf = append(buf, str[last:loc[0]]...)
+					buf = appendReplacement(buf, parts, str, loc)
 					last = loc[1]
+					return global
+				})
+				switch {
+				case n == 0:
+					out[i] = e
+				case replNA:
+					out[i] = Str{NA: true}
+				default:
+					buf = append(buf, str[last:]...)
+					out[i] = Str{S: string(buf)}
 				}
-				b.WriteString(str[last:])
-				out[i] = Str{S: b.String()}
 			}
 			res := &String{V: out}
 			if _, isStr := a[2].(*String); isStr {
