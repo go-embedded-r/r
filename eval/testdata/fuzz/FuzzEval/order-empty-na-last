@@ -1,0 +1,2 @@
+go test fuzz v1
+string("order(c(2,NA,1),na.last=logical(0))")

@@ -103,7 +103,11 @@ func init() {
 					s.errorf(c.call, "'decreasing' must be TRUE or FALSE")
 				}
 			case "na.last":
-				naLast = logicalOf(s, c, a, "invalid 'na.last' argument")[0]
+				// asLogical(CAR(args)) in R: the first element, NA when empty
+				naLast = naInt
+				if l := logicalOf(s, c, a, "invalid 'na.last' argument"); len(l) > 0 {
+					naLast = l[0]
+				}
 			case "method":
 			default:
 				keys = append(keys, a)

@@ -38,6 +38,21 @@ func TestSessionPersists(t *testing.T) {
 	}
 }
 
+// R's do_radixsort reads na.last with asLogical, which is NA for an empty
+// vector; the evaluator used to index element 0 of it (FuzzEval crasher from
+// the main CI lane).
+func TestOrderEmptyNaLast(t *testing.T) {
+	s := eval.NewSession(eval.Options{})
+	r, err := s.Eval("order(c(2, NA, 1), na.last = logical(0))")
+	if err != nil {
+		t.Fatal(err)
+	}
+	in, ok := r.Value.(*eval.Integer)
+	if !ok || len(in.V) != 2 || in.V[0] != 3 || in.V[1] != 1 {
+		t.Errorf("got %#v, want c(3L, 1L) as for na.last = NA", r.Value)
+	}
+}
+
 func TestSessionErrors(t *testing.T) {
 	s := eval.NewSession(eval.Options{})
 	_, err := s.Eval("f <- function(a) a + undefined_name; f(1)")
