@@ -140,7 +140,9 @@ type Session struct {
 	deadline time.Time
 
 	handlers []handler
-	restarts []string
+	restarts []restartEntry
+	restartID int
+	lastErr   string // geterrmessage()
 	nextID   int
 	out      strings.Builder
 	stderr   strings.Builder

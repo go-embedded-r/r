@@ -587,6 +587,23 @@ func (s *Session) dollarGet(c *callInfo, x Value, name string) Value {
 	switch v := x.(type) {
 	case nullT:
 		return Null
+	case *Lang:
+		// a call is indexed by its argument names, as a pairlist is
+		for _, a := range v.Args {
+			if a.HasName && a.Name == name {
+				return a.Value
+			}
+		}
+		hit, hits := -1, 0
+		for j, a := range v.Args {
+			if a.HasName && strings.HasPrefix(a.Name, name) {
+				hit, hits = j, hits+1
+			}
+		}
+		if hits == 1 {
+			return v.Args[hit].Value
+		}
+		return Null
 	case *Env:
 		if b := v.lookup(Intern(name)); b != nil {
 			if p, isP := b.val.(*Promise); isP {
