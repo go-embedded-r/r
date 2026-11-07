@@ -302,6 +302,60 @@ func TestVersion2(t *testing.T) {
 	}
 }
 
+// v2Stream wraps the body of an item, taken from a version-3 encoding, in a
+// version-2 header (which has no native-encoding field).
+func v2Stream(t *testing.T, v rds.Value) []byte {
+	t.Helper()
+	b3, err := rds.Encode(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := b3[2+4+4+4+4+len("UTF-8"):]
+	b := []byte("X\n")
+	b = binary.BigEndian.AppendUint32(b, 2)
+	b = binary.BigEndian.AppendUint32(b, 0x00040602)
+	b = binary.BigEndian.AppendUint32(b, 0x00020300)
+	return append(b, body...)
+}
+
+// R's ReadItem accepts ALTREP_SXP in a version-2 stream (serialize.c has no
+// version test there) but only writes it in version 3. The decoder must hand
+// back what the version-2 encoder can write: the expanded vector.
+func TestAltrepInVersion2(t *testing.T) {
+	alt := func(class string, state rds.Value) *rds.Altrep {
+		return &rds.Altrep{Class: &rds.Sym{Name: class}, Pkg: &rds.Sym{Name: "base"}, Of: rds.INTSXP, State: state}
+	}
+	seq := func(n float64) rds.Value { return &rds.Real{V: []float64{n, 1, 1}} }
+
+	v, h, err := rds.Decode(v2Stream(t, alt("compact_intseq", seq(3))), rds.Limits{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, ok := v.(*rds.Integer); !ok || len(got.V) != 3 || got.V[2] != 3 {
+		t.Fatalf("not expanded: %#v", v)
+	}
+	out, err := rds.EncodeWith(v, h, 0)
+	if err != nil {
+		t.Fatalf("decoded but cannot encode: %v", err)
+	}
+	if _, _, err := rds.Decode(out, rds.Limits{}); err != nil {
+		t.Errorf("own output: %v", err)
+	}
+
+	if _, _, err := rds.Decode(v2Stream(t, alt("no_such_class", rds.Null)), rds.Limits{}); err == nil {
+		t.Error("unknown ALTREP class accepted in a version-2 stream")
+	}
+	lim := rds.Limits{MaxBytes: 1 << 10}
+	if _, _, err := rds.Decode(v2Stream(t, alt("compact_intseq", seq(1e9))), lim); err == nil {
+		t.Error("expansion beyond the limit accepted")
+	}
+	// the budget is shared: two sequences that fit alone do not fit together
+	two := &rds.List{V: []rds.Value{alt("compact_intseq", seq(100)), alt("compact_intseq", seq(100))}}
+	if _, _, err := rds.Decode(v2Stream(t, two), lim); err == nil {
+		t.Error("cumulative expansion beyond the limit accepted")
+	}
+}
+
 func TestOtherNodes(t *testing.T) {
 	// everything the golden set does not reach, through an encode/decode/encode cycle
 	sym := &rds.Sym{Name: "x", Gp: 64}
