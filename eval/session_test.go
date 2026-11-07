@@ -180,7 +180,16 @@ func TestPrimitiveCoverage(t *testing.T) {
 	have := eval.Builtins()
 	var missing []string
 	natives := 0
+	refuse := map[string]bool{}
+	for _, n := range eval.Unsupported() {
+		refuse[n] = true
+	}
+	implemented := 0
 	for _, n := range have {
+		if refuse[n] {
+			continue
+		}
+		implemented++
 		if !prims[n] {
 			natives++
 		}
@@ -191,5 +200,17 @@ func TestPrimitiveCoverage(t *testing.T) {
 	if len(missing) > 0 {
 		t.Errorf("registered but not exercised by testdata/eval: %v", missing)
 	}
-	t.Logf("%d of the %d primitives of R are implemented, and %d base functions that are closures in R; each is covered by the oracle goldens", len(have)-natives, len(prims), natives)
+	t.Logf("%d of the %d primitives of R are implemented, and %d base functions that are closures in R; each is covered by the oracle goldens", implemented-natives, len(prims), natives)
+}
+
+// The primitives that need a type or runtime we do not have are refused with
+// an error that says so; they are not counted as implemented.
+func TestUnsupportedPrimitivesRefuse(t *testing.T) {
+	for _, n := range eval.Unsupported() {
+		s := eval.NewSession(eval.Options{})
+		_, err := s.Eval("f <- `" + n + "`; f()")
+		if err == nil || !strings.Contains(err.Error(), "not supported") && !strings.Contains(err.Error(), "argument") {
+			t.Errorf("%s: want a refusal, got %v", n, err)
+		}
+	}
 }

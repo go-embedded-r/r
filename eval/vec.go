@@ -101,7 +101,11 @@ func (s *Session) compare(op string, c *callInfo) Value {
 				out[i] = naInt
 				continue
 			}
-			out[i] = test(strings.Compare(p.S, q.S))
+			if op == "==" || op == "!=" {
+				out[i] = test(strings.Compare(p.S, q.S))
+			} else {
+				out[i] = test(collate(p.S, q.S))
+			}
 		}
 	} else {
 		a, b := asDoubles(x), asDoubles(y)
