@@ -145,6 +145,7 @@ type Session struct {
 	out      strings.Builder
 	stderr   strings.Builder
 
+	noQuote    bool // print(quote = FALSE) is running
 	noDispatch bool // the next primitive runs its default, not a method
 
 	// flow is set by break, next and return in statement position, and read
