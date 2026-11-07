@@ -2,6 +2,7 @@ package eval_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/go-embedded-r/r/eval"
 	"github.com/go-embedded-r/r/internal/gen"
@@ -20,7 +21,7 @@ func FuzzEval(f *testing.F) {
 	}
 	f.Fuzz(func(t *testing.T, src string) {
 		s := eval.NewSession(eval.Options{
-			MaxDepth: 200, MaxVector: 1 << 16, MaxSteps: 20000,
+			MaxDepth: 200, MaxVector: 1 << 16, MaxSteps: 20000, MaxAlloc: 1 << 28, Timeout: 2 * time.Second,
 			Parse: syntax.Limits{MaxBytes: 1 << 14, MaxDepth: 100, MaxNodes: 5000},
 		})
 		s.Eval(src)
