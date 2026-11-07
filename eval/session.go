@@ -193,6 +193,8 @@ func NewSession(opts Options) *Session {
 	s.Base.Set("letters", strVec(lower))
 	s.Base.Set("LETTERS", strVec(upper))
 	s.Global = &Env{parent: s.Base, name: "R_GlobalEnv"}
+	s.installBaselib()
+	s.resetCounters()
 	return s
 }
 
@@ -306,10 +308,18 @@ func (s *Session) currentCall() *Lang {
 // Builtins returns the names of the primitives and native functions this
 // evaluator provides.
 func Builtins() []string {
-	out := make([]string, 0, len(builtins))
+	loadBaselib()
+	out := make([]string, 0, len(builtins)+len(baselibNames))
 	for n := range builtins {
 		out = append(out, n)
 	}
+	out = append(out, baselibNames...)
 	sort.Strings(out)
 	return out
+}
+
+// resetCounters clears the budgets that installing the library spent.
+func (s *Session) resetCounters() {
+	s.steps, s.tick, s.alloc, s.depth = 0, 0, 0, 0
+	s.visible = false
 }

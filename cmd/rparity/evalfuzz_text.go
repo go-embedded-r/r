@@ -208,3 +208,51 @@ func fuzzMath(r *rand.Rand) string {
 	}
 	return fmt.Sprintf("x <- %s; length(x) <- %s; x", pick(mVecs), pick([]string{"0", "2", "5"}))
 }
+
+var (
+	vVecs = []string{"c(3, 1, 2)", "c(2, 1, NA, 3)", "c(\"b\", \"A\", \"a\", \"B\")", "1:6", "c(5, 5, 1)", "c(a = 2, b = 1)", "c(TRUE, FALSE, NA)", "numeric(0)", "c(1.5, -2, 0)", "letters[1:4]", "c(NA, NA)", "c(1, 1, 2, 2)"}
+	vNums = []string{"c(1, 2)", "c(3, 1, 2)", "1:3", "c(NA, 4)", "5", "c(2.5, 2.5)"}
+	vMats = []string{"matrix(1:6, 2)", "matrix(c(1, NA, 3, 4), 2)", "matrix(1:4, 2, dimnames = list(c(\"a\", \"b\"), c(\"x\", \"y\")))", "matrix(c(TRUE, FALSE, TRUE, TRUE), 2)", "matrix(1.5, 3, 2)"}
+)
+
+func fuzzVectors(r *rand.Rand) string {
+	pick := func(p []string) string { return p[r.Intn(len(p))] }
+	v := pick(vVecs)
+	switch r.Intn(18) {
+	case 0:
+		return fmt.Sprintf("order(%s%s)", v, pick([]string{"", ", decreasing = TRUE", ", na.last = FALSE", ", na.last = NA"}))
+	case 1:
+		return fmt.Sprintf("order(%s, %s)", pick(vNums), pick(vNums))
+	case 2:
+		return fmt.Sprintf("pmax(%s, %s%s)", pick(vNums), pick(vNums), pick([]string{"", ", na.rm = TRUE"}))
+	case 3:
+		return fmt.Sprintf("pmin(%s, %s%s)", pick(vNums), pick(vNums), pick([]string{"", ", na.rm = TRUE"}))
+	case 4:
+		return fmt.Sprintf("which.max(%s)", pick(vNums[:4]))
+	case 5:
+		return fmt.Sprintf("which.min(%s)", pick(vNums[:4]))
+	case 6:
+		return fmt.Sprintf("tabulate(%s%s)", pick(vNums), pick([]string{"", ", 3", ", nbins = 6"}))
+	case 7:
+		return fmt.Sprintf("%s(%s%s)", pick([]string{"rowSums", "colSums", "rowMeans", "colMeans"}), pick(vMats), pick([]string{"", ", na.rm = TRUE"}))
+	case 8:
+		return fmt.Sprintf("t(%s)", pick(append([]string{v}, vMats...)))
+	case 9:
+		return fmt.Sprintf("diag(%s)", pick([]string{"3", "2", "c(1, 2, 3)", "matrix(1:9, 3)", "matrix(1:6, 2)", "0", "c(2L, 3L)"}))
+	case 10:
+		return fmt.Sprintf("outer(%s, %s%s)", pick(vNums[:3]), pick(vNums[:3]), pick([]string{"", ", \"+\"", ", \"-\"", ", function(a, b) a * 10 + b"}))
+	case 11:
+		return fmt.Sprintf("mean(%s%s)", pick(vNums), pick([]string{"", ", na.rm = TRUE"}))
+	case 12:
+		return fmt.Sprintf("%s(%s, %s)", pick([]string{"union", "intersect", "setdiff"}), pick(vNums[:3]), pick(vNums[:3]))
+	case 13:
+		return fmt.Sprintf("%s(%s, %s)", pick([]string{"head", "tail"}), pick(vVecs), pick([]string{"2", "-1", "0", "10", "3L"}))
+	case 14:
+		return fmt.Sprintf("ifelse(%s > 1, %s, %s)", pick(vNums[:3]), pick([]string{"1", "\"a\"", "c(7, 8, 9)"}), pick([]string{"0", "\"b\"", "NA"}))
+	case 15:
+		return fmt.Sprintf("as.vector(%s%s)", pick(append([]string{v}, vMats...)), pick([]string{"", ", \"list\"", ", \"character\"", ", \"numeric\""}))
+	case 16:
+		return fmt.Sprintf("diff(%s%s)", pick(vNums[:4]), pick([]string{"", ", lag = 2", ", differences = 2"}))
+	}
+	return fmt.Sprintf("append(%s, %s%s)", pick(vNums[:3]), pick([]string{"9", "c(8, 9)"}), pick([]string{"", ", after = 1", ", after = 0"}))
+}

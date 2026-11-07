@@ -98,7 +98,9 @@ func evalfuzzCmd() *cobra.Command {
 			for done := 0; done < n; done += batch {
 				srcs := make([]string, batch)
 				for i := range srcs {
-					if mode == "math" {
+					if mode == "vec" {
+						srcs[i] = fuzzVectors(r)
+					} else if mode == "math" {
 						srcs[i] = fuzzMath(r)
 						if strings.HasSuffix(srcs[i], "# libm") {
 							libm++
@@ -186,7 +188,7 @@ func evalfuzzCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().Int64Var(&maxULP, "ulp", 4, "math mode: units in the last place allowed to libm cases")
-	cmd.Flags().StringVar(&mode, "mode", "arith", "arith, subset, regex, strings, apply or math")
+	cmd.Flags().StringVar(&mode, "mode", "arith", "arith, subset, regex, strings, apply, math or vec")
 	cmd.Flags().IntVar(&n, "n", 2000, "expressions")
 	cmd.Flags().Int64Var(&seed, "seed", 1, "random seed")
 	cmd.Flags().IntVar(&maxFail, "max-diff", 15, "differences to print")

@@ -10,7 +10,31 @@ func coerceTo(x Value, kind int) Value {
 	}
 	attr := attrsOf(x)
 	switch kind {
+	case kLogical:
+		// a downward conversion, for the functions that ask for logical
+		d := asDoubles(x)
+		out := make([]int32, len(d))
+		for i, e := range d {
+			switch {
+			case math.IsNaN(e):
+				out[i] = naInt
+			case e != 0:
+				out[i] = 1
+			}
+		}
+		return &Logical{V: out, Attr: attr}
 	case kInteger:
+		if dv, ok := x.(*Double); ok {
+			out := make([]int32, len(dv.V))
+			for i, e := range dv.V {
+				if math.IsNaN(e) || e >= 2147483648 || e <= -2147483649 {
+					out[i] = naInt
+				} else {
+					out[i] = int32(e)
+				}
+			}
+			return &Integer{V: out, Attr: attr}
+		}
 		return &Integer{V: append([]int32(nil), asInts(x)...), Attr: attr}
 	case kDouble:
 		return &Double{V: append([]float64(nil), asDoubles(x)...), Attr: attr}
