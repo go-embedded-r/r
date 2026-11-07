@@ -71,6 +71,9 @@ func (s *Session) compileRegexMsg(c *callInfo, pattern string, texts []Str, fixe
 	}
 	re, err := tre.CompileOptions(pattern, tre.Options{Flags: flags, RCompat: true,
 		Limits: tre.Limits{MaxSteps: 1 << 26}})
+	if err == tre.ErrESpace {
+		s.errorf(c.call, "regular expression '%s' is too large for this evaluator: it exceeds the compile limits of the matcher (nesting, repetition expansion or size)", pattern)
+	}
 	if err != nil {
 		reason := err.Error()
 		s.warningf(c.call, "TRE pattern compilation error '%s'", reason)
@@ -138,6 +141,9 @@ func (m *matcher) findBuf(dst []int, str string, from int) []int {
 	if err != nil {
 		if err == tre.ErrNoMatch {
 			return nil
+		}
+		if err == tre.ErrESpace {
+			m.s.errorf(m.c.call, "regular expression '%s' needs more state than this evaluator allows on this text", m.pat)
 		}
 		if err == tre.ErrSteps {
 			m.s.errorf(m.c.call, "regular expression '%s' exceeds the match step limit on this text", m.pat)

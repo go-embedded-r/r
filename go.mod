@@ -3,7 +3,7 @@ module github.com/go-embedded-r/r
 go 1.27.0
 
 require (
-	github.com/go-embedded-r/tre v0.1.1
+	github.com/go-embedded-r/tre v0.1.3
 	github.com/spf13/cobra v1.10.2
 )
 

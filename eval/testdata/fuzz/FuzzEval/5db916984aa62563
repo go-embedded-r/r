@@ -1,0 +1,2 @@
+go test fuzz v1
+string("Reduce(`c`,20000:0,accumulate=1)")

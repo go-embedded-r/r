@@ -88,7 +88,7 @@ func TestRegexBombs(t *testing.T) {
 		t.Fatalf("the evil pattern should be answered: %v", err)
 	}
 	refused(t, s, "grepl(\"(((a{1000}){1000}){1000})\", \"a\")", "invalid regular expression")
-	refused(t, s, "grepl(\"((((a{255}){255}){255}){255})\", \"a\")", "invalid regular expression")
+	refused(t, s, "grepl(\"((((a{255}){255}){255}){255})\", \"a\")", "too large for this evaluator")
 	refused(t, s, "grepl(\"a\", \"a\", perl = TRUE)", "perl = TRUE is not supported")
 	refused(t, s, "grepl(\"(a*)*\\\\1b\", paste(rep(\"a\", 60), collapse = \"\"))", "step limit")
 	// a back-reference is answered, not refused
