@@ -114,13 +114,16 @@ func (m *matcher) convert(str string) {
 // find returns the submatch byte offsets (absolute) of the first match at or
 // after from, or nil. With from > 0 the text before is not seen, as with TRE's
 // REG_NOTBOL on the rest of the string.
-func (m *matcher) find(str string, from int) []int {
+func (m *matcher) find(str string, from int) []int { return m.findBuf(nil, str, from) }
+
+// findBuf is find writing the offsets into dst when it is large enough.
+func (m *matcher) findBuf(dst []int, str string, from int) []int {
 	if m.fixed {
 		i := strings.Index(str[from:], m.pat)
 		if i < 0 {
 			return nil
 		}
-		return []int{from + i, from + i + len(m.pat)}
+		return append(dst[:0], from+i, from+i+len(m.pat))
 	}
 	m.convert(str)
 	start := from
@@ -141,7 +144,11 @@ func (m *matcher) find(str string, from int) []int {
 		}
 		m.s.errorf(m.c.call, "regular expression '%s' failed on the text: %s", m.pat, err.Error())
 	}
-	loc := make([]int, 2*len(pm))
+	loc := dst[:0]
+	if cap(loc) < 2*len(pm) {
+		loc = make([]int, 0, 2*len(pm))
+	}
+	loc = loc[:2*len(pm)]
 	for i, p := range pm {
 		so, eo := p.So, p.Eo
 		if so >= 0 {
