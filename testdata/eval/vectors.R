@@ -94,3 +94,8 @@ stopifnot(NA)
 stopifnot(1)
 #---
 rank(c(10, 30, 20, 20)); rank(c(10, 30, 20, 20), ties.method = "min"); rank(c(10, 30, 20, 20), ties.method = "max"); rank(c(10, 30, 20, 20), ties.method = "first"); rank(c("b", "a", "c")); rank(c(a = 3, b = 1)); rank(numeric(0)); rank(c(2, NA, 1))
+#---
+dimnames(matrix(1:4, 2, dimnames = list(A = c("a", "b"))))
+
+#---
+invisible(t(matrix(0, dimnames = list(A = c())))); 1
