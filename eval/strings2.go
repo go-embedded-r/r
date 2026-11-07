@@ -285,6 +285,12 @@ func init() {
 				format = "d"
 			}
 		}
+		if _, isStr := x.(*String); isStr {
+			format = "s" // a character vector is always formatted as text
+		} else if format == "s" {
+			s.warningf(c.call, "coercing argument to \"character\" for format=\"s\"")
+			x = &String{V: asStrings(x)}
+		}
 		if width > maxFieldWidth {
 			s.errorf(c.call, "invalid 'width' argument")
 		}

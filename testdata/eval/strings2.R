@@ -39,3 +39,8 @@ x <- noquote("a"); print.noquote(x)
 formatC(NA_real_, digits = 2, format = "f"); formatC(NA_real_, digits = 5, format = "f"); formatC(c(1, NA), format = "f", digits = 1, width = 8); formatC(c(1.5, NA), format = "d"); formatC(2.5, format = "d"); formatC(-1.5, format = "d")
 #---
 prettyNum(1234567.891, big.mark = ","); strtoi(c(a = "q"), 36L); strrep("abc", NA)
+
+#---
+formatC("a", format = "f"); formatC("a", format = "d"); formatC("1.5", format = "e"); formatC(1.5, format = "s"); formatC(1L, format = "f"); formatC("a", digits = 2); formatC(c("a", "bb"), format = "s", width = 4)
+#---
+formatC(1L, format = "s")
