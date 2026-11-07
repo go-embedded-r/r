@@ -501,6 +501,8 @@
 {"src":"cat(\"tab\\there\\n\"); cat('quote\"s\\n')","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":"tab\there\nquote\"s\n"}
 {"src":"print(\"x\"); print(1:3); print(NULL); invisible(print(\"p\"))","ok":true,"hex":"580a000000030004060200030500000000055554462d380000001000000001000400090000000170","typeof":"character","output":"[1] \"x\"\n[1] 1 2 3\nNULL\n[1] \"p\"\n"}
 {"src":"x <- print(\"returned\"); x","ok":true,"hex":"580a000000030004060200030500000000055554462d380000001000000001000400090000000872657475726e6564","typeof":"character","visible":true,"output":"[1] \"returned\"\n[1] \"returned\"\n"}
+{"src":"f <- function() { on.exit(cat(\"a\\n\"), TRUE); on.exit(cat(\"b\\n\"), add = TRUE, after = FALSE); 1 }; f()","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000013ff0000000000000","typeof":"double","visible":true,"output":"b\na\n[1] 1\n"}
+{"src":"f <- function() { on.exit(, cat()) }; f()","ok":false,"error":"invalid 'add' argument","call":"on.exit(, cat())"}
 {"src":"f <- function(x) x + 1; f(2)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014008000000000000","typeof":"double","visible":true,"output":"[1] 3\n"}
 {"src":"f <- function(x, y = 2) x * y; f(3); f(3, 4); f(y = 5, x = 2)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014024000000000000","typeof":"double","visible":true,"output":"[1] 6\n[1] 12\n[1] 10\n"}
 {"src":"f <- function(x, y) x - y; f(y = 1, 10); f(10, y = 1); f(x = 1, 10)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e00000001c022000000000000","typeof":"double","visible":true,"output":"[1] 9\n[1] 9\n[1] -9\n"}

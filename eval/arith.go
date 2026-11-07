@@ -102,6 +102,16 @@ func (s *Session) checkLen(call *Lang, n int) {
 	}
 }
 
+// chargeBytes counts bytes of text a function produced against MaxAlloc.
+func (s *Session) chargeBytes(n int) {
+	if s.opts.MaxAlloc > 0 {
+		s.alloc += int64(n)
+		if s.alloc > int64(s.opts.MaxAlloc) {
+			s.abort("memory limit exceeded: more than "+itoa(s.opts.MaxAlloc)+" bytes allocated", nil)
+		}
+	}
+}
+
 func recycleLen(nx, ny int) int {
 	if nx == 0 || ny == 0 {
 		return 0

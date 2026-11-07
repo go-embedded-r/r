@@ -420,17 +420,17 @@ func init() {
 			case a.HasName && a.Name == "expr":
 				expr = a.Value
 			case a.HasName && a.Name == "add":
-				add = len(logicalOf(s, nil2(c), s.eval(a.Value, c.env), "invalid 'add' argument")) > 0 && logicalOf(s, nil2(c), s.eval(a.Value, c.env), "")[0] == 1
+				add = s.lglFlag(c, a.Value, "add")
 			case a.HasName && a.Name == "after":
-				after = logicalOf(s, nil2(c), s.eval(a.Value, c.env), "invalid 'after' argument")[0] == 1
+				after = s.lglFlag(c, a.Value, "after")
 			default:
 				switch pos {
 				case 0:
 					expr = a.Value
 				case 1:
-					add = logicalOf(s, nil2(c), s.eval(a.Value, c.env), "invalid 'add' argument")[0] == 1
+					add = s.lglFlag(c, a.Value, "add")
 				case 2:
-					after = logicalOf(s, nil2(c), s.eval(a.Value, c.env), "invalid 'after' argument")[0] == 1
+					after = s.lglFlag(c, a.Value, "after")
 				}
 				pos++
 			}
@@ -509,6 +509,15 @@ func silentArg(s *Session, c *callInfo, e Value) bool {
 	l := logicalOf(s, nil2(c), s.eval(e, c.env), "invalid 'silent' argument")
 	if len(l) == 0 {
 		s.errorf(c.call, "invalid 'silent' argument")
+	}
+	return l[0] == 1
+}
+
+// lglFlag evaluates an argument that must be one logical value.
+func (s *Session) lglFlag(c *callInfo, e Value, what string) bool {
+	l := logicalOf(s, nil2(c), s.eval(e, c.env), "invalid '"+what+"' argument")
+	if len(l) == 0 {
+		s.errorf(c.call, "invalid '%s' argument", what)
 	}
 	return l[0] == 1
 }

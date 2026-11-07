@@ -1,0 +1,2 @@
+go test fuzz v1
+string("sprintf(\"%1$5555555A\",800:0)")
