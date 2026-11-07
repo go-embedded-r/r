@@ -139,11 +139,13 @@ type Session struct {
 	ctx      context.Context
 	deadline time.Time
 
-	handlers []handler
-	restarts []string
-	nextID   int
-	out      strings.Builder
-	stderr   strings.Builder
+	handlers  []handler
+	restarts  []restartEntry
+	restartID int
+	lastErr   string // geterrmessage()
+	nextID    int
+	out       strings.Builder
+	stderr    strings.Builder
 
 	noQuote    bool // print(quote = FALSE) is running
 	noDispatch bool // the next primitive runs its default, not a method

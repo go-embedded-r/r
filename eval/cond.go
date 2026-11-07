@@ -23,7 +23,11 @@ type unwindSignal struct {
 }
 
 // restartSignal is the panic of invokeRestart.
-type restartSignal struct{ name string }
+type restartSignal struct {
+	name string
+	id   int // 0: the innermost restart of that name
+	args []Value
+}
 
 func callValue(c *Lang) Value {
 	if c == nil {
@@ -116,7 +120,9 @@ func (s *Session) signal(cond Value) {
 		}
 		saved := s.handlers
 		s.handlers = append([]handler(nil), saved[:i]...)
+		vis := s.visible
 		s.callFunction(h.fn, []Value{cond})
+		s.visible = vis
 		s.handlers = saved
 	}
 }
@@ -137,12 +143,14 @@ func (s *Session) raiseCondition(cond Value) {
 
 func (s *Session) withRestart(name string, f func()) (invoked bool) {
 	base := s.handlers
-	s.restarts = append(s.restarts, name)
+	s.restartID++
+	myID := s.restartID
+	s.restarts = append(s.restarts, restartEntry{name: name, id: myID})
 	n := len(s.restarts)
 	defer func() {
 		s.restarts = s.restarts[:n-1]
 		if r := recover(); r != nil {
-			if rs, ok := r.(*restartSignal); ok && rs.name == name {
+			if rs, ok := r.(*restartSignal); ok && (rs.id == myID || (rs.id == 0 && rs.name == name)) {
 				s.handlers = base
 				invoked = true
 				return
@@ -294,22 +302,6 @@ func init() {
 	regBuiltin("conditionCall", func(s *Session, c *callInfo) Value {
 		return condField(s.nargs1(c, "conditionCall"), "call")
 	})
-	regBuiltin("invokeRestart", func(s *Session, c *callInfo) Value {
-		if len(c.args) == 0 {
-			s.errorf(c.call, "argument \"r\" is missing, with no default")
-		}
-		st, ok := c.args[0].(*String)
-		if !ok || len(st.V) != 1 {
-			s.errorf(c.call, "bad restart specification")
-		}
-		for i := len(s.restarts) - 1; i >= 0; i-- {
-			if s.restarts[i] == st.V[0].S {
-				panic(&restartSignal{name: st.V[0].S})
-			}
-		}
-		s.errorf(c.call, "no 'restart' '%s' found", st.V[0].S)
-		return nil
-	})
 	regSpecial("tryCatch", func(s *Session, c *callInfo) Value {
 		var expr, finally Value
 		haveExpr := false
@@ -339,7 +331,9 @@ func init() {
 				s.flow, s.flowVal, s.flowEnv = flowNone, nil, nil
 				saved := s.handlers
 				s.handlers = base
+				vis := s.visible
 				s.eval(finally, c.env)
+				s.visible = vis
 				s.handlers = saved
 				s.flow, s.flowVal, s.flowEnv = f, fv, fe
 			}()
@@ -484,6 +478,7 @@ func init() {
 						if cl := condCall(us.cond); cl != nil {
 							text = "Error in " + callText(cl) + " : " + msg + "\n"
 						}
+						s.lastErr = text
 						if !silent {
 							s.stderr.WriteString(text)
 						}
