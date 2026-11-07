@@ -16,7 +16,7 @@ func init() {
 		"asin": math.Asin, "acos": math.Acos, "atan": math.Atan,
 		"sinh": math.Sinh, "cosh": math.Cosh, "tanh": math.Tanh,
 		"asinh": math.Asinh, "acosh": math.Acosh, "atanh": math.Atanh,
-		"log10": math.Log10, "log2": math.Log2, "log1p": math.Log1p, "expm1": math.Expm1,
+		"log10": log10Fn, "log2": log2Fn, "log1p": math.Log1p, "expm1": math.Expm1,
 		"gamma": gammaFn, "lgamma": lgammaFn,
 		"sinpi": sinpi, "cospi": cospi, "tanpi": tanpi,
 		"trunc": math.Trunc,
@@ -77,9 +77,9 @@ func init() {
 			base := bd[0]
 			switch {
 			case base == 10:
-				f = math.Log10
+				f = log10Fn
 			case base == 2:
-				f = math.Log2
+				f = log2Fn
 			default:
 				lb := math.Log(base)
 				f = func(v float64) float64 { return math.Log(v) / lb }
@@ -1324,4 +1324,22 @@ func seqErrCall(c *callInfo) *Lang {
 		return c.call
 	}
 	return &Lang{Fun: Intern("seq.default"), Args: c.call.Args}
+}
+
+// log2Fn and log10Fn: Go's math.Log2 and math.Log10 go through Frexp and
+// lose several bits near 1 (log2(1.005) is 8 ulp off); the logarithm divided
+// by the logarithm of the base is within an ulp, and exact powers are exact.
+func log2Fn(x float64) float64 {
+	if fr, e := math.Frexp(x); fr == 0.5 {
+		return float64(e - 1)
+	}
+	return math.Log(x) / math.Ln2
+}
+
+func log10Fn(x float64) float64 {
+	r := math.Log(x) / math.Ln10
+	if k := math.Round(r); k == r || (math.Abs(r-k) < 1e-9 && math.Abs(k) <= 22 && math.Pow(10, k) == x) {
+		return k
+	}
+	return r
 }

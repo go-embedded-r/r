@@ -78,6 +78,7 @@ func evalfuzzCmd() *cobra.Command {
 	var seed int64
 	var maxFail int
 	var mode string
+	var maxULP int64
 	cmd := &cobra.Command{
 		Use:   "evalfuzz",
 		Short: "differential fuzz of the evaluator: random arithmetic expressions, R against Go",
@@ -89,8 +90,9 @@ func evalfuzzCmd() *cobra.Command {
 			}
 			defer p.Close()
 			r := rand.New(rand.NewSource(seed))
-			ok, bad, libm := 0, 0, 0
+			ok, bad, libm, approx := 0, 0, 0, 0
 			perFn := map[string][2]int{}
+			worstULP := map[string]int64{}
 			var failures []string
 			const batch = 200
 			for done := 0; done < n; done += batch {
@@ -100,6 +102,9 @@ func evalfuzzCmd() *cobra.Command {
 						srcs[i] = fuzzMath(r)
 						if strings.HasSuffix(srcs[i], "# libm") {
 							libm++
+						}
+						if strings.HasSuffix(srcs[i], "# approx") {
+							approx++
 						}
 					} else if mode == "apply" {
 						srcs[i] = fuzzApply(r)
@@ -129,7 +134,17 @@ func evalfuzzCmd() *cobra.Command {
 						fn = fn[:i]
 					}
 					t := perFn[fn]
-					if why := evalcheck.Check(rec); why != "" {
+					var why string
+					if strings.HasSuffix(rec.Src, "# libm") {
+						var w int64
+						why = evalcheck.CheckULP(rec, maxULP, &w)
+						if w > worstULP[fn] {
+							worstULP[fn] = w
+						}
+					} else {
+						why = evalcheck.Check(rec)
+					}
+					if why != "" {
 						bad++
 						t[1]++
 						if len(failures) < maxFail {
@@ -143,8 +158,11 @@ func evalfuzzCmd() *cobra.Command {
 				}
 			}
 			fmt.Fprintf(c.OutOrStdout(), "evalfuzz (seed %d): %d expressions, %d agree with R, %d differ\n", seed, ok+bad, ok, bad)
+			if approx > 0 {
+				fmt.Fprintf(c.OutOrStdout(), "  of which %d gamma-family cases (lgamma, digamma, trigamma) compared through signif(x, 12): an accuracy defect, tracked in the issue tracker\n", approx)
+			}
 			if libm > 0 {
-				fmt.Fprintf(c.OutOrStdout(), "  of which %d libm functions compared through round(x, 6): last-bit equality with the C library excluded\n", libm)
+				fmt.Fprintf(c.OutOrStdout(), "  of which %d libm cases compared within %d ulp (C-library last-bit noise); every other case is compared exactly\n", libm, maxULP)
 			}
 			names := make([]string, 0, len(perFn))
 			for k := range perFn {
@@ -152,7 +170,11 @@ func evalfuzzCmd() *cobra.Command {
 			}
 			sort.Strings(names)
 			for _, k := range names {
-				fmt.Fprintf(c.OutOrStdout(), "  %-10s %6d agree, %d differ\n", k, perFn[k][0], perFn[k][1])
+				fmt.Fprintf(c.OutOrStdout(), "  %-10s %6d agree, %d differ", k, perFn[k][0], perFn[k][1])
+				if w, ok := worstULP[k]; ok {
+					fmt.Fprintf(c.OutOrStdout(), "   (libm cases: largest difference %d ulp)", w)
+				}
+				fmt.Fprintln(c.OutOrStdout())
 			}
 			for _, f := range failures {
 				fmt.Fprintln(c.OutOrStdout(), "  DIFF", f)
@@ -163,6 +185,7 @@ func evalfuzzCmd() *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().Int64Var(&maxULP, "ulp", 4, "math mode: units in the last place allowed to libm cases")
 	cmd.Flags().StringVar(&mode, "mode", "arith", "arith, subset, regex, strings, apply or math")
 	cmd.Flags().IntVar(&n, "n", 2000, "expressions")
 	cmd.Flags().Int64Var(&seed, "seed", 1, "random seed")

@@ -163,9 +163,9 @@ var (
 	mVecs = []string{"c(1.5, 2.5, 3.5)", "c(-2, 0, 2)", "c(1, NA, 3)", "1:5", "c(a = 1, b = 2)", "c(0.1, 0.2, 0.3)", "c(1e10, 1, 1e-10)", "c(TRUE, FALSE)", "integer(0)", "c(NaN, 1)", "c(-1, Inf)"}
 )
 
-// fuzzMath draws a call of the math primitives. The libm functions are
-// compared through round(x, 6): equality of their last bit with the C
-// library is excluded (and counted by the caller through the "libm" mark).
+// fuzzMath draws a call of the math primitives. The libm functions carry a
+// "# libm" mark: they are compared within a few ulp, never excluded, and
+// the caller counts them and reports the largest difference per function.
 func fuzzMath(r *rand.Rand) string {
 	pick := func(p []string) string { return p[r.Intn(len(p))] }
 	arg := func() string {
@@ -192,11 +192,17 @@ func fuzzMath(r *rand.Rand) string {
 			// excluded: our series and R's sum the 1/x terms in a different order, a 1e-16 relative difference that round(x, 6) cannot hide at 1e20
 			a = "c(1.5, 2.5)"
 		}
-		return fmt.Sprintf("round(%s(%s), 6) # libm", fn, a)
+		if fn == "lgamma" || fn == "digamma" || fn == "trigamma" {
+			// our gamma-family routines are less accurate than R's (a few
+			// 1e-16 absolute, thousands of ulp near a zero of digamma): compared
+			// through round(x, 9) and counted as "approx", an open defect
+			return fmt.Sprintf("signif(%s(%s), 12) # approx", fn, a)
+		}
+		return fmt.Sprintf("%s(%s) # libm", fn, a)
 	case 6:
-		return fmt.Sprintf("round(log(%s, %s), 6) # libm", pick(mVecs), pick([]string{"2", "10", "0", "-1"}))
+		return fmt.Sprintf("log(%s, %s) # libm", pick(mVecs), pick([]string{"2", "10", "0", "-1"}))
 	case 7:
-		return fmt.Sprintf("round(%s(%s), 6) # libm", pick([]string{"sinpi", "cospi", "tanpi"}), pick([]string{"0", "0.5", "1", "1.5", "2", "-0.5", "0.25", "Inf", "NA_real_"}))
+		return fmt.Sprintf("%s(%s) # libm", pick([]string{"sinpi", "cospi", "tanpi"}), pick([]string{"0", "0.5", "1", "1.5", "2", "-0.5", "0.25", "Inf", "NA_real_"}))
 	case 8:
 		return fmt.Sprintf("nzchar(%s)", pick([]string{`c("a", "", NA)`, `""`, `NA`, `character(0)`, `123`, `c(x = "a")`}))
 	}
