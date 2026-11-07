@@ -44,7 +44,7 @@ func init() {
 			s.errorf(c.call, "argument \"%s\" is missing, with no default", map[bool]string{true: "x", false: "times"}[a[0] == nil])
 		}
 		x := s.charVec(c, a[0], "strrep")
-		t := asDoublesOrNil(a[1])
+		t := asDoubles(a[1])
 		if len(x) == 0 || len(t) == 0 {
 			return &String{V: []Str{}}
 		}
@@ -146,7 +146,7 @@ func init() {
 			}
 			out[i] = int32(v)
 		}
-		return withAttr(&Integer{V: out}, keepNamesOnly(a[0]))
+		return &Integer{V: out}
 	})
 	regBuiltin("make.unique", func(s *Session, c *callInfo) Value {
 		a := s.matchFormals(c, "names", "sep")
@@ -304,7 +304,7 @@ func init() {
 				case math.IsNaN(d):
 					body = "NA"
 				default:
-					body = strconv.FormatFloat(math.Round(d), 'f', 0, 64)
+					body = strconv.FormatFloat(math.Trunc(d), 'f', 0, 64)
 				}
 			case "f", "e", "E", "g", "G":
 				d := asDoubles(x)[i]
@@ -346,6 +346,9 @@ func init() {
 			} else if strings.Contains(flag, " ") && len(body) > 0 && body[0] != '-' && body != "NA" {
 				body = " " + body
 			}
+			if digitsGiven && (body == "NA" || body == "NaN" || body == "Inf" || body == "-Inf") && digits+1 > len(body) {
+				body = strings.Repeat(" ", digits+1-len(body)) + body
+			}
 			body = insertBigMark(body, mark)
 			if w := displayWidth(body); w < width {
 				switch {
@@ -378,11 +381,17 @@ func init() {
 		if st, ok := a[0].(*String); ok {
 			x = st.V
 		} else {
-			for _, e := range asStrings(a[0]) {
-				if e.NA {
-					e = Str{S: "NA"}
+			if d, isD := a[0].(*Double); isD {
+				for _, f := range d.V {
+					x = append(x, Str{S: strings.TrimLeft(formatRealVec([]float64{f}, printDigits).encode(f), " ")})
 				}
-				x = append(x, e)
+			} else {
+				for _, e := range asStrings(a[0]) {
+					if e.NA {
+						e = Str{S: "NA"}
+					}
+					x = append(x, e)
+				}
 			}
 		}
 		out := make([]Str, len(x))
