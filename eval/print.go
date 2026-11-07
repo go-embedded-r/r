@@ -312,9 +312,9 @@ func (s *Session) printValueTagged(v Value, prefix string, env *Env) {
 		s.out.WriteString("NULL\n")
 	case *Logical, *Integer, *Double, *String:
 		if d := dimsOf(v); len(d) >= 2 {
-			s.printArray(v, d, true)
+			s.printArray(v, d, !s.noQuote)
 		} else {
-			s.printVector(v, true)
+			s.printVector(v, !s.noQuote)
 		}
 		s.printAttributes(v, prefix, env)
 	case *List:
@@ -481,6 +481,12 @@ func catStrings(v Value) []string {
 func init() {
 	regBuiltin("print", func(s *Session, c *callInfo) Value {
 		x := s.nargs1First(c)
+		for i, n := range c.names {
+			if n == "quote" && s.truthy(c, c.args[i], "quote") == false {
+				s.noQuote = true
+				defer func() { s.noQuote = false }()
+			}
+		}
 		if isObject(x) {
 			s.printObject(x, "", c.env)
 		} else {

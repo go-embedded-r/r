@@ -256,3 +256,33 @@ func fuzzVectors(r *rand.Rand) string {
 	}
 	return fmt.Sprintf("append(%s, %s%s)", pick(vNums[:3]), pick([]string{"9", "c(8, 9)"}), pick([]string{"", ", after = 1", ", after = 0"}))
 }
+
+var (
+	s2Texts = []string{`"abc"`, `c("a", "bb", NA)`, `""`, `"x,y"`, `c(a = "q")`, `"it's"`, `"12"`, `"ff"`, `"a/b/c"`, `"dir/"`, `"/"`}
+	s2Nums  = []string{"3.14159", "42L", "1234567.891", "-5", "0.000012345", "1e6", "c(1, 10, 100)", "NA_real_", "123456789", "0", "c(1.5, NA)"}
+)
+
+func fuzzStrings2(r *rand.Rand) string {
+	pick := func(p []string) string { return p[r.Intn(len(p))] }
+	switch r.Intn(10) {
+	case 0:
+		return fmt.Sprintf("strrep(%s, %s)", pick(s2Texts), pick([]string{"0", "1", "3", "c(1, 2)", "NA"}))
+	case 1:
+		return fmt.Sprintf("formatC(%s%s)", pick(s2Nums), pick([]string{"", ", width = 8", ", digits = 2, format = \"f\"", ", format = \"e\", digits = 3", ", format = \"g\"", ", flag = \"0\", width = 10", ", big.mark = \",\", format = \"d\"", ", flag = \"-\", width = 9", ", width = -7", ", format = \"f\", digits = 0", ", flag = \"+\""}))
+	case 2:
+		return fmt.Sprintf("prettyNum(%s, big.mark = \",\")", pick(s2Nums))
+	case 3:
+		return fmt.Sprintf("strtoi(%s, %s)", pick(s2Texts), pick([]string{"10L", "16L", "8L", "2L", "36L"}))
+	case 4:
+		return fmt.Sprintf("make.unique(c(%s, %s, %s))", pick([]string{`"a"`, `"b"`, `"a.1"`}), pick([]string{`"a"`, `"b"`}), pick([]string{`"a"`, `"a.1"`}))
+	case 5:
+		return fmt.Sprintf("%s(%s)", pick([]string{"basename", "dirname"}), pick(s2Texts))
+	case 6:
+		return fmt.Sprintf("%s(%s)", pick([]string{"sQuote", "dQuote", "shQuote", "toString"}), pick(s2Texts))
+	case 7:
+		return fmt.Sprintf("x <- %s; substr(x, %s, %s) <- %s; x", pick([]string{`"abcdef"`, `c("aaa", "bbb")`, `"é"`}), pick([]string{"1", "2", "0", "5"}), pick([]string{"2", "3", "10"}), pick([]string{`"Z"`, `"XYZ"`, `""`}))
+	case 8:
+		return fmt.Sprintf("noquote(%s)", pick(s2Texts))
+	}
+	return fmt.Sprintf("file.path(%s, %s)", pick(s2Texts[:5]), pick(s2Texts[:5]))
+}
