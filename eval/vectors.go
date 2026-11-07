@@ -3,6 +3,7 @@ package eval
 import (
 	"math"
 	"sort"
+	"strings"
 )
 
 // Slice 5: vectors. as.vector, order, pmax/pmin, which.max/which.min,
@@ -805,5 +806,122 @@ func init() {
 			res = withAttr(res, namesAttr(nm.V))
 		}
 		return res
+	})
+}
+
+func init() {
+	regSpecial("match.arg", func(s *Session, c *callInfo) Value {
+		if len(c.raw) == 0 {
+			s.errorf(c.call, "argument \"arg\" is missing, with no default")
+		}
+		var argE, chE Value
+		several := false
+		pos := 0
+		for _, a := range c.raw {
+			switch {
+			case a.HasName && a.Name == "arg":
+				argE = a.Value
+			case a.HasName && a.Name == "choices":
+				chE = a.Value
+			case a.HasName && a.Name == "several.ok":
+				several = s.lglFlag(c, a.Value, "several.ok")
+			case !a.HasName:
+				switch pos {
+				case 0:
+					argE = a.Value
+				case 1:
+					chE = a.Value
+				case 2:
+					several = s.lglFlag(c, a.Value, "several.ok")
+				}
+				pos++
+			}
+		}
+		if argE == nil {
+			s.errorf(c.call, "argument \"arg\" is missing, with no default")
+		}
+		var choices Value
+		identicalToDefault := false
+		if chE != nil {
+			choices = s.eval(chE, c.env)
+		} else {
+			sym, ok := argE.(*Symbol)
+			if !ok {
+				s.errorf(c.call, "'arg' must be a symbol when 'choices' is missing")
+			}
+			_, fr := s.frameIndex(c.env)
+			if fr == nil {
+				s.errorf(c.call, "match.arg() must be called from a function")
+			}
+			var def Value
+			for _, f := range fr.fn.Formals {
+				if f.Name == sym {
+					def = f.Default
+				}
+			}
+			if def == nil {
+				s.errorf(c.call, "no default choices for '%s'", sym.Name)
+			}
+			choices = s.eval(def, c.env)
+			if s.isMissingArg(sym, c.env) {
+				identicalToDefault = true
+			}
+		}
+		arg := s.eval(argE, c.env)
+		cs, ok := choices.(*String)
+		if !ok {
+			s.errorf(c.call, "'choices' must be a character vector")
+		}
+		if _, isNull := arg.(nullT); isNull {
+			return &String{V: []Str{cs.V[0]}}
+		}
+		as, ok := arg.(*String)
+		if !ok {
+			s.errorf(c.call, "'arg' must be NULL or a character vector")
+		}
+		if !several {
+			if identicalToDefault || identical(arg, choices) {
+				return &String{V: []Str{cs.V[0]}}
+			}
+			if len(as.V) != 1 {
+				s.errorf(c.call, "'arg' must be of length 1")
+			}
+		} else if len(as.V) == 0 {
+			s.errorf(c.call, "'arg' must be of length >= 1")
+		}
+		var out []Str
+		for _, a := range as.V {
+			hit := -1
+			exact := false
+			n := 0
+			for j, ch := range cs.V {
+				if ch.S == a.S {
+					hit, exact = j, true
+					break
+				}
+				if strings.HasPrefix(ch.S, a.S) && a.S != "" {
+					hit = j
+					n++
+				}
+			}
+			if !exact && n != 1 {
+				hit = -1
+			}
+			if hit < 0 {
+				if several {
+					continue
+				}
+				var q []string
+				for _, ch := range cs.V {
+					q = append(q, "“"+ch.S+"”")
+				}
+				s.errorf(c.call, "'arg' should be one of %s", strings.Join(q, ", "))
+			}
+			out = append(out, cs.V[hit])
+		}
+		if len(out) == 0 {
+			s.errorf(c.call, "'arg' should be one of ...")
+		}
+		return &String{V: out}
 	})
 }

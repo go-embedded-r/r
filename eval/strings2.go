@@ -285,6 +285,20 @@ func init() {
 				format = "d"
 			}
 		}
+		if a[5] != nil {
+			switch mode := s.stringArg(c, a[5], "mode"); mode {
+			case "integer":
+				if d, ok := x.(*Double); ok {
+					x = &Double{V: truncAll(d.V), Attr: d.Attr}
+				}
+				if a[3] == nil {
+					format = "d"
+				}
+			case "double", "real", "character":
+			default:
+				s.errorf(c.call, "'mode' must be \"double\" (\"real\"), \"integer\" or \"character\"")
+			}
+		}
 		if _, isStr := x.(*String); isStr {
 			format = "s" // a character vector is always formatted as text
 		} else if format == "s" {
@@ -313,7 +327,7 @@ func init() {
 				default:
 					body = strconv.FormatFloat(math.Trunc(d), 'f', 0, 64)
 				}
-			case "f", "e", "E", "g", "G":
+			case "f", "e", "E", "g", "G", "fg":
 				d := asDoubles(x)[i]
 				switch {
 				case isNAReal(d) || (kindOf(x) != kDouble && math.IsNaN(d)):
@@ -336,7 +350,12 @@ func init() {
 					case p < 0:
 						p = -1
 					}
-					if verb == "g" || verb == "G" {
+					if verb == "fg" {
+						body = formatFG(d, p, strings.Contains(flag, "#"))
+						if digitsGiven && len(body) < p+1 {
+							body = strings.Repeat(" ", p+1-len(body)) + body
+						}
+					} else if verb == "g" || verb == "G" {
 						body = formatG(d, p, verb == "G", strings.Contains(flag, "#"))
 					} else {
 						body = strconv.FormatFloat(d, verb[0], p, 64)
@@ -467,3 +486,39 @@ func formatG(d float64, p int, upper, alt bool) string {
 }
 
 var _ = path.Base
+
+func truncAll(v []float64) []float64 {
+	out := make([]float64, len(v))
+	for i, e := range v {
+		out[i] = math.Trunc(e)
+	}
+	return out
+}
+
+// formatFG is formatC's "fg": digits significant digits in fixed notation,
+// trailing zeros dropped unless alt.
+func formatFG(d float64, digits int, alt bool) string {
+	if digits < 0 {
+		digits = 6
+	}
+	if digits == 0 {
+		digits = 1
+	}
+	if d == 0 {
+		return "0"
+	}
+	// round to digits significant digits, then print without an exponent
+	exp := int(math.Floor(math.Log10(math.Abs(d))))
+	if r, err := strconv.ParseFloat(strconv.FormatFloat(d, 'e', digits-1, 64), 64); err == nil && r != 0 {
+		exp = int(math.Floor(math.Log10(math.Abs(r))))
+	}
+	dec := digits - 1 - exp
+	if dec < 0 {
+		dec = 0
+	}
+	out := strconv.FormatFloat(d, 'f', dec, 64)
+	if !alt && strings.Contains(out, ".") {
+		out = strings.TrimRight(strings.TrimRight(out, "0"), ".")
+	}
+	return out
+}
