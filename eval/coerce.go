@@ -570,7 +570,7 @@ func (s *Session) strExtreme(c *callInfo, name string, data []Value, rm bool) Va
 				}
 				continue
 			}
-			if !have || (name == "min" && e.S < best.S) || (name == "max" && e.S > best.S) {
+			if !have || (name == "min" && collate(e.S, best.S) < 0) || (name == "max" && collate(e.S, best.S) > 0) {
 				best, have = e, true
 			}
 		}

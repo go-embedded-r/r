@@ -98,9 +98,13 @@ func (s *Session) dispatchInternal(name string, c *callInfo, args []Value, names
 
 // group generics
 var (
-	opsGroup     = map[string]bool{"+": true, "-": true, "*": true, "/": true, "^": true, "%%": true, "%/%": true, "==": true, "!=": true, "<": true, "<=": true, ">": true, ">=": true, "&": true, "|": true, "!": true}
-	mathGroup    = map[string]bool{"abs": true, "sqrt": true, "exp": true, "floor": true, "ceiling": true}
-	summaryGroup = map[string]bool{"sum": true, "prod": true, "min": true, "max": true, "any": true, "all": true}
+	opsGroup  = map[string]bool{"+": true, "-": true, "*": true, "/": true, "^": true, "%%": true, "%/%": true, "==": true, "!=": true, "<": true, "<=": true, ">": true, ">=": true, "&": true, "|": true, "!": true}
+	mathGroup = map[string]bool{"abs": true, "sqrt": true, "exp": true, "floor": true, "ceiling": true,
+		"sin": true, "cos": true, "tan": true, "asin": true, "acos": true, "atan": true, "sinh": true, "cosh": true, "tanh": true,
+		"asinh": true, "acosh": true, "atanh": true, "log": true, "log10": true, "log2": true, "log1p": true, "expm1": true,
+		"gamma": true, "lgamma": true, "sinpi": true, "cospi": true, "tanpi": true, "trunc": true, "sign": true, "round": true, "signif": true,
+		"cumsum": true, "cumprod": true, "cummax": true, "cummin": true}
+	summaryGroup = map[string]bool{"sum": true, "prod": true, "min": true, "max": true, "any": true, "all": true, "range": true}
 	internalGen  = []string{"length", "names", "names<-", "as.character", "as.integer", "as.double", "as.numeric", "as.logical", "c", "is.na", "dim", "dim<-", "unlist", "rep", "seq_along"}
 )
 

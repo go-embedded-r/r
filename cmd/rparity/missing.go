@@ -21,6 +21,9 @@ func missingCmd() *cobra.Command {
 			for _, n := range eval.Builtins() {
 				have[n] = true
 			}
+			for _, n := range eval.Unsupported() {
+				have[n] = false // present as a name, refuses to run
+			}
 			var miss []string
 			total := 0
 			for n := range syntax.PrimitiveNames() {

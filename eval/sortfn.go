@@ -49,7 +49,7 @@ func init() {
 			case *Double:
 				return v.V[i] < v.V[j]
 			case *String:
-				return v.V[i].S < v.V[j].S
+				return collate(v.V[i].S, v.V[j].S) < 0
 			}
 			return false
 		}

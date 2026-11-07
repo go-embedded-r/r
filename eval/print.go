@@ -408,7 +408,7 @@ func (s *Session) printObject(v Value, prefix string, env *Env) {
 			s.printCondition(v)
 			return
 		}
-		if cl == "factor" && kindOf(v) == kInteger {
+		if (cl == "factor" || cl == "ordered") && kindOf(v) == kInteger {
 			s.printFactor(v)
 			return
 		}

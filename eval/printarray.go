@@ -175,7 +175,7 @@ func (s *Session) printFactor(v Value) {
 		}
 	}
 	if len(codes) == 0 {
-		s.out.WriteString("factor(0)\n")
+		s.out.WriteString("factor()\n")
 	} else {
 		var attr []Attr
 		if nm := namesOf(v); nm != nil {
@@ -229,5 +229,9 @@ func (s *Session) printFactor(v Value) {
 	if drop {
 		prefix = strconv.Itoa(n) + " "
 	}
-	s.out.WriteString(prefix + "Levels: " + strings.Join(parts, " ") + "\n")
+	sep := " "
+	if hasString(classAttr(v), "ordered") {
+		sep = " < "
+	}
+	s.out.WriteString(prefix + "Levels: " + strings.Join(parts, sep) + "\n")
 }

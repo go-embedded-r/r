@@ -337,7 +337,7 @@ func init() {
 			}
 			names = append(names, n)
 		}
-		sort.Strings(names)
+		sort.SliceStable(names, func(i, j int) bool { return collate(names[i], names[j]) < 0 })
 		return strVec(names)
 	})
 	regSpecial("rm", func(s *Session, c *callInfo) Value {
