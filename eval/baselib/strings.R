@@ -13,8 +13,14 @@ dQuote <- function(x, q = TRUE) {
   if (isFALSE(q)) paste0("\"", x, "\"") else paste0("“", x, "”")
 }
 
-shQuote <- function(string, type = "sh") {
-  if (type != "sh") stop("only type = \"sh\" is supported")
+shQuote <- function(string, type = c("sh", "csh", "cmd", "cmd2")) {
+  type <- match.arg(type)
+  if (type == "cmd") return(paste0("\"", gsub("\"", "\\\\\"", string), "\""))
+  if (type == "cmd2") return(gsub("([()%!^\"<>&|])", "^\\1", string))
+  if (type == "csh") {
+    has_single_csh <- grepl("'", string, fixed = TRUE)
+    return(ifelse(has_single_csh, paste0("\"", gsub("([\"$`\\\\!])", "\\\\\\1", string), "\""), paste0("'", string, "'")))
+  }
   has_single <- grepl("'", string, fixed = TRUE)
   ifelse(has_single, paste0("\"", gsub("([\"$`\\\\])", "\\\\\\1", string), "\""), paste0("'", string, "'"))
 }

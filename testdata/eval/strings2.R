@@ -44,3 +44,29 @@ prettyNum(1234567.891, big.mark = ","); strtoi(c(a = "q"), 36L); strrep("abc", N
 formatC("a", format = "f"); formatC("a", format = "d"); formatC("1.5", format = "e"); formatC(1.5, format = "s"); formatC(1L, format = "f"); formatC("a", digits = 2); formatC(c("a", "bb"), format = "s", width = 4)
 #---
 formatC(1L, format = "s")
+
+#---
+shQuote("a b", "cmd"); shQuote("a\"b", "cmd"); shQuote("a", "csh"); shQuote("it's", "csh"); shQuote("a!b", "csh"); shQuote("a b", "cmd2"); shQuote("a\"b", "cmd2"); shQuote("x", type = "sh")
+#---
+shQuote("x", "bogus")
+#---
+formatC(3.14159, format = "fg", digits = 3); formatC(1234.5678, format = "fg", digits = 2); formatC(0.000123456, format = "fg", digits = 3); formatC(1.5, format = "fg", digits = 5); formatC(1.5, format = "fg", digits = 5, flag = "#"); formatC(100, format = "fg"); formatC(2, mode = "integer"); formatC(2.7, mode = "integer"); formatC(2L, mode = "double"); formatC(1e10, format = "fg", digits = 3, big.mark = ","); formatC("a", mode = "character")
+#---
+formatC(1, mode = "bogus")
+#---
+format(1234567.891, big.mark = ","); format(c(1, 1234, 1234567), big.mark = ","); format(-1234.5, big.mark = ","); format(1234L, big.mark = ","); format("1234567", big.mark = ","); format(1e6, big.mark = ",", scientific = FALSE); format(1234.5678, nsmall = 2, big.mark = ","); format(c(a = 1000, b = 10), big.mark = ","); format(NA, big.mark = ","); format(123456789.123, big.mark = ",", nsmall = 1)
+#---
+f <- function(type = c("one", "two", "three")) match.arg(type); f(); f("two"); f("th"); f(NULL)
+#---
+f <- function(type = c("one", "two", "three")) match.arg(type); f("x")
+#---
+f <- function(type = c("one", "two")) match.arg(type); f(c("one", "two")); f(1)
+#---
+match.arg("me", c("mean", "median")); match.arg("mea", c("mean", "median")); match.arg(c("a", "b"), c("a", "b", "c"), several.ok = TRUE)
+#---
+match.arg("m", c("mean", "median"))
+#---
+match.arg(NULL, c("x", "y"))
+
+#---
+sprintf("%#x", 0L); sprintf("%#x", 255L); sprintf("%#o", 8L); sprintf("%#o", 0L)

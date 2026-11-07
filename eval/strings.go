@@ -801,7 +801,11 @@ func (s *Session) sprintf1(c *callInfo, f string, args []Value, row int, used []
 			default:
 				s.errorf(c.call, "invalid format '%s'; use format %%s for character objects", spec)
 			}
-			b.WriteString(fmt.Sprintf(goFlags+string(conv), x))
+			gf := goFlags
+			if x == 0 {
+				gf = strings.Replace(gf, "#", "", 1) // C prints no prefix for zero
+			}
+			b.WriteString(fmt.Sprintf(gf+string(conv), x))
 		case 's':
 			var str string
 			switch v := arg.(type) {
@@ -841,7 +845,7 @@ func (s *Session) sprintf1(c *callInfo, f string, args []Value, row int, used []
 // ---- format ------------------------------------------------------------
 
 func (s *Session) format(c *callInfo) Value {
-	a := s.matchFormals(c, "x", "trim", "digits", "nsmall", "justify", "width", "na.encode", "scientific")
+	a := s.matchFormals(c, "x", "trim", "digits", "nsmall", "justify", "width", "na.encode", "scientific", "big.mark")
 	x := a[0]
 	if x == nil {
 		s.errorf(c.call, "argument \"x\" is missing, with no default")
@@ -960,6 +964,18 @@ func (s *Session) format(c *callInfo) Value {
 		}
 	default:
 		s.errorf(c.call, "unsupported object for format()")
+	}
+	if a[8] != nil {
+		if mark := s.stringArg(c, a[8], "big.mark"); mark != "" {
+			switch x.(type) {
+			case *Double, *Integer, *Logical:
+				if !inheritsClass(x, "factor") {
+					for i := range items {
+						items[i] = insertBigMark(items[i], mark)
+					}
+				}
+			}
+		}
 	}
 	// common width
 	w := width
