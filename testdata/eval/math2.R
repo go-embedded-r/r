@@ -76,3 +76,12 @@ xtfrm(c(3, 1, 2)); xtfrm(1:3)
 
 #---
 is.expression(1); is.complex(1); is.raw(1); isS4(1); interactive()
+
+#---
+round(digamma(1), 6); round(digamma(c(0.5, 2, 10)), 6); digamma(0); round(trigamma(1), 6); round(trigamma(c(0.5, 3)), 6); round(digamma(-0.5), 6); round(trigamma(-0.5), 5)
+#---
+seq.int(5); seq.int(2, 8); seq.int(1, 10, by = 3); seq.int(0, 1, length.out = 5); seq.int(5, 1)
+#---
+seq.int(1, 10, by = -1)
+#---
+.class2(1); .class2(1L); .class2(matrix(1:4, 2)); .class2("a"); .class2(sum); .class2(structure(1, class = "k"))

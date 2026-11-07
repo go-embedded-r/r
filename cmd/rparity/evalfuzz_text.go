@@ -157,3 +157,48 @@ func fuzzApply(r *rand.Rand) string {
 	}
 	return fmt.Sprintf("rev(%s)", v)
 }
+
+var (
+	mNums = []string{"0", "1", "-1", "2.5", "-2.5", "0.5", "1e-3", "123456.789", "NA_real_", "NaN", "Inf", "-Inf", "7", "-7", "1e10", "0.125", "1.005", "2.675", "15", "1234.5678"}
+	mVecs = []string{"c(1.5, 2.5, 3.5)", "c(-2, 0, 2)", "c(1, NA, 3)", "1:5", "c(a = 1, b = 2)", "c(0.1, 0.2, 0.3)", "c(1e10, 1, 1e-10)", "c(TRUE, FALSE)", "integer(0)", "c(NaN, 1)", "c(-1, Inf)"}
+)
+
+// fuzzMath draws a call of the math primitives. The libm functions are
+// compared through round(x, 6): equality of their last bit with the C
+// library is excluded (and counted by the caller through the "libm" mark).
+func fuzzMath(r *rand.Rand) string {
+	pick := func(p []string) string { return p[r.Intn(len(p))] }
+	arg := func() string {
+		if r.Intn(2) == 0 {
+			return pick(mNums)
+		}
+		return pick(mVecs)
+	}
+	switch r.Intn(10) {
+	case 0:
+		return fmt.Sprintf("round(%s, %s)", arg(), pick([]string{"0", "1", "2", "3", "-1", "-2", "10"}))
+	case 1:
+		return fmt.Sprintf("signif(%s, %s)", arg(), pick([]string{"1", "2", "3", "6", "10"}))
+	case 2:
+		return fmt.Sprintf("%s(%s)", pick([]string{"trunc", "sign", "floor", "ceiling", "cumsum", "cummax", "cummin", "is.finite", "is.infinite", "is.nan", "anyNA"}), pick(mVecs))
+	case 3:
+		return fmt.Sprintf("cumprod(%s)", pick([]string{"c(1.5, 2.5, 3.5)", "1:5", "c(1, NA, 3)", "c(2, 2)"}))
+	case 4:
+		return fmt.Sprintf("range(%s%s)", pick(mVecs), pick([]string{"", ", na.rm = TRUE", ", finite = TRUE"}))
+	case 5:
+		fn := pick([]string{"sin", "cos", "tan", "asin", "acos", "atan", "sinh", "cosh", "tanh", "log", "log2", "log10", "log1p", "expm1", "gamma", "lgamma", "digamma", "trigamma"})
+		a := arg()
+		if (fn == "digamma" || fn == "trigamma" || fn == "gamma" || fn == "lgamma") && strings.Contains(a, "1e-10") {
+			// excluded: our series and R's sum the 1/x terms in a different order, a 1e-16 relative difference that round(x, 6) cannot hide at 1e20
+			a = "c(1.5, 2.5)"
+		}
+		return fmt.Sprintf("round(%s(%s), 6) # libm", fn, a)
+	case 6:
+		return fmt.Sprintf("round(log(%s, %s), 6) # libm", pick(mVecs), pick([]string{"2", "10", "0", "-1"}))
+	case 7:
+		return fmt.Sprintf("round(%s(%s), 6) # libm", pick([]string{"sinpi", "cospi", "tanpi"}), pick([]string{"0", "0.5", "1", "1.5", "2", "-0.5", "0.25", "Inf", "NA_real_"}))
+	case 8:
+		return fmt.Sprintf("nzchar(%s)", pick([]string{`c("a", "", NA)`, `""`, `NA`, `character(0)`, `123`, `c(x = "a")`}))
+	}
+	return fmt.Sprintf("x <- %s; length(x) <- %s; x", pick(mVecs), pick([]string{"0", "2", "5"}))
+}

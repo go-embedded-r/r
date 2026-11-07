@@ -838,7 +838,7 @@ func init() {
 				s.errorf(c.call, "'%s' must be of length 1", what)
 			}
 			if math.IsInf(d[0], 0) {
-				s.errorf(&Lang{Fun: Intern("seq.default"), Args: c.call.Args}, "'%s' must be a finite number", what)
+				s.errorf(seqErrCall(c), "'%s' must be a finite number", what)
 			}
 			return d[0]
 		}
@@ -899,7 +899,7 @@ func init() {
 				return a[0]
 			}
 			if (to-from)/by < 0 || by == 0 {
-				s.errorf(&Lang{Fun: Intern("seq.default"), Args: c.call.Args}, "wrong sign in 'by' argument")
+				s.errorf(seqErrCall(c), "wrong sign in 'by' argument")
 			}
 			nf := (to-from)/by + 1e-10
 			if nf > float64(s.opts.MaxVector) {

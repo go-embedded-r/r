@@ -89,14 +89,19 @@ func evalfuzzCmd() *cobra.Command {
 			}
 			defer p.Close()
 			r := rand.New(rand.NewSource(seed))
-			ok, bad := 0, 0
+			ok, bad, libm := 0, 0, 0
 			perFn := map[string][2]int{}
 			var failures []string
 			const batch = 200
 			for done := 0; done < n; done += batch {
 				srcs := make([]string, batch)
 				for i := range srcs {
-					if mode == "apply" {
+					if mode == "math" {
+						srcs[i] = fuzzMath(r)
+						if strings.HasSuffix(srcs[i], "# libm") {
+							libm++
+						}
+					} else if mode == "apply" {
 						srcs[i] = fuzzApply(r)
 					} else if mode == "regex" {
 						srcs[i] = fuzzRegex(r)
@@ -138,6 +143,9 @@ func evalfuzzCmd() *cobra.Command {
 				}
 			}
 			fmt.Fprintf(c.OutOrStdout(), "evalfuzz (seed %d): %d expressions, %d agree with R, %d differ\n", seed, ok+bad, ok, bad)
+			if libm > 0 {
+				fmt.Fprintf(c.OutOrStdout(), "  of which %d libm functions compared through round(x, 6): last-bit equality with the C library excluded\n", libm)
+			}
 			names := make([]string, 0, len(perFn))
 			for k := range perFn {
 				names = append(names, k)
@@ -155,7 +163,7 @@ func evalfuzzCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&mode, "mode", "arith", "arith, subset, regex, strings or apply")
+	cmd.Flags().StringVar(&mode, "mode", "arith", "arith, subset, regex, strings, apply or math")
 	cmd.Flags().IntVar(&n, "n", 2000, "expressions")
 	cmd.Flags().Int64Var(&seed, "seed", 1, "random seed")
 	cmd.Flags().IntVar(&maxFail, "max-diff", 15, "differences to print")

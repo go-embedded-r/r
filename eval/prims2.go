@@ -636,7 +636,6 @@ var unsupportedPrims = []string{
 	"Re", "Im", "Mod", "Arg", "Conj", "as.complex", "as.raw", "is.single",
 	".C", ".Call", ".Call.graphics", ".External", ".External.graphics", ".External2", ".Fortran",
 	"lazyLoadDBfetch", ".cache_class", ".primTrace", ".primUntrace", "unCfillPOSIXlt",
-	"digamma", "trigamma", ".class2",
 }
 
 var unsupportedSpecials = []string{"expression", "~", "@", "@<-", "Exec", "Tailcall", "declare", "browser", "standardGeneric", ".Internal", ".isMethodsDispatchOn", "pos.to.env", "tracemem", "untracemem", "retracemem"}
@@ -959,7 +958,7 @@ func s3Switch(s *Session, c *callInfo) Value {
 	}
 	sel := s.eval(c.raw[0].Value, c.env)
 	alts := c.raw[1:]
-	if !isVector(sel) || Length(sel) != 1 {
+	if k := kindOf(sel); !isVector(sel) || Length(sel) != 1 || k == kList || k == kOther {
 		s.errorf(c.call, "EXPR must be a length 1 vector")
 	}
 	if _, isNull := sel.(nullT); isNull {
@@ -1268,4 +1267,61 @@ func dimNamesOf(v Value, d int) *String {
 		}
 	}
 	return nil
+}
+
+func digammaFn(x float64) float64 {
+	if math.IsNaN(x) {
+		return x
+	}
+	if x <= 0 && x == math.Floor(x) {
+		return math.NaN()
+	}
+	if x < 0 {
+		return digammaFn(1-x) - math.Pi/math.Tan(math.Pi*x)
+	}
+	r := 0.0
+	for x < 10 {
+		r -= 1 / x
+		x++
+	}
+	f := 1 / (x * x)
+	t := f * (-1.0/12 + f*(1.0/120+f*(-1.0/252+f*(1.0/240+f*(-1.0/132+f*(691.0/32760+f*(-1.0/12)))))))
+	return r + math.Log(x) - 0.5/x + t
+}
+
+func trigammaFn(x float64) float64 {
+	if math.IsNaN(x) {
+		return x
+	}
+	if x <= 0 && x == math.Floor(x) {
+		return math.Inf(1)
+	}
+	if x < 0 {
+		sn := math.Sin(math.Pi * x)
+		return math.Pi*math.Pi/(sn*sn) - trigammaFn(1-x)
+	}
+	r := 0.0
+	for x < 10 {
+		r += 1 / (x * x)
+		x++
+	}
+	f := 1 / (x * x)
+	t := 1/x + f/2 + (1/x)*f*(1.0/6+f*(-1.0/30+f*(1.0/42+f*(-1.0/30+f*(5.0/66+f*(-691.0/2730+f*(7.0/6)))))))
+	return r + t
+}
+
+func init() {
+	regBuiltin("digamma", (*Session)(nil).math1("digamma", digammaFn, false))
+	regBuiltin("trigamma", (*Session)(nil).math1("trigamma", trigammaFn, false))
+	regBuiltin(".class2", func(s *Session, c *callInfo) Value { return strVec(dispatchClass(s.nargs1(c, ".class2"))) })
+	regBuiltin("seq.int", func(s *Session, c *callInfo) Value { return builtins["seq"].fn(s, c) })
+}
+
+// seqErrCall is the call R names in seq's errors: seq.default, or seq.int
+// when the primitive was called.
+func seqErrCall(c *callInfo) *Lang {
+	if f, ok := c.call.Fun.(*Symbol); ok && f.Name == "seq.int" {
+		return c.call
+	}
+	return &Lang{Fun: Intern("seq.default"), Args: c.call.Args}
 }
