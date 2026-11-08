@@ -143,6 +143,7 @@ jobs:
           - { pkg: ./syntax, target: FuzzLexNumbers }
           - { pkg: ./syntax, target: FuzzDeparse }
           - { pkg: ./eval,   target: FuzzEval }
+          - { pkg: ./internal/cleanroom, target: FuzzFingerprint }
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
