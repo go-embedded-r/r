@@ -859,3 +859,45 @@ Ops.difftime(as.difftime(1, units = "hours"), as.difftime(2, units = "hours"))
 rep.difftime(as.difftime(1, units = "hours"), 2)
 #---
 rep.POSIXct(as.POSIXct("2024-01-05", tz = "UTC"), 2)
+#---
+as.POSIXct("2024-03-10 12:34:56")
+#---
+x <- as.POSIXct("2024-03-10 12:34:56"); attributes(x); unclass(x)
+#---
+format(as.POSIXct("2024-03-10 12:34:56"), "%Z %z"); format(as.POSIXct("2024-03-10 12:34:56"), usetz = TRUE)
+#---
+as.POSIXlt("2024-03-10 12:34:56")
+#---
+unclass(as.POSIXlt("2024-03-10 12:34:56"))
+#---
+attributes(as.POSIXlt(as.POSIXct("2024-03-10 12:34:56")))$tzone
+#---
+strptime("2024-03-10 12:34:56", "%Y-%m-%d %H:%M:%S")
+#---
+unclass(strptime("2024-03-10", "%Y-%m-%d"))
+#---
+as.Date(as.POSIXct("2024-03-10 23:59:59"))
+#---
+as.POSIXct("2024-03-10 12:00") - as.POSIXct("2024-03-10 10:30")
+#---
+ISOdatetime(2024, 3, 10, 12, 0, 0)
+#---
+c(as.POSIXct("2024-03-10 12:00:00", tz = "UTC"), as.POSIXct("2024-03-11 12:00:00", tz = "Asia/Tokyo"))
+#---
+attributes(c(as.POSIXct("2024-03-10 12:00:00", tz = "UTC"), as.POSIXct("2024-03-11 12:00:00", tz = "Asia/Tokyo")))
+#---
+as.POSIXct("2024-03-10 12:00:00", tz = "UTC") < as.POSIXct("2024-03-10 12:00:00", tz = "Asia/Tokyo")
+#---
+format(as.POSIXct("2024-07-08 07:32:13", tz = "Asia/Tokyo"), "%s %Z")
+#---
+as.POSIXct(Inf, tz = "UTC"); as.POSIXct(c(-Inf, NaN, NA, 0), tz = "UTC")
+#---
+as.Date(Inf); as.Date(c(-Inf, NaN, NA, 0)); format(as.Date(Inf)); is.na(as.Date(Inf))
+#---
+as.POSIXlt(c(-Inf, Inf, NaN, NA), tz = "UTC")
+#---
+unclass(as.POSIXlt(Inf, tz = "UTC"))[1:3]
+#---
+as.Date(1e300); as.POSIXct(1e300, tz = "UTC"); format(as.POSIXct(1e18, tz = "UTC")); as.Date(1e8)
+#---
+as.numeric(as.POSIXct(as.POSIXlt(c(Inf, 0), tz = "UTC")))

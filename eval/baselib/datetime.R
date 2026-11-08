@@ -34,9 +34,13 @@ Sys.Date <- function() as.Date(as.POSIXlt(Sys.time()))
 # a difftime as a whole number of days, for date arithmetic
 ..inDays <- function(d) as.vector(round(..inSeconds(d) / 86400))
 
-..isUTC <- function(tz) identical(tz, "UTC") || identical(tz, "GMT")
-
-..ltTzone <- function(tz) if (..isUTC(tz)) tz else .dtTzone(tz)
+# the tzone attribute of a POSIXlt: the name alone for a UTC zone, else the
+# name and the two abbreviations
+..ltTzone <- function(tz) {
+  if (!.dtIsUTC(tz)) .dtTzone(tz)
+  else if (nzchar(tz)) tz
+  else "UTC"
+}
 
 ..mkLt <- function(fields, tzone) {
   class(fields) <- c("POSIXlt", "POSIXt")
@@ -180,7 +184,7 @@ format.POSIXlt <- function(x, format = "", usetz = FALSE,
     if (is.null(zone)) zone <- rep("", length(res))
     if (!is.null(attr(x, "tzone")) && !any(nzchar(zone)))
       zone <- rep(attr(x, "tzone")[1L], length(res))
-    tagged <- !is.na(res) & nzchar(zone)
+    tagged <- !is.na(res) & nzchar(zone) & is.finite(x$sec)
     res[tagged] <- paste(res[tagged], zone[tagged])
   }
   res
@@ -450,6 +454,8 @@ Ops.POSIXt <- function(e1, e2) {
   else if (inherits(e1, "POSIXlt")) e1 <- as.POSIXct(e1)
   if (is.character(e2)) e2 <- as.POSIXct(e2, tz = zoneOf(e1))
   else if (inherits(e2, "POSIXlt")) e2 <- as.POSIXct(e2)
+  zones <- unique(c(zoneOf(e1), zoneOf(e2)))
+  if (length(zones[nzchar(zones)]) > 1L) warning("'tzone' attributes are inconsistent")
   NextMethod(.Generic)
 }
 
@@ -565,11 +571,20 @@ Ops.difftime <- function(e1, e2) {
   if (d2 && !d1) return(.difftime(NextMethod(.Generic), units = attr(e2, "units")))
   if (attr(e1, "units") == attr(e2, "units"))
     return(.difftime(NextMethod(.Generic), units = attr(e1, "units")))
+  # the attributes of the result are laid out as R's arithmetic lays them out:
+  # those of the second operand first, and an operand already in seconds is
+  # stored class first
+  secs_second <- attr(e2, "units") == "secs"
   e1 <- ..inSeconds(e1)
   e2 <- ..inSeconds(e2)
   res <- as.vector(NextMethod(.Generic))
-  attr(res, "units") <- "secs"
-  class(res) <- "difftime"
+  if (secs_second) {
+    class(res) <- "difftime"
+    attr(res, "units") <- "secs"
+  } else {
+    attr(res, "units") <- "secs"
+    class(res) <- "difftime"
+  }
   res
 }
 

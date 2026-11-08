@@ -91,7 +91,7 @@ var ltFields = []string{"sec", "min", "hour", "mday", "mon", "year", "wday", "yd
 
 // ltFromSeconds breaks seconds since the epoch into the components of a
 // POSIXlt in the given zone.
-func ltFromSeconds(secs []float64, loc *time.Location) *List {
+func ltFromSeconds(secs []float64, loc *time.Location, utc bool) *List {
 	n := len(secs)
 	sec := make([]float64, n)
 	ints := make([][]int32, 8) // min hour mday mon year wday yday isdst
@@ -102,16 +102,21 @@ func ltFromSeconds(secs []float64, loc *time.Location) *List {
 	off := make([]int32, n)
 	for i, x := range secs {
 		if math.IsNaN(x) || math.IsInf(x, 0) || math.Abs(x) > 1e15 {
-			if math.IsInf(x, 0) {
-				sec[i] = x
+			if math.IsInf(x, 0) || math.IsNaN(x) {
+				sec[i] = x // Inf, NaN and NA stay what they were
 			} else {
 				sec[i] = naReal
 			}
 			for k := range ints {
 				ints[k][i] = naInt
 			}
-			zone[i] = Str{S: ""}
-			off[i] = naInt
+			ints[7][i] = -1
+			if utc {
+				zn, _ := time.Now().In(loc).Zone()
+				zone[i], off[i] = Str{S: zn}, 0
+			} else {
+				zone[i], off[i] = Str{S: ""}, naInt
+			}
 			continue
 		}
 		fl := math.Floor(x)
@@ -207,7 +212,27 @@ func tzoneAttr(name string, loc *time.Location, third bool) Value {
 	return strVec([]string{name, std, dst})
 }
 
+// isUTCZone says whether the zone a tz argument names is UTC: "UTC" or "GMT",
+// or "" when the session's own zone is one of them.
+func isUTCZone(tz string) bool {
+	if tz == "" {
+		tz = os.Getenv("TZ")
+		if tz == "" && time.Local.String() == "UTC" {
+			tz = "UTC"
+		}
+	}
+	return tz == "UTC" || tz == "GMT"
+}
+
 func init() {
+	regHidden(".dtIsUTC", func(s *Session, c *callInfo) Value {
+		a := s.matchFormals(c, "tz")
+		tz := ""
+		if st, ok := a[0].(*String); ok && len(st.V) > 0 && !st.V[0].NA {
+			tz = st.V[0].S
+		}
+		return mkLogical(isUTCZone(tz))
+	})
 	regHidden(".dtNow", func(s *Session, c *callInfo) Value {
 		t := time.Now()
 		return mkDouble(float64(t.UnixNano()) / 1e9)
@@ -218,7 +243,7 @@ func init() {
 		if st, ok := a[1].(*String); ok && len(st.V) > 0 && !st.V[0].NA {
 			tz = st.V[0].S
 		}
-		return ltFromSeconds(asDoubles(a[0]), zoneNamed(tz))
+		return ltFromSeconds(asDoubles(a[0]), zoneNamed(tz), isUTCZone(tz))
 	})
 	regHidden(".dtToCt", func(s *Session, c *callInfo) Value {
 		a := s.matchFormals(c, "lt", "tz")
@@ -235,7 +260,11 @@ func init() {
 		for i := range out {
 			t, frac, ok := ltTime(cols, i, loc)
 			if !ok {
-				out[i] = naReal
+				if sv := cols[0][i%len(cols[0])]; math.IsInf(sv, 0) || math.IsNaN(sv) {
+					out[i] = sv
+				} else {
+					out[i] = naReal
+				}
 				continue
 			}
 			out[i] = float64(firstOccurrence(t, loc).Unix()) + frac
@@ -282,7 +311,17 @@ func init() {
 			}
 			t, frac, ok := ltTime(cols, i, time.UTC)
 			if !ok {
-				out[i] = Str{NA: true}
+				// the non-finite times print as the numbers they are
+				switch sv := cols[0][i%len(cols[0])]; {
+				case math.IsInf(sv, 1):
+					out[i] = Str{S: "Inf"}
+				case math.IsInf(sv, -1):
+					out[i] = Str{S: "-Inf"}
+				case math.IsNaN(sv) && !isNAReal(sv):
+					out[i] = Str{S: "NaN"}
+				default:
+					out[i] = Str{NA: true}
+				}
 				continue
 			}
 			var zn string
@@ -342,8 +381,9 @@ func init() {
 					ints[k][i] = naInt
 				}
 				ints[7][i] = -1
-				if tz == "UTC" || tz == "GMT" {
-					zone[i], off[i] = Str{S: tz}, 0
+				if isUTCZone(tz) {
+					zn, _ := time.Now().In(loc).Zone()
+					zone[i], off[i] = Str{S: zn}, 0
 				} else {
 					zone[i], off[i] = Str{S: ""}, naInt
 				}
@@ -367,7 +407,7 @@ func init() {
 				ints[7][i] = 1
 			}
 			zone[i] = Str{S: name}
-			if tz == "UTC" || tz == "GMT" {
+			if isUTCZone(tz) {
 				off[i] = 0
 			} else {
 				off[i] = naInt
@@ -503,6 +543,7 @@ func strftime(t time.Time, frac float64, f string, zone string, gmtoff int32) (s
 			s, _ := strftime(t, frac, "%H:%M", zone, gmtoff)
 			b.WriteString(s)
 		case 's':
+			// the fields read as UTC, less the zone's offset when it is known
 			if gmtoff != naInt {
 				fmt.Fprintf(&b, "%d", t.Unix()-int64(gmtoff))
 			} else {

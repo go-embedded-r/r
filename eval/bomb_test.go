@@ -165,6 +165,27 @@ func TestEnvironmentBombs(t *testing.T) {
 	refused(t, s, "e <- new.env(); lockEnvironment(e); assign(\"x\", 1, e)", "locked environment")
 }
 
+// Dates and times: sequences and repetitions are bounded by the vector limit,
+// a format cannot grow past 2048 bytes, and absurd instants are NA, not a hang.
+func TestDatetimeBombs(t *testing.T) {
+	underMemoryLimit(t)
+	s := eval.NewSession(eval.Options{})
+	refused(t, s, "seq(as.Date(\"2024-01-01\"), by = \"day\", length.out = 1e10)", "allocate", "too large", "limit")
+	refused(t, s, "seq(as.Date(\"2024-01-01\"), by = \"month\", length.out = 1e9)", "allocate", "too large", "limit")
+	refused(t, s, "rep(as.Date(\"2024-01-01\"), 1e11)", "too large", "limit")
+	refused(t, s, "format(as.Date(\"2024-01-01\"), strrep(\"%Y\", 1e6))", "2048 bytes")
+	for _, src := range []string{
+		"as.POSIXct(1e300, tz = \"UTC\")", "format(as.POSIXct(1e18, tz = \"UTC\"))", "as.Date(1e300)",
+		"ISOdate(1e9, 1, 1)", "as.POSIXlt(-1e18)", "as.Date(\"2024-01-01\") + 1e300",
+		"strptime(strrep(\"1\", 1e6), \"%Y\", tz = \"UTC\")", "as.Date(Inf)", "format(as.POSIXct(c(Inf, -Inf, NaN, NA)))",
+		"as.POSIXct(\"2024-01-01\", tz = \"No/Such_Zone\")",
+	} {
+		if _, err := s.Eval(src); err != nil {
+			t.Errorf("%s: %v", src, err)
+		}
+	}
+}
+
 // Text built by sprintf, formatC and strrep counts against MaxAlloc: many
 // strings of moderate width are a bomb as well.
 func TestTextBombs(t *testing.T) {

@@ -101,6 +101,8 @@ func evalfuzzCmd() *cobra.Command {
 				for i := range srcs {
 					if mode == "env" {
 						srcs[i] = fuzzEnv(r)
+					} else if mode == "datetime" {
+						srcs[i] = fuzzDatetime(r)
 					} else if mode == "strings2" {
 						srcs[i] = fuzzStrings2(r)
 					} else if mode == "vec" {
@@ -137,13 +139,13 @@ func evalfuzzCmd() *cobra.Command {
 				}
 				for _, rec := range recs {
 					fn := rec.Src
-					if mode == "env" {
+					if mode == "env" || mode == "datetime" {
 						// the first line names the family
 						fn = strings.TrimPrefix(fn[:strings.IndexByte(fn, '\n')], "# ")
 					} else if i := strings.IndexByte(fn, '('); i > 0 {
 						fn = fn[:i]
 					}
-					if cls, isExcl := strings.CutPrefix(fn, "excl:"); isExcl && mode == "env" {
+					if cls, isExcl := strings.CutPrefix(fn, "excl:"); isExcl && (mode == "env" || mode == "datetime") {
 						// a counted exclusion: compared as weakly as its class needs
 						var why string
 						switch cls {
@@ -151,6 +153,9 @@ func evalfuzzCmd() *cobra.Command {
 							why = evalcheck.CheckNormalized(rec, normAddr)
 						case exclBuiltin:
 							why = evalcheck.CheckNormalized(rec, normBuiltin)
+						case exclPre1902:
+							rec.Warnings = nil // R warns once per session, so only the first case would carry it
+							why = evalcheck.Check(rec)
 						default:
 							why = evalcheck.Check(rec)
 						}
@@ -158,7 +163,7 @@ func evalfuzzCmd() *cobra.Command {
 						e[0]++
 						if why != "" {
 							switch cls {
-							case exclInstalled, exclHash:
+							case exclInstalled, exclHash, exclTzAbbrev, exclDstGap, exclPost2037, exclEpochS:
 								e[1]++ // a known divergence, listed in the README
 							default:
 								bad++
@@ -201,19 +206,27 @@ func evalfuzzCmd() *cobra.Command {
 			if libm > 0 {
 				fmt.Fprintf(c.OutOrStdout(), "  of which %d libm cases compared within %d ulp (C-library last-bit noise); every other case is compared exactly\n", libm, maxULP)
 			}
-			if mode == "env" {
+			if mode == "env" || mode == "datetime" {
 				total := 0
 				for _, e := range excl {
 					total += e[0]
 				}
 				fmt.Fprintf(c.OutOrStdout(), "  exclusions, counted (%d cases, not in the figures above):\n", total)
-				for _, cls := range []string{exclAddr, exclBuiltin, exclInstalled, exclHash} {
-					e := excl[cls]
+				for _, cls := range []string{exclAddr, exclBuiltin, exclInstalled, exclHash, exclPre1902, exclTzAbbrev, exclDstGap, exclPost2037, exclEpochS} {
+					e, used := excl[cls]
+					if !used {
+						continue
+					}
 					how := map[string]string{
 						exclAddr:      "R prints an address; compared with addresses replaced, any difference fails",
 						exclBuiltin:   "R prints a builtin with formals, ours without; compared as .Primitive(\"name\"), any difference fails",
 						exclInstalled: "installed package other than base resolves through our base; compared exactly, differences are known divergences",
 						exclHash:      "R's order of an unsorted hashed environment is undefined; compared exactly, differences are known divergences",
+						exclPre1902:   "years before 1902: R warns once per session, so warnings are not compared; everything else exactly",
+						exclTzAbbrev:  "the tzone attribute of a time zone with unusual daylight abbreviations; compared exactly, differences are known divergences",
+						exclDstGap:    "local times that a daylight-saving change skips or repeats; compared exactly, differences are known divergences",
+						exclEpochS:    "%s (seconds since the epoch) of a time in a zone with daylight-saving time; compared exactly, differences are known divergences",
+						exclPost2037:  "years after 2037 in zones with daylight-saving time (%s, %Z, %z there); compared exactly, differences are known divergences",
 					}[cls]
 					fmt.Fprintf(c.OutOrStdout(), "    %-10s %5d cases, %d differ (%s)\n", cls, e[0], e[1], how)
 				}
@@ -240,7 +253,7 @@ func evalfuzzCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().Int64Var(&maxULP, "ulp", 4, "math mode: units in the last place allowed to libm cases")
-	cmd.Flags().StringVar(&mode, "mode", "arith", "arith, subset, regex, strings, apply, math, vec, strings2 or env")
+	cmd.Flags().StringVar(&mode, "mode", "arith", "arith, subset, regex, strings, apply, math, vec, strings2, env or datetime")
 	cmd.Flags().IntVar(&n, "n", 2000, "expressions")
 	cmd.Flags().Int64Var(&seed, "seed", 1, "random seed")
 	cmd.Flags().IntVar(&maxFail, "max-diff", 15, "differences to print")
