@@ -83,12 +83,16 @@ rewritten in v0.12.2 and `cmd/cleanroom` now checks every file of
   print, deparse, `dput`, `body`, `as.list`, `format`, serialize or return any
   closure of base, stats, utils, methods and the other packages of R, however
   it is reached (auto-print, `:::`, `getAnywhere`, inside a list or an
-  attribute, or a copy made in the global environment, which is recognised by
-  its body); `.Internal` is refused in requests. Closures of our own print.
-  Goldens that compare function printing use closures defined in the snippet.
-  Limits: a base closure whose body is under 100 serialized bytes can be
-  copied out of the namespace and then printed; someone with an installed R
-  can still read its sources, which is why the rule is also procedural:
+  attribute, or a copy made outside the namespace with `environment<-`,
+  `body<-`, `attr<-` or `as.function`, which is recognised by `identical()`
+  against the bodies and formals of the functions of those packages, at any
+  size); `.Internal` is refused in requests. Closures of our own print, but a
+  user function that is textually a base function (`function(x) x` is
+  `identity`) is refused too. Goldens that compare function printing use
+  closures defined in the snippet. Limits: a base function copied with
+  different formals is recognised only if its body is 100 serialized bytes or
+  more; someone with an installed R can still read its sources, which is why
+  the rule is also procedural:
 - **Provenance in every PR.** `.github/pull_request_template.md` asks, for any
   change under `eval/baselib/`: the `.Rd` pages read, whether any R function
   body was seen and how (and who then rewrote the file blind), and the gate
@@ -103,9 +107,26 @@ rewritten in v0.12.2 and `cmd/cleanroom` now checks every file of
   go test ./internal/cleanroom ./cmd/cleanroom # the gate as a test; skips without R's sources
   ```
 
-  At v0.12.2 (first row the file before its rewrite): `datetime.R` exact
-  0.23, normalised 0.47, longest exact run 88 tokens; after: 0.17, 0.39, 38.
-  Every file of `eval/baselib` is under the gate.
+- **Audit of `eval/baselib`** (v0.12.3; k = 8, w = 4). "Best R file" is the one
+  with the highest normalised containment (against R's largest files that is
+  generic structure, which is why the normalised column alone is not the gate).
+  "Before" is the first draft, scored with formal argument lists still
+  fingerprinted; "after" is the file in the repository, scored as the gate now
+  does. Runs are in code tokens, as `file:line` of ours against R's.
+
+  | File | Best R file | Exact | Normalised | Longest exact run | Rewritten |
+  |---|---|---|---|---|---|
+  | `datetime.R` | `base/R/datetime.R` | 0.11 (before 0.23) | 0.34 (0.47) | 36, ours 374-377 / `base/R/dates.R` 125-128 (88) | yes, from the Rd pages and the oracle, without the old file |
+  | `vectors.R` | `tools/R/QC.R` | 0.00 (0.00) | 0.40 (0.41) | 22, ours 87-93 / `base/R/matrix.R` 27-32 (74, `ifelse`) | `ifelse`, `append`, `isTRUE`, `isFALSE`, `NROW`, `NCOL` |
+  | `conditions.R` | `methods/R/RMethodUtils.R` | 0.00 (0.27) | 0.43 (0.43) | 6, ours 13 / `base/R/message.R` 82 (13) | yes, blind, by a second agent (7 shared fingerprints before, all signatures; 5 after the first rewrite) |
+  | `env.R` | `tools/R/QC.R` | 0.00 (0.01) | 0.52 (0.55) | 22, ours 8-10 / `base/R/factor.R` 148-151 (26) | no |
+  | `support.R` | `tools/R/QC.R` | 0.01 (0.01) | 0.41 (0.47) | 30, ours 55-57 / `base/R/unname.R` 19-23 (35) | no |
+  | `strings.R` | `base/R/namespace.R` | 0.00 (0.03) | 0.23 (0.28) | 26, ours 25-29 / `base/R/print.R` 59-65 (31) | no |
+
+  The gate is exact containment 0.20, normalised 0.60, exact run 40, normalised
+  run 60 (4 shared fingerprints under 200 tokens); every file is under it. The
+  longest runs left (22 to 36 tokens) are a documented one-liner or an error
+  message the oracle fixes.
 
 ## Status
 
