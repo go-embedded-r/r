@@ -52,17 +52,36 @@ type Stream struct {
 }
 
 // Tokenise lexes src with the repository's lexer. A syntax error keeps the
-// tokens before it.
+// tokens before it. Formal argument lists are dropped (see below).
 func Tokenise(path string, src []byte) *Stream {
 	f, _ := syntax.ParseAll(string(src))
 	s := &Stream{Path: path}
 	if f == nil {
 		return s
 	}
+	// A formal argument list is fixed by the documented signature of the
+	// function, so independent code has to repeat it: its tokens (the
+	// parentheses and everything between them, defaults included) are left
+	// out of both views, and the function header is `function` alone.
+	afterFunction, depth := false, 0
 	for _, t := range f.Tokens {
 		if t.Kind == "COMMENT" {
 			continue
 		}
+		if depth > 0 {
+			switch t.Text {
+			case "(":
+				depth++
+			case ")":
+				depth--
+			}
+			continue
+		}
+		if afterFunction && t.Text == "(" {
+			afterFunction, depth = false, 1
+			continue
+		}
+		afterFunction = t.Text == "function" || t.Text == `\`
 		s.Lines = append(s.Lines, t.Start.Line)
 		s.Data = append(s.Data, t.Kind == "STR_CONST" || t.Kind == "NUM_CONST" || t.Kind == "NULL_CONST" || t.Text == ",")
 		s.Exact = append(s.Exact, t.Text)
@@ -421,10 +440,10 @@ const MinTokens = 200
 // exact containment 0.20 (R's tests and demos: p99 0.19; our test inputs:
 // max 0.04), normalised containment 0.60 (max 0.52), exact run 40 code
 // tokens (p99 38; our test inputs max 14), normalised run 60 (p99 54), and
-// for files of 30 to 199 tokens 8 shared exact fingerprints (independent
-// small files: max 3 of 31; 8 leaves room for a documented signature, which
-// the help page fixes and which alone shares up to 7 fingerprints).
-var Gate = Limits{Containment: 0.60, ExactContainment: 0.20, SmallHits: 8, ExactRun: 40, NormRun: 60}
+// for files of 30 to 199 tokens 4 shared exact fingerprints (independent
+// small files: max 2 of 32). Formal argument lists are not fingerprinted, so
+// the signatures that help pages fix do not count.
+var Gate = Limits{Containment: 0.60, ExactContainment: 0.20, SmallHits: 4, ExactRun: 40, NormRun: 60}
 
 // Violations lists why r fails the gate, as references (no R text).
 func (l Limits) Violations(r Result) []string {

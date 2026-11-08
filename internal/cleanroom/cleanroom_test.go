@@ -105,13 +105,13 @@ func TestViolationsReportReferencesOnly(t *testing.T) {
 	if v := Gate.Violations(r); len(v) != 4 {
 		t.Fatalf("violations = %v", v)
 	}
-	small := Result{File: "s.R", Tokens: 100, BestExactHits: 8, BestHitsFile: "x.R"}
+	small := Result{File: "s.R", Tokens: 100, BestExactHits: 4, BestHitsFile: "x.R"}
 	if v := Gate.Violations(small); len(v) != 1 {
-		t.Fatalf("small file sharing 8 fingerprints: %v", v)
+		t.Fatalf("small file sharing 4 fingerprints: %v", v)
 	}
-	small.BestExactHits = 7
+	small.BestExactHits = 3
 	if v := Gate.Violations(small); len(v) != 0 {
-		t.Fatalf("small file sharing 7 fingerprints: %v", v)
+		t.Fatalf("small file sharing 3 fingerprints: %v", v)
 	}
 	if v := Gate.Violations(Result{}); len(v) != 0 {
 		t.Fatalf("clean result flagged: %v", v)
@@ -209,4 +209,12 @@ func FuzzFingerprint(f *testing.F) {
 			t.Fatalf("run %+v of %d", r, len(a.Norm))
 		}
 	})
+}
+
+func TestFormalsAreNotFingerprinted(t *testing.T) {
+	a := Tokenise("a.R", []byte("f <- function(x, y = c(1, 2), ...) x + y\ng <- \\(z) z\n"))
+	want := "f <- function x + y g <- \\ z"
+	if got := strings.Join(a.Exact, " "); got != want {
+		t.Fatalf("tokens %q, want %q", got, want)
+	}
 }

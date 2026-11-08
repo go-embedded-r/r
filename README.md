@@ -61,16 +61,19 @@ rewritten in v0.12.2 and `cmd/cleanroom` now checks every file of
 
   | independent code (files of at least 200 tokens) | exact containment | normalised containment | longest exact run | longest normalised run |
   |---|---|---|---|---|
-  | our own test inputs (`testdata/*.R`, `testdata/eval/*.R`; 25 files), max | 0.04 | 0.09 | 14 | 29 |
-  | R's own tests and demos against its library code (145 files), p95 / p99 / max | 0.03 / 0.19 / 0.37 | 0.32 / 0.41 / 0.52 | 16 / 38 / 52 | 30 / 54 / 90 |
+  | our own test inputs (`testdata/*.R`, `testdata/eval/*.R`; 25 files), max | 0.04 | 0.07 | 10 | 29 |
+  | R's own tests and demos against its library code (144 files), p95 / p99 / max | 0.03 / 0.19 / 0.37 | 0.31 / 0.44 / 0.52 | 14 / 31 / 46 | 29 / 48 / 78 |
+
+  Formal argument lists (`function(` up to the matching `)`, defaults
+  included) are not fingerprinted in either view: a help page fixes the
+  signature, so independent code must repeat it.
 
   The gate sits above the p99 of the second row: exact containment **0.20**,
   normalised containment **0.60** (these two only for files of at least 200
   tokens: a file of 100 tokens has a dozen fingerprints), longest exact run
   **40** code tokens, longest normalised run **60**. Files of 30 to 199 tokens
-  are gated on an absolute count instead: **8** exact fingerprints shared with
-  one R file (independent small files: at most 3 of 31; a documented signature
-  alone can share 7). Limits of the method: a one-line function has one
+  are gated on an absolute count instead: **4** exact fingerprints shared with
+  one R file (independent small files: at most 2 of 32). Limits of the method: a one-line function has one
   possible spelling, so a tiny file can be a copy and pass; the gate bounds
   accidents and careless restructuring, it does not replace the rule above.
 - **Run it.**
