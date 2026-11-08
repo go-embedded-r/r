@@ -67,10 +67,12 @@ rewritten in v0.12.2 and `cmd/cleanroom` now checks every file of
   The gate sits above the p99 of the second row: exact containment **0.20**,
   normalised containment **0.60** (these two only for files of at least 200
   tokens: a file of 100 tokens has a dozen fingerprints), longest exact run
-  **40** code tokens, longest normalised run **60**. Limits of the method: a
-  one-line function has one possible spelling, so a short file can be a copy
-  and pass; the gate bounds accidents and careless restructuring, it does not
-  replace the rule above.
+  **40** code tokens, longest normalised run **60**. Files of 30 to 199 tokens
+  are gated on an absolute count instead: **8** exact fingerprints shared with
+  one R file (independent small files: at most 3 of 31; a documented signature
+  alone can share 7). Limits of the method: a one-line function has one
+  possible spelling, so a tiny file can be a copy and pass; the gate bounds
+  accidents and careless restructuring, it does not replace the rule above.
 - **Run it.**
 
   ```sh

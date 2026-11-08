@@ -146,6 +146,17 @@ func Containment(a, b map[uint64]struct{}) float64 {
 	return float64(n) / float64(len(a))
 }
 
+// Hits is |a ∩ b|: the number of fingerprints two files share.
+func Hits(a, b map[uint64]struct{}) int {
+	n := 0
+	for h := range a {
+		if _, ok := b[h]; ok {
+			n++
+		}
+	}
+	return n
+}
+
 // Jaccard is |a ∩ b| / |a ∪ b|.
 func Jaccard(a, b map[uint64]struct{}) float64 {
 	if len(a)+len(b) == 0 {
@@ -274,7 +285,9 @@ type Result struct {
 	RunExact, RunNorm  Run // against Best
 	BestExactFile      string
 	BestExact          float64 // highest Exact containment over all refs
-	LongestAny         Run     // longest exact run over all refs
+	BestExactHits      int     // most exact fingerprints shared with one ref
+	BestHitsFile       string
+	LongestAny         Run // longest exact run over all refs
 	LongestAnyFile     string
 	LongestAnyNorm     Run // longest normalised run over all refs
 	LongestAnyNormFile string
@@ -295,6 +308,9 @@ func Check(path string, src []byte, refs []*Ref, p Params) Result {
 			bestN = cn
 			r.Best, r.Norm, r.Exact = ref.Path, cn, ce
 			r.NormJac, r.ExactJac = Jaccard(ours.FNorm, ref.FNorm), Jaccard(ours.FExact, ref.FExact)
+		}
+		if h := Hits(ours.FExact, ref.FExact); h > r.BestExactHits {
+			r.BestExactHits, r.BestHitsFile = h, ref.Path
 		}
 		if ce > r.BestExact {
 			r.BestExact, r.BestExactFile = ce, ref.Path
@@ -324,6 +340,7 @@ func Check(path string, src []byte, refs []*Ref, p Params) Result {
 type Limits struct {
 	Containment      float64 // normalised, against one R file
 	ExactContainment float64 // identifiers kept, against one R file
+	SmallHits        int     // files of 30..MinTokens-1 tokens: shared exact fingerprints
 	ExactRun         int     // code tokens
 	NormRun          int
 }
@@ -379,6 +396,20 @@ func Summary(res []Result, minTokens int) string {
 		line("exact run (code tokens)", re) + line("normalised run (code tok)", rn)
 }
 
+// SmallSummary describes the exact fingerprints a file of 30 to MinTokens-1
+// tokens shares with one R file, over the results given: the floor of the
+// small-file rule.
+func SmallSummary(res []Result) string {
+	var hits []float64
+	for _, r := range res {
+		if r.Tokens >= 30 && r.Tokens < MinTokens {
+			hits = append(hits, float64(r.BestExactHits))
+		}
+	}
+	return fmt.Sprintf("small files (30 <= tokens < %d): %d\n  shared exact fingerprints  p50 %.0f  p90 %.0f  p95 %.0f  p99 %.0f  max %.0f\n",
+		MinTokens, len(hits), Percentile(hits, 50), Percentile(hits, 90), Percentile(hits, 95), Percentile(hits, 99), Percentile(hits, 100))
+}
+
 // MinTokens is the size from which the containment limits apply: the noise
 // floor was measured on files of at least this many tokens, and a file of a
 // hundred tokens has a dozen fingerprints, so one match moves it by 0.08. The
@@ -389,8 +420,11 @@ const MinTokens = 200
 // process"). Each is above what independent code reached when measured:
 // exact containment 0.20 (R's tests and demos: p99 0.19; our test inputs:
 // max 0.04), normalised containment 0.60 (max 0.52), exact run 40 code
-// tokens (p99 38; our test inputs max 14), normalised run 60 (p99 54).
-var Gate = Limits{Containment: 0.60, ExactContainment: 0.20, ExactRun: 40, NormRun: 60}
+// tokens (p99 38; our test inputs max 14), normalised run 60 (p99 54), and
+// for files of 30 to 199 tokens 8 shared exact fingerprints (independent
+// small files: max 3 of 31; 8 leaves room for a documented signature, which
+// the help page fixes and which alone shares up to 7 fingerprints).
+var Gate = Limits{Containment: 0.60, ExactContainment: 0.20, SmallHits: 8, ExactRun: 40, NormRun: 60}
 
 // Violations lists why r fails the gate, as references (no R text).
 func (l Limits) Violations(r Result) []string {
@@ -401,6 +435,9 @@ func (l Limits) Violations(r Result) []string {
 	}
 	if big && r.BestExact >= l.ExactContainment {
 		v = append(v, fmt.Sprintf("exact containment %.2f >= %.2f against %s", r.BestExact, l.ExactContainment, r.BestExactFile))
+	}
+	if !big && r.Tokens >= 30 && r.BestExactHits >= l.SmallHits {
+		v = append(v, fmt.Sprintf("%d exact fingerprints shared (small file) >= %d with %s", r.BestExactHits, l.SmallHits, r.BestHitsFile))
 	}
 	if r.LongestAny.Len >= l.ExactRun {
 		v = append(v, fmt.Sprintf("exact run of %d tokens >= %d: ours %s:%d-%d, theirs %s:%d-%d", r.LongestAny.Len, l.ExactRun,

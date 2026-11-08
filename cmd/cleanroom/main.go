@@ -37,6 +37,7 @@ func RootCmd() *cobra.Command {
 	root.PersistentFlags().IntVarP(&w, "window", "w", cleanroom.Default.W, "winnowing window")
 	root.PersistentFlags().Float64Var(&lim.Containment, "max-containment", lim.Containment, "gate: normalised containment limit")
 	root.PersistentFlags().Float64Var(&lim.ExactContainment, "max-exact-containment", lim.ExactContainment, "gate: exact containment limit")
+	root.PersistentFlags().IntVar(&lim.SmallHits, "max-small-hits", lim.SmallHits, "gate: shared exact fingerprints for a file under 200 tokens")
 	root.PersistentFlags().IntVar(&lim.ExactRun, "max-exact-run", lim.ExactRun, "gate: longest exact token run")
 	root.PersistentFlags().IntVar(&lim.NormRun, "max-norm-run", lim.NormRun, "gate: longest normalised token run")
 
@@ -91,7 +92,7 @@ func RootCmd() *cobra.Command {
 				}
 			}
 			if !gate {
-				fmt.Fprint(out, cleanroom.Summary(res, 200))
+				fmt.Fprint(out, cleanroom.Summary(res, 200), cleanroom.SmallSummary(res))
 			}
 			if bad > 0 {
 				return fmt.Errorf("%d file(s) over the clean-room gate", bad)

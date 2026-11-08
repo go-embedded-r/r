@@ -105,6 +105,14 @@ func TestViolationsReportReferencesOnly(t *testing.T) {
 	if v := Gate.Violations(r); len(v) != 4 {
 		t.Fatalf("violations = %v", v)
 	}
+	small := Result{File: "s.R", Tokens: 100, BestExactHits: 8, BestHitsFile: "x.R"}
+	if v := Gate.Violations(small); len(v) != 1 {
+		t.Fatalf("small file sharing 8 fingerprints: %v", v)
+	}
+	small.BestExactHits = 7
+	if v := Gate.Violations(small); len(v) != 0 {
+		t.Fatalf("small file sharing 7 fingerprints: %v", v)
+	}
 	if v := Gate.Violations(Result{}); len(v) != 0 {
 		t.Fatalf("clean result flagged: %v", v)
 	}
