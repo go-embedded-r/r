@@ -48,6 +48,14 @@ func (s *Session) matchFun(c *callInfo, v Value, env *Env) Value {
 
 // asListElems splits X into its elements, as as.list does for lapply.
 func (s *Session) asListElems(c *callInfo, x Value) []Value {
+	if _, isList := x.(*List); !isList && isObject(x) && !hasString(classAttr(x), "factor") {
+		// an object is split by its own as.list method (a Date into Dates)
+		if f, ok := s.Base.Get("as.list"); ok {
+			if r, ok := s.callFunction(f, []Value{x}).(*List); ok {
+				return r.V
+			}
+		}
+	}
 	switch v := x.(type) {
 	case *List:
 		return v.V

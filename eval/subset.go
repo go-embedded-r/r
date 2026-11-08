@@ -650,7 +650,11 @@ func init() {
 		}
 		return s.subset2(c)
 	})
-	regSpecial("$", func(s *Session, c *callInfo) Value { return s.dollar(c) })
+	regSpecial("$", func(s *Session, c *callInfo) Value {
+		r := s.dollar(c)
+		s.visible = true // the value of x$name is visible whatever made x
+		return r
+	})
 }
 
 func idxKind(idx Value) string {

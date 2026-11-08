@@ -83,7 +83,7 @@ func check(rec gen.EvalRecord, maxULP int64, worst *int64) string {
 			if maxULP > 0 && ulpEqual(want, got, maxULP, worst) {
 				goto rest
 			}
-			return fmt.Sprintf("value\n  R:  %+v\n  Go: %+v\n  R bytes  %s\n  Go bytes %s", want, got, rec.Hex, hex.EncodeToString(b))
+			return fmt.Sprintf("value\n  R:  %s\n  Go: %s\n  R bytes  %s\n  Go bytes %s", dump(want), dump(got), rec.Hex, hex.EncodeToString(b))
 		}
 	}
 rest:
