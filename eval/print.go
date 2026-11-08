@@ -364,11 +364,16 @@ func (s *Session) printValueTagged(v Value, prefix string, env *Env) {
 	case *Builtin:
 		s.out.WriteString("function (...) .Primitive(\"" + x.Name + "\")\n")
 	case *Env:
-		if x == s.Global {
-			s.out.WriteString("<environment: R_GlobalEnv>\n")
-		} else {
+		switch {
+		case x == s.BaseNS:
+			s.out.WriteString("<environment: namespace:base>\n")
+		case envName(s, x) != "":
+			s.out.WriteString("<environment: " + envName(s, x) + ">\n")
+		default:
 			s.out.WriteString("<environment>\n")
 		}
+	case missingT:
+		s.out.WriteString("\n") // the empty symbol prints as an empty line
 	default:
 		s.out.WriteString("<object>\n")
 	}

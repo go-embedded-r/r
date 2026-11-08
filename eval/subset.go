@@ -509,10 +509,7 @@ func (s *Session) subset2(c *callInfo) Value {
 		if len(idx) == 1 {
 			if st, ok := idx[0].(*String); ok && len(st.V) == 1 {
 				if b := env.lookup(Intern(st.V[0].S)); b != nil {
-					if p, isP := b.val.(*Promise); isP {
-						return s.force(p)
-					}
-					return b.val
+					return s.bforce(b)
 				}
 				return Null
 			}
@@ -606,10 +603,7 @@ func (s *Session) dollarGet(c *callInfo, x Value, name string) Value {
 		return Null
 	case *Env:
 		if b := v.lookup(Intern(name)); b != nil {
-			if p, isP := b.val.(*Promise); isP {
-				return s.force(p)
-			}
-			return b.val
+			return s.bforce(b)
 		}
 		return Null
 	case *List:

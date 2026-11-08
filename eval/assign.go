@@ -4,7 +4,7 @@ package eval
 // that has it (the global one when none does).
 func (s *Session) setVar(env *Env, sym *Symbol, v Value, super bool) {
 	if !super {
-		env.set(sym, v)
+		s.assignTo(env, sym, v, s.currentCall())
 		return
 	}
 	target := s.Global
@@ -14,7 +14,7 @@ func (s *Session) setVar(env *Env, sym *Symbol, v Value, super bool) {
 			break
 		}
 	}
-	target.set(sym, v)
+	s.assignTo(target, sym, v, s.currentCall())
 }
 
 // targetValue is the current value of the variable (or expression) that a
@@ -44,6 +44,9 @@ func (s *Session) targetValue(c *callInfo, inner Value, super bool) Value {
 	}
 	if b == nil {
 		s.errorf(nil, "object '%s' not found", sym.Name)
+	}
+	if b.active != nil {
+		return s.callFunction(b.active, nil)
 	}
 	switch v := b.val.(type) {
 	case *Promise:

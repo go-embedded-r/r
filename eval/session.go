@@ -127,7 +127,8 @@ func (e *Error) Unwrap() error { return e.err }
 // Eval to the next. It is not safe for concurrent use.
 type Session struct {
 	Base, Global, Empty *Env
-	opts                Options
+	BaseNS              *Env // the namespace of base: another name for the base frame
+	opts               Options
 
 	frames   []*frame
 	warnings []Warning
@@ -196,7 +197,13 @@ func NewSession(opts Options) *Session {
 	s.Base.Set("letters", strVec(lower))
 	s.Base.Set("LETTERS", strVec(upper))
 	s.Global = &Env{parent: s.Base, name: "R_GlobalEnv"}
+	// the namespace of base shares the frame of the base environment
+	s.BaseNS = &Env{alias: s.Base, parent: s.Global, ns: true, special: true}
+	s.Base.Set(".GlobalEnv", s.Global)
+	s.Base.Set(".BaseNamespaceEnv", s.BaseNS)
 	s.installBaselib()
+	// as in R, the base environment and all its bindings are locked
+	s.Base.locked, s.Base.allLocked, s.Base.special = true, true, true
 	s.resetCounters()
 	return s
 }
