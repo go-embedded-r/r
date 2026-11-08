@@ -173,13 +173,25 @@ type Run struct {
 // LongestRun finds the longest common contiguous token run of a and b.
 // Seeds are the k-gram matches; runs are extended both ways.
 func LongestRun(a, b *Stream, norm bool, k int) Run {
+	var best Run
+	for _, r := range Runs(a, b, norm, k, 1) {
+		if r.Len > best.Len {
+			best = r
+		}
+	}
+	return best
+}
+
+// Runs lists the maximal common runs of a and b that hold at least min code
+// tokens, in the order of our file.
+func Runs(a, b *Stream, norm bool, k, min int) []Run {
 	ta, tb := a.Exact, b.Exact
 	if norm {
 		ta, tb = a.Norm, b.Norm
 	}
 	ha, hb := kgramHashes(ta, k), kgramHashes(tb, k)
 	if len(ha) == 0 || len(hb) == 0 {
-		return Run{}
+		return nil
 	}
 	pos := map[uint64][]int{}
 	for j, h := range hb {
@@ -187,8 +199,7 @@ func LongestRun(a, b *Stream, norm bool, k int) Run {
 			pos[h] = append(pos[h], j)
 		}
 	}
-	var best Run
-	var bi, bj int
+	var out []Run
 	for i, h := range ha {
 		for _, j := range pos[h] {
 			if i > 0 && j > 0 && ta[i-1] == tb[j-1] {
@@ -201,16 +212,14 @@ func LongestRun(a, b *Stream, norm bool, k int) Run {
 				}
 				n++
 			}
-			if code > best.Len {
-				best.Len, best.Raw, bi, bj = code, n, i, j
+			if code >= min && n > 0 {
+				out = append(out, Run{Len: code, Raw: n,
+					OurStart: a.Lines[i], OurEnd: a.Lines[i+n-1],
+					TheirStart: b.Lines[j], TheirEnd: b.Lines[j+n-1]})
 			}
 		}
 	}
-	if best.Raw > 0 {
-		best.OurStart, best.OurEnd = a.Lines[bi], a.Lines[bi+best.Raw-1]
-		best.TheirStart, best.TheirEnd = b.Lines[bj], b.Lines[bj+best.Raw-1]
-	}
-	return best
+	return out
 }
 
 // Ref is one reference file, tokenised and fingerprinted once.
@@ -317,6 +326,22 @@ type Limits struct {
 	ExactContainment float64 // identifiers kept, against one R file
 	ExactRun         int     // code tokens
 	NormRun          int
+}
+
+// ListRuns reports, one line each, every exact run of at least min code
+// tokens that src shares with a reference file: the places to rewrite.
+func ListRuns(path string, src []byte, refs []*Ref, p Params, min int) string {
+	ours := Tokenise(path, src)
+	var sb strings.Builder
+	for _, ref := range refs {
+		if ref.Path == path {
+			continue
+		}
+		for _, r := range Runs(ours, ref.Stream, false, p.K, min) {
+			fmt.Fprintf(&sb, "  run %d tok: %s:%d-%d vs %s:%d-%d\n", r.Len, path, r.OurStart, r.OurEnd, ref.Path, r.TheirStart, r.TheirEnd)
+		}
+	}
+	return sb.String()
 }
 
 // Percentile is the nearest-rank p-th percentile (0..100) of xs (0 if empty).

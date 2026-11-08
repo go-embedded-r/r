@@ -40,6 +40,8 @@ func RootCmd() *cobra.Command {
 	root.PersistentFlags().IntVar(&lim.ExactRun, "max-exact-run", lim.ExactRun, "gate: longest exact token run")
 	root.PersistentFlags().IntVar(&lim.NormRun, "max-norm-run", lim.NormRun, "gate: longest normalised token run")
 
+	var list int
+	root.PersistentFlags().IntVar(&list, "list", 0, "also list every common exact run of at least this many code tokens (file:line references only)")
 	run := func(gate bool) func(*cobra.Command, []string) error {
 		return func(cmd *cobra.Command, args []string) error {
 			p := cleanroom.Params{K: k, W: w}
@@ -67,6 +69,9 @@ func RootCmd() *cobra.Command {
 					return err
 				}
 				res = append(res, cleanroom.Check(f, b, refs, p))
+				if list > 0 {
+					fmt.Fprint(cmd.OutOrStdout(), cleanroom.ListRuns(f, b, refs, p, list))
+				}
 			}
 			sort.SliceStable(res, func(i, j int) bool { return res[i].Norm > res[j].Norm })
 			out := cmd.OutOrStdout()

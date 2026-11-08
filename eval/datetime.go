@@ -278,6 +278,13 @@ func init() {
 			tz = st.V[0].S
 		}
 		loc := zoneNamed(tz)
+		if tz == "" {
+			// the zone's name is what TZ says; a session in UTC without TZ is "UTC"
+			tz = os.Getenv("TZ")
+			if tz == "" && isUTCZone("") {
+				tz = "UTC"
+			}
+		}
 		return tzoneAttr(tz, loc, true)
 	})
 	regHidden(".dtFormat", func(s *Session, c *callInfo) Value {
