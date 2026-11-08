@@ -191,10 +191,35 @@ func (s *Session) asCharacter(c *callInfo) Value {
 	case *Symbol:
 		return mkString(v.Name)
 	case *Logical, *Integer, *Double, *String:
+		if st, ok := factorStrings(x); ok {
+			return &String{V: st}
+		}
 		return &String{V: asStrings(x)}
 	}
 	s.errorf(c.call, "cannot coerce type '%s' to vector of type 'character'", typeName(x))
 	return nil
+}
+
+// factorStrings is the labels of a factor: as.character and paste read them,
+// not the codes.
+func factorStrings(v Value) ([]Str, bool) {
+	iv, ok := v.(*Integer)
+	if !ok || !hasString(classAttr(v), "factor") {
+		return nil, false
+	}
+	lv, ok := getAttr(v, "levels").(*String)
+	if !ok {
+		return nil, false
+	}
+	out := make([]Str, len(iv.V))
+	for i, code := range iv.V {
+		if code == naInt || int(code) < 1 || int(code) > len(lv.V) {
+			out[i] = Str{NA: true}
+		} else {
+			out[i] = lv.V[code-1]
+		}
+	}
+	return out, true
 }
 
 // ---- math and summaries -----------------------------------------------------

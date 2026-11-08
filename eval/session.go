@@ -132,6 +132,7 @@ type Session struct {
 
 	frames    []*frame
 	evalMarks []evalMark
+	options   map[string]Value
 	warnings  []Warning
 	visible   bool
 	steps     int
@@ -201,6 +202,9 @@ func NewSession(opts Options) *Session {
 	s.Empty = &Env{name: "R_EmptyEnv"}
 	s.Base = &Env{name: "base", parent: s.Empty}
 	for name, b := range builtins {
+		s.Base.Set(name, b)
+	}
+	for name, b := range hidden {
 		s.Base.Set(name, b)
 	}
 	lower, upper := make([]string, 26), make([]string, 26)

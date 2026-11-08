@@ -340,6 +340,24 @@ func FromSyntax(n syntax.Node) Value {
 
 // toSyntax converts a language object back, for deparse.
 func toSyntax(v Value) syntax.Node {
+	if isVector(v) {
+		// attributes other than names are written as structure(<vector>, a = b)
+		var namesOnly, extra []Attr
+		for _, a := range attrsOf(v) {
+			if a.Name == "names" {
+				namesOnly = append(namesOnly, a)
+			} else {
+				extra = append(extra, a)
+			}
+		}
+		if len(extra) > 0 {
+			call := &syntax.Call{Fun: &syntax.Sym{Name: "structure"}, Args: []syntax.Arg{{Value: toSyntax(withAttr(v, namesOnly))}}}
+			for _, a := range extra {
+				call.Args = append(call.Args, syntax.Arg{Name: a.Name, HasName: true, Value: toSyntax(a.Value)})
+			}
+			return call
+		}
+	}
 	switch x := v.(type) {
 	case missingT:
 		return nil

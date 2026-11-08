@@ -87,10 +87,16 @@ func (s *Session) dispatchInternal(name string, c *callInfo, args []Value, names
 		return nil, false
 	}
 	classes := classAttr(args[0])
+	generics := []string{name}
+	if name == "as.numeric" || name == "as.double" {
+		generics = []string{"as.double", "as.numeric"} // one primitive, both method names
+	}
 	for i, cl := range classes {
-		if m := s.findMethod(name+"."+cl, c.env); m != nil {
-			di := &dispatchInfo{generic: name, classes: append(append([]string{}, classes...), "default"), idx: i, object: args[0]}
-			return s.callMethod(m, name+"."+cl, c.call, argsOf(args, names), c.env, di), true
+		for _, g := range generics {
+			if m := s.findMethod(g+"."+cl, c.env); m != nil {
+				di := &dispatchInfo{generic: name, classes: append(append([]string{}, classes...), "default"), idx: i, object: args[0]}
+				return s.callMethod(m, g+"."+cl, c.call, argsOf(args, names), c.env, di), true
+			}
 		}
 	}
 	return nil, false
@@ -105,7 +111,7 @@ var (
 		"gamma": true, "lgamma": true, "sinpi": true, "cospi": true, "tanpi": true, "trunc": true, "sign": true, "round": true, "signif": true,
 		"cumsum": true, "cumprod": true, "cummax": true, "cummin": true}
 	summaryGroup = map[string]bool{"sum": true, "prod": true, "min": true, "max": true, "any": true, "all": true, "range": true}
-	internalGen  = []string{"length", "names", "names<-", "as.character", "as.integer", "as.double", "as.numeric", "as.logical", "c", "is.na", "dim", "dim<-", "unlist", "rep", "seq_along", "mean", "t", "as.vector"}
+	internalGen  = []string{"length", "names", "names<-", "as.character", "as.integer", "as.double", "as.numeric", "as.logical", "c", "is.na", "dim", "dim<-", "unlist", "rep", "seq_along", "mean", "t", "as.vector", "format", "seq", "is.numeric", "unique", "xtfrm", "sort", "rev", "rank"}
 )
 
 // methodFor finds the method of generic (or of its group) for one class vector.
@@ -155,14 +161,40 @@ func (s *Session) dispatchGroup(op, group string, c *callInfo) (Value, bool) {
 			found, fname = m, name
 			di = &dispatchInfo{generic: op, classes: append(append([]string{}, classes...), "default"), idx: i, object: a}
 		} else if name != fname && k > 0 {
-			s.warningf(c.call, "Incompatible methods (\"%s\", \"%s\") for \"%s\"", fname, name, op)
-			return nil, false
+			// R lets the date and date-time arithmetic win over the
+			// difftime group method when a time difference is added to or
+			// subtracted from a date
+			dateOp := func(n string) bool {
+				return n == "+.POSIXt" || n == "-.POSIXt" || n == "+.Date" || n == "-.Date"
+			}
+			switch {
+			case name == "Ops.difftime" && dateOp(fname):
+			case fname == "Ops.difftime" && dateOp(name) && name[0] == '+':
+				found, fname = m, name
+				di = &dispatchInfo{generic: op, classes: append(append([]string{}, classes...), "default"), idx: i, object: a}
+			default:
+				s.warningf(c.call, "Incompatible methods (\"%s\", \"%s\") for \"%s\"", fname, name, op)
+				return nil, false
+			}
 		}
 	}
 	if found == nil {
 		return nil, false
 	}
-	return s.callMethod(found, fname, c.call, argsOf(c.args, c.names), c.env, di), true
+	args := argsOf(c.args, c.names)
+	call := c.call
+	if group == "Summary" {
+		// the method gets na.rm, and its call shows the values
+		hasNaRm := false
+		for _, a := range args {
+			hasNaRm = hasNaRm || a.Name == "na.rm"
+		}
+		if !hasNaRm {
+			args = append(args, Arg{Name: "na.rm", HasName: true, Value: mkLogical(false)})
+		}
+		call = &Lang{Fun: c.call.Fun, Args: args}
+	}
+	return s.callMethod(found, fname, call, args, c.env, di), true
 }
 
 var s3once sync.Once
@@ -195,6 +227,26 @@ func installS3() {
 					}
 					return orig(s, c)
 				}
+			}
+		}
+		// rev, unique and sort of an object return it with its class (and
+		// units, time zone, levels), as the `[` methods R runs would
+		for _, name := range []string{"rev", "unique", "sort"} {
+			b, ok := builtins[name]
+			if !ok {
+				continue
+			}
+			orig := b.fn
+			b.fn = func(s *Session, c *callInfo) Value {
+				r := orig(s, c)
+				if len(c.args) > 0 && isObject(c.args[0]) && isVector(r) && getAttr(r, "class") == nil {
+					for _, an := range []string{"levels", "class", "units", "tzone"} {
+						if v := getAttr(c.args[0], an); v != nil {
+							r = setAttr(r, an, v)
+						}
+					}
+				}
+				return r
 			}
 		}
 		for _, name := range internalGen {

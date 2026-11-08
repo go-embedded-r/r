@@ -3,6 +3,7 @@ package eval
 import (
 	"embed"
 	"sort"
+	"strings"
 	"sync"
 
 	"github.com/go-embedded-r/r/syntax"
@@ -42,7 +43,8 @@ func loadBaselib() {
 				baselibExprs = append(baselibExprs, FromSyntax(n))
 				if call, ok := n.(*syntax.Call); ok {
 					if fs, ok := call.Fun.(*syntax.Sym); ok && fs.Name == "<-" && len(call.Args) == 2 {
-						if sym, ok := call.Args[0].Value.(*syntax.Sym); ok {
+						if sym, ok := call.Args[0].Value.(*syntax.Sym); ok && !strings.HasPrefix(sym.Name, "..") {
+							// a name starting with two dots is a helper of ours, not a function of base
 							baselibNames = append(baselibNames, sym.Name)
 						}
 					}

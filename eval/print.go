@@ -340,9 +340,9 @@ func (s *Session) printValueTagged(v Value, prefix string, env *Env) {
 				}
 			}
 			s.out.WriteString(tag + "\n")
-			// print.default dispatches only to methods registered by base
-			if cl := classAttr(e); isObject(e) && (hasString(cl, "factor") || hasString(cl, "condition")) {
-				s.printObject(e, tag, env)
+			// an element that is an object is printed through print()
+			if isObject(e) {
+				s.printObject(e, tag, s.Global)
 			} else {
 				s.printValueTagged(e, tag, env)
 			}
@@ -394,19 +394,23 @@ func (s *Session) printAttributes(v Value, prefix string, env *Env) {
 			continue
 		}
 		s.out.WriteString("attr(,\"" + a.Name + "\")\n")
-		s.printValueTagged(a.Value, "attr(,\""+a.Name+"\")", env)
+		if isObject(a.Value) {
+			s.printObject(a.Value, "attr(,\""+a.Name+"\")", s.Global)
+		} else {
+			s.printValueTagged(a.Value, "attr(,\""+a.Name+"\")", env)
+		}
 	}
 }
 
 // printObject is print() for a value with a class attribute: a user method,
 // the condition printer, or the default.
-func (s *Session) printObject(v Value, prefix string, env *Env) {
+func (s *Session) printObject(v Value, prefix string, env *Env, extra ...Arg) {
 	classes := classAttr(v)
 	for i, cl := range classes {
 		if m := s.findMethod("print."+cl, env); m != nil {
 			di := &dispatchInfo{generic: "print", classes: append(append([]string{}, classes...), "default"), idx: i, object: v}
-			call := &Lang{Fun: Intern("print"), Args: []Arg{{Value: Intern("x")}}}
-			s.callMethod(m, "print."+cl, call, []Arg{{Value: v}}, env, di)
+			call := &Lang{Fun: Intern("print"), Args: append([]Arg{{Value: Intern("x")}}, extra...)}
+			s.callMethod(m, "print."+cl, call, append([]Arg{{Value: v}}, extra...), env, di)
 			return
 		}
 		if cl == "condition" {
@@ -434,7 +438,9 @@ func (s *Session) printCondition(v Value) {
 // printValue is the auto-print of a visible top-level value.
 func (s *Session) printValue(v Value, env *Env) {
 	if isObject(v) {
-		s.printObject(v, "", env)
+		// the methods are looked for from the global environment, where the
+		// console prints from
+		s.printObject(v, "", s.Global)
 		return
 	}
 	s.printValueTagged(v, "", env)
@@ -493,7 +499,11 @@ func init() {
 			}
 		}
 		if isObject(x) {
-			s.printObject(x, "", c.env)
+			var extra []Arg
+			for i := 1; i < len(c.args); i++ {
+				extra = append(extra, Arg{Name: c.names[i], HasName: c.names[i] != "", Value: c.args[i]})
+			}
+			s.printObject(x, "", c.env, extra...)
 		} else {
 			s.printValueTagged(x, "", c.env)
 		}

@@ -1,8 +1,10 @@
 package eval
 
 import (
+	"fmt"
 	"math"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/go-embedded-r/r/syntax"
@@ -424,10 +426,13 @@ func (s *Session) duplicatedFlags(c *callInfo, x Value, fromLast bool) []bool {
 				order[i] = i
 			}
 		}
-		var seen []Value
+		// elements are told apart by identical(), within buckets of a cheap
+		// key, so that a long list is not compared pairwise
+		seen := map[string][]Value{}
 		for _, i := range order {
+			k := bucketKey(l.V[i])
 			found := false
-			for _, e := range seen {
+			for _, e := range seen[k] {
 				if identical(e, l.V[i]) {
 					found = true
 					break
@@ -436,7 +441,7 @@ func (s *Session) duplicatedFlags(c *callInfo, x Value, fromLast bool) []bool {
 			if found {
 				dup[i] = true
 			} else {
-				seen = append(seen, l.V[i])
+				seen[k] = append(seen[k], l.V[i])
 			}
 		}
 		return dup
@@ -514,3 +519,18 @@ func (s *Session) matchValues(c *callInfo, x, table Value, nomatch int32) []int3
 }
 
 var _ = strings.Compare
+
+// bucketKey is a key that identical values share: the type, the length, and
+// the first few elements of an atomic vector. Values with the same key are
+// then compared with identical().
+func bucketKey(v Value) string {
+	n := Length(v)
+	key := typeName(v) + ":" + strconv.Itoa(n)
+	switch x := v.(type) {
+	case *Logical, *Integer, *Double, *String:
+		for i := 0; i < n && i < 4; i++ {
+			key += fmt.Sprintf("|%v", keyOfElem(x, i))
+		}
+	}
+	return key
+}

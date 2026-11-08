@@ -19,6 +19,26 @@ import (
 // description of the first difference.
 func Check(rec gen.EvalRecord) string { return check(rec, 0, nil) }
 
+// CheckNormalized is Check, except that the printed output of both sides goes
+// through norm before it is compared (for text R makes unpredictable, such as
+// the address of an environment). Value, visibility, errors and warnings are
+// still compared exactly.
+func CheckNormalized(rec gen.EvalRecord, norm func(string) string) string {
+	outNorm = norm
+	defer func() { outNorm = nil }()
+	return check(rec, 0, nil)
+}
+
+// outNorm, when set, is applied to the outputs compared by check.
+var outNorm func(string) string
+
+func normOut(s string) string {
+	if outNorm != nil {
+		return outNorm(s)
+	}
+	return s
+}
+
 // CheckULP is Check, except that double values may differ by up to maxULP
 // units in the last place; the largest difference seen is recorded in worst.
 // It is for results that depend on the C library (libm), nothing else.
@@ -30,7 +50,7 @@ func check(rec gen.EvalRecord, maxULP int64, worst *int64) string {
 	s := eval.NewSession(eval.Options{})
 	res, err := s.EvalIn(context.Background(), rec.Src, eval.NewEnv(s.Global))
 	if e, ok := err.(*eval.Error); ok && !rec.OK {
-		if e.Output != rec.Output {
+		if normOut(e.Output) != normOut(rec.Output) {
 			return fmt.Sprintf("output before the error\n  R:  %q\n  Go: %q", rec.Output, e.Output)
 		}
 		if e.Stderr != rec.Stderr {
@@ -63,14 +83,14 @@ func check(rec gen.EvalRecord, maxULP int64, worst *int64) string {
 			if maxULP > 0 && ulpEqual(want, got, maxULP, worst) {
 				goto rest
 			}
-			return fmt.Sprintf("value\n  R:  %+v\n  Go: %+v\n  R bytes  %s\n  Go bytes %s", want, got, rec.Hex, hex.EncodeToString(b))
+			return fmt.Sprintf("value\n  R:  %s\n  Go: %s\n  R bytes  %s\n  Go bytes %s", dump(want), dump(got), rec.Hex, hex.EncodeToString(b))
 		}
 	}
 rest:
 	if res.Visible != rec.Visible {
 		return "visibility differs"
 	}
-	if res.Output != rec.Output {
+	if normOut(res.Output) != normOut(rec.Output) {
 		return fmt.Sprintf("output\n  R:  %q\n  Go: %q", rec.Output, res.Output)
 	}
 	if res.Stderr != rec.Stderr {

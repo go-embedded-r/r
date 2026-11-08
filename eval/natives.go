@@ -166,7 +166,14 @@ func (s *Session) paste(c *callInfo, defSep string) Value {
 				}
 			}
 		default:
-			strs = asStrings(a)
+			// an object with an as.character method is converted by it, as R does
+			if r, ok := s.dispatchInternal("as.character", c, []Value{a}, []string{""}); ok {
+				strs = asStrings(r)
+			} else if st, ok := factorStrings(a); ok {
+				strs = st
+			} else {
+				strs = asStrings(a)
+			}
 		}
 		cols = append(cols, strs)
 	}

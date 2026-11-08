@@ -126,7 +126,14 @@ func (s *Session) compare(op string, c *callInfo) Value {
 			out[i] = test(cmp)
 		}
 	}
-	return &Logical{V: out, Attr: copyAttrs(x, y, n)}
+	// a comparison keeps the names and the shape, never the class
+	var keep []Attr
+	for _, a := range copyAttrs(x, y, n) {
+		if a.Name == "names" || a.Name == "dim" || a.Name == "dimnames" {
+			keep = append(keep, a)
+		}
+	}
+	return &Logical{V: out, Attr: keep}
 }
 
 // ---- logic -----------------------------------------------------------------
