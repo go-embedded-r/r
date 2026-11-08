@@ -143,7 +143,15 @@ func init() {
 	regBuiltin("lockEnvironment", func(s *Session, c *callInfo) Value {
 		a := s.matchFormals(c, "env", "bindings")
 		e := s.envOnly(c, a[0])
-		bindings := a[1] != nil && s.truthy(c, a[1], "bindings")
+		bindings := false
+		if a[1] != nil {
+			if l := logicalOf(s, c, a[1], "invalid 'bindings' argument"); len(l) > 0 {
+				if l[0] == naInt {
+					s.errorf(&Lang{Fun: Intern("lockEnvironment"), Args: []Arg{{Value: Intern("env")}, {Value: Intern("bindings")}}}, "NA in coercion to boolean")
+				}
+				bindings = l[0] != 0
+			}
+		}
 		f := e.frame()
 		f.locked, f.special = true, true
 		if bindings {

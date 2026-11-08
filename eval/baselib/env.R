@@ -19,7 +19,7 @@ as.list.factor <- function(x, ...) {
 eapply <- function(env, FUN, ..., all.names = FALSE, USE.NAMES = TRUE) {
   FUN <- match.fun(FUN)
   res <- lapply(as.list.environment(env, all.names = all.names), FUN, ...)
-  if (!USE.NAMES) names(res) <- NULL
+  if (!isTRUE(as.logical(USE.NAMES))) names(res) <- NULL
   else if (length(res) == 0L) names(res) <- character(0)
   res
 }
@@ -28,3 +28,18 @@ with <- function(data, expr, ...) UseMethod("with")
 
 with.default <- function(data, expr, ...)
   eval(substitute(expr), data, enclos = parent.frame())
+
+within <- function(data, expr, ...) UseMethod("within")
+
+within.list <- function(data, expr, ...) {
+  env <- list2env(data, parent = parent.frame())
+  eval(substitute(expr), env)
+  now <- as.list.environment(env, all.names = TRUE)
+  have <- names(now)
+  gone <- names(data)[!(names(data) %in% have)]
+  for (n in names(data)[names(data) %in% have]) data[n] <- list(now[[n]])
+  fresh <- rev(have[!(have %in% names(data))])
+  for (n in fresh) data[n] <- list(now[[n]])
+  for (n in gone) data[[n]] <- NULL
+  data
+}

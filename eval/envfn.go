@@ -374,7 +374,7 @@ func init() {
 				}
 				target = e
 			}
-			switch target {
+			switch env { // the base environments named by the call itself
 			case s.BaseNS:
 				s.errorf(c.call, "cannot remove variables from base namespace")
 			case s.Base:

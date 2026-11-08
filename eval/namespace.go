@@ -83,10 +83,10 @@ func (s *Session) modeArg(c *callInfo, v Value) string {
 		return "any"
 	}
 	st, ok := v.(*String)
-	if !ok || len(st.V) != 1 || st.V[0].NA {
+	if !ok || len(st.V) < 1 || st.V[0].NA {
 		s.errorf(c.call, "invalid 'mode' argument")
 	}
-	return st.V[0].S
+	return st.V[0].S // the first of several, as R reads it
 }
 
 // nameArg reads the name argument of get, exists, get0 and assign.
@@ -161,8 +161,8 @@ func init() {
 		if n := envName(s, e); n != "" {
 			return mkString(n)
 		}
-		if nm, ok := getAttr(e, "name").(*String); ok && len(nm.V) > 0 {
-			return mkString(nm.V[0].S)
+		if nm := getAttr(e, "name"); nm != nil {
+			return nm // whatever the attribute holds, as R answers
 		}
 		return mkString("")
 	})
