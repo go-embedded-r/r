@@ -76,6 +76,23 @@ rewritten in v0.12.2 and `cmd/cleanroom` now checks every file of
   one R file (independent small files: at most 2 of 32). Limits of the method: a one-line function has one
   possible spelling, so a tiny file can be a copy and pass; the gate bounds
   accidents and careless restructuring, it does not replace the rule above.
+- **The oracle does not show R's R code.** Printing a base function in the
+  reference R shows its GPL body (this happened once, while checking a
+  behaviour). `internal/oracle/oracle.R` therefore refuses, with the error
+  `oracle: printing base closures is disallowed by the clean-room rule`, to
+  print, deparse, `dput`, `body`, `as.list`, `format`, serialize or return any
+  closure of base, stats, utils, methods and the other packages of R, however
+  it is reached (auto-print, `:::`, `getAnywhere`, inside a list or an
+  attribute, or a copy made in the global environment, which is recognised by
+  its body); `.Internal` is refused in requests. Closures of our own print.
+  Goldens that compare function printing use closures defined in the snippet.
+  Limits: a base closure whose body is under 100 serialized bytes can be
+  copied out of the namespace and then printed; someone with an installed R
+  can still read its sources, which is why the rule is also procedural:
+- **Provenance in every PR.** `.github/pull_request_template.md` asks, for any
+  change under `eval/baselib/`: the `.Rd` pages read, whether any R function
+  body was seen and how (and who then rewrote the file blind), and the gate
+  score of the first draft before any reshaping.
 - **Run it.**
 
   ```sh

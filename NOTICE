@@ -32,6 +32,13 @@ code of base R is rewritten, never copied, never downloaded at run time):
    independent code, README "Clean-room process") runs as a test and in the CI
    oracle lane, against the tarball pinned by SHA-256. Run:
    RGO_RSOURCE=<R-4.6.2 tree> go run ./cmd/cleanroom check
+6. The oracle (internal/oracle/oracle.R) refuses to print, deparse, serialize
+   or return any closure of R's own packages, so that running it never shows
+   R's GPL R code to the contributor; a file whose author saw such a body is
+   rewritten by someone who did not.
+7. Every pull request touching eval/baselib records, in the template
+   .github/pull_request_template.md, the Rd pages read, any R function body
+   seen and how, and the gate score before any reshaping.
 
 Test tooling downloads, in CI and on a developer's machine, the conda-forge
 build of R 4.6.2 as an unmodified program. It is not part of this repository
