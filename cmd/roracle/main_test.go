@@ -89,6 +89,12 @@ func repoCopy(t *testing.T) string {
 		}
 		os.WriteFile(filepath.Join(dir, "testdata/eval", e.Name()), b, 0o644)
 	}
+	// the committed eval goldens: records recorded for another platform are
+	// kept as they are when the goldens are regenerated
+	if b, err := os.ReadFile("../../testdata/golden/eval.jsonl"); err == nil {
+		os.MkdirAll(filepath.Join(dir, "testdata/golden"), 0o755)
+		os.WriteFile(filepath.Join(dir, "testdata/golden/eval.jsonl"), b, 0o644)
+	}
 	return dir
 }
 
