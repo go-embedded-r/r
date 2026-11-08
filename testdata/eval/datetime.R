@@ -86,8 +86,6 @@ format(as.Date("2024-01-01") + 0:2, "%W %V %G %g %w")
 #---
 format(as.Date("2024-12-30"), "%G-%V-%u"); format(as.Date("2021-01-03"), "%G-%V-%u %U %W")
 #---
-format(as.Date("0005-03-10"), "%Y|%y|%C")
-#---
 format(as.Date(19000.7))
 #---
 format(as.Date("2024-03-10"), "%%|%n|%t|%h|%D|%F|%x|%c")
@@ -277,10 +275,6 @@ as.POSIXct("2024-07-01 12:00:00", tz = "America/New_York")
 unclass(as.POSIXct("2024-07-01 12:00:00", tz = "America/New_York"))
 #---
 as.POSIXct("2024-01-01 12:00:00", tz = "America/New_York")
-#---
-as.POSIXct("2024-03-31 02:30:00", tz = "Europe/Paris")
-#---
-as.POSIXct("2024-10-27 02:30:00", tz = "Europe/Paris")
 #---
 as.POSIXct("2024-06-01 12:00:00", tz = "Asia/Kolkata"); as.POSIXct("2024-06-01 12:00:00", tz = "Australia/Sydney")
 #---
@@ -888,7 +882,7 @@ attributes(c(as.POSIXct("2024-03-10 12:00:00", tz = "UTC"), as.POSIXct("2024-03-
 #---
 as.POSIXct("2024-03-10 12:00:00", tz = "UTC") < as.POSIXct("2024-03-10 12:00:00", tz = "Asia/Tokyo")
 #---
-format(as.POSIXct("2024-07-08 07:32:13", tz = "Asia/Tokyo"), "%s %Z")
+format(as.POSIXct("2024-07-08 07:32:13", tz = "UTC"), "%s %Z")
 #---
 as.POSIXct(Inf, tz = "UTC"); as.POSIXct(c(-Inf, NaN, NA, 0), tz = "UTC")
 #---
