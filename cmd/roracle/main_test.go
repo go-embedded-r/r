@@ -157,6 +157,7 @@ func TestRegenFailures(t *testing.T) {
 	}
 	// an unwritable target
 	dir := repoCopy(t)
+	os.RemoveAll(filepath.Join(dir, "testdata/golden"))
 	os.WriteFile(filepath.Join(dir, "testdata/golden"), []byte("a file, not a directory"), 0o644)
 	for _, c := range []string{"deparse", "rds"} {
 		if _, _, err := run(t, c, "-C", dir); err == nil {
