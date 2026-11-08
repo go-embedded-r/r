@@ -281,6 +281,17 @@ func init() {
 }
 
 func init() {
+	// withVisible(x): the value of x and whether R would have printed it.
+	regSpecial("withVisible", func(s *Session, c *callInfo) Value {
+		if len(c.raw) != 1 {
+			s.errorf(c.call, "%d arguments passed to 'withVisible' which requires 1", len(c.raw))
+		}
+		s.visible = true
+		v := s.eval(c.raw[0].Value, c.env)
+		vis := s.visible
+		s.visible = true
+		return &List{V: []Value{v, mkLogical(vis)}, Attr: namesAttr([]Str{{S: "value"}, {S: "visible"}})}
+	})
 	regBuiltin("as.list.default", func(s *Session, c *callInfo) Value {
 		a := s.matchLoose(c, "x")
 		switch x := a[0].(type) {

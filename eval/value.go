@@ -474,6 +474,9 @@ func ToRDS(v Value) rds.Value {
 	case nullT:
 		return rds.Null
 	case *Env:
+		if x.ns && x.alias != nil {
+			return rds.BaseNamespace
+		}
 		switch x.name {
 		case "R_GlobalEnv":
 			return rds.GlobalEnv

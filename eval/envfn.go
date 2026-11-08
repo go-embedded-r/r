@@ -367,9 +367,18 @@ func init() {
 			sym := Intern(n)
 			target := env
 			if inherits {
-				if _, e := env.find(sym); e != nil {
-					target = e
+				_, e := env.find(sym)
+				if e == nil {
+					// the search ends at the empty environment, which holds no bindings
+					s.errorf(c.call, "cannot remove bindings from a locked environment")
 				}
+				target = e
+			}
+			switch target {
+			case s.BaseNS:
+				s.errorf(c.call, "cannot remove variables from base namespace")
+			case s.Base:
+				s.errorf(c.call, "cannot remove variables from the base environment")
 			}
 			if target.frame().locked {
 				s.errorf(c.call, "cannot remove bindings from a locked environment")
@@ -381,24 +390,43 @@ func init() {
 		return s.invisible(Null)
 	})
 	regSpecial("local", func(s *Session, c *callInfo) Value {
-		var expr Value
-		env := (*Env)(nil)
-		haveExpr := false
+		// local(expr, envir = new.env()): R runs eval(quote(expr), envir)
+		var expr, envirExpr Value
+		haveExpr, haveEnvir := false, false
 		for _, ra := range c.raw {
 			switch {
 			case ra.HasName && ra.Name == "envir":
-				env = s.envArg(c, s.eval(ra.Value, c.env), "envir")
-			case ra.HasName && ra.Name == "expr", !ra.HasName && !haveExpr:
+				envirExpr, haveEnvir = ra.Value, true
+			case ra.HasName && ra.Name == "expr":
 				expr, haveExpr = ra.Value, true
 			}
 		}
+		for _, ra := range c.raw {
+			if ra.HasName {
+				continue
+			}
+			if !haveExpr {
+				expr, haveExpr = ra.Value, true
+			} else if !haveEnvir {
+				envirExpr, haveEnvir = ra.Value, true
+			}
+		}
+		quoted := &Lang{Fun: Intern("quote")}
+		if haveExpr {
+			quoted.Args = []Arg{{Value: expr}}
+		}
+		if !haveEnvir {
+			envirExpr = &Lang{Fun: Intern("new.env")}
+		}
+		evalCall := &Lang{Fun: Intern("eval"), Args: []Arg{{Value: quoted}, {Value: envirExpr}}}
 		if !haveExpr {
-			s.errorf(c.call, "argument \"expr\" is missing, with no default")
+			s.errorf(evalCall, "argument is missing, with no default")
 		}
-		if env == nil {
-			env = NewEnv(c.env)
+		env := NewEnv(c.env)
+		if haveEnvir {
+			env = s.envArg(c, s.eval(envirExpr, c.env), "envir")
 		}
-		return s.eval(expr, env)
+		return s.underEval(evalCall, func() Value { return s.eval(expr, env) })
 	})
 	regSpecial("evalq", func(s *Session, c *callInfo) Value {
 		if len(c.raw) == 0 {
@@ -408,7 +436,7 @@ func init() {
 		if len(c.raw) > 1 {
 			env = s.evalEnvArg(c, s.eval(c.raw[1].Value, c.env), nil)
 		}
-		return s.eval(c.raw[0].Value, env)
+		return s.underEval(c.call, func() Value { return s.eval(c.raw[0].Value, env) })
 	})
 	regBuiltin("eval", func(s *Session, c *callInfo) Value {
 		a := s.matchFormals(c, "expr", "envir", "enclos")
@@ -425,7 +453,7 @@ func init() {
 		}
 		switch x := a[0].(type) {
 		case *Lang, *Symbol:
-			return s.eval(x, env)
+			return s.underEval(c.call, func() Value { return s.eval(x, env) })
 		}
 		s.visible = true
 		return a[0]
@@ -579,6 +607,10 @@ func (s *Session) evalEnvArg(c *callInfo, v Value, enclos *Env) *Env {
 			enclos = c.env
 		}
 		return NewEnv(enclos)
+	case *Double, *Integer:
+		if Length(v) != 1 {
+			s.errorf(c.call, "numeric 'envir' arg not of length one")
+		}
 	}
 	s.errorf(c.call, "invalid 'envir' argument of type '%s'", typeName(v))
 	return nil

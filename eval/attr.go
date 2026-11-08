@@ -411,6 +411,9 @@ func init() {
 		if getAttr(x, "class") == nil {
 			return x
 		}
+		if _, isEnv := x.(*Env); isEnv {
+			s.errorf(c.call, "cannot unclass an environment")
+		}
 		return setAttr(x, "class", Null)
 	})
 	regBuiltin("dim", func(s *Session, c *callInfo) Value {
