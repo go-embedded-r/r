@@ -128,18 +128,18 @@ func (e *Error) Unwrap() error { return e.err }
 type Session struct {
 	Base, Global, Empty *Env
 	BaseNS              *Env // the namespace of base: another name for the base frame
-	opts               Options
+	opts                Options
 
 	frames    []*frame
 	evalMarks []evalMark
 	warnings  []Warning
-	visible  bool
-	steps    int
-	depth    int
-	alloc    int64
-	tick     int
-	ctx      context.Context
-	deadline time.Time
+	visible   bool
+	steps     int
+	depth     int
+	alloc     int64
+	tick      int
+	ctx       context.Context
+	deadline  time.Time
 
 	handlers  []handler
 	restarts  []restartEntry
