@@ -32,6 +32,59 @@ are GPL-2-or-later, so:
   `src/main`, `src/nmath` or the R code of the base packages while writing the
   counterpart. See [CONTRIBUTING.md](CONTRIBUTING.md) and [NOTICE](NOTICE).
 
+### Clean-room process: the similarity gate
+
+A rule that depends on what a contributor (human or model) remembers is not
+enough: v0.12.0's `eval/baselib/datetime.R` was written from the help pages
+but partly from memory of R's code, and came out close to R's text. It was
+rewritten in v0.12.2 and `cmd/cleanroom` now checks every file of
+`eval/baselib` against the R library code of R 4.6.2.
+
+- **Method.** Our own lexer (package `syntax`) cuts both files into tokens
+  (comments dropped); k-grams of tokens are hashed and thinned by winnowing
+  (Schleimer, Wilkerson, Aiken, *Winnowing: Local Algorithms for Document
+  Fingerprinting*, SIGMOD 2003: the minimum hash of each window, the rightmost
+  on a tie; any shared run of `k+w-1` tokens shares a fingerprint, no run
+  shorter than `k` can). Two views are compared: identifiers kept (*exact*) and
+  every identifier replaced by one placeholder (*normalised*, which sees a
+  renamed copy). The score is containment, the share of our fingerprints found
+  in one R file. The longest common token run is reported with `file:line` on
+  both sides. Runs count code tokens only (literals and commas do not, so a
+  table of month names is not a copy). Parameters: `k = 8`, `w = 4`.
+- **R's sources are read, never stored.** The checker reads
+  `src/library/*/R/*.R` of an R 4.6.2 tree at check time (`RGO_RSOURCE`, or
+  `--rsrc`) and prints only references (`file:line`), never R's text. CI
+  downloads the tarball by SHA-256 in the oracle lane and runs the gate there
+  (`RGO_REQUIRE_RSOURCE=1`: the gate must run, not skip).
+- **Thresholds, and how they were chosen.** Measured on code known to be
+  independent of R's library code, at `k = 8, w = 4`:
+
+  | independent code (files of at least 200 tokens) | exact containment | normalised containment | longest exact run | longest normalised run |
+  |---|---|---|---|---|
+  | our own test inputs (`testdata/*.R`, `testdata/eval/*.R`; 25 files), max | 0.04 | 0.09 | 14 | 29 |
+  | R's own tests and demos against its library code (145 files), p95 / p99 / max | 0.03 / 0.19 / 0.37 | 0.32 / 0.41 / 0.52 | 16 / 38 / 52 | 30 / 54 / 90 |
+
+  The gate sits above the p99 of the second row: exact containment **0.20**,
+  normalised containment **0.60** (these two only for files of at least 200
+  tokens: a file of 100 tokens has a dozen fingerprints), longest exact run
+  **40** code tokens, longest normalised run **60**. Limits of the method: a
+  one-line function has one possible spelling, so a short file can be a copy
+  and pass; the gate bounds accidents and careless restructuring, it does not
+  replace the rule above.
+- **Run it.**
+
+  ```sh
+  export RGO_RSOURCE=/path/to/R-4.6.2          # an unpacked, checked R source tree
+  go run ./cmd/cleanroom check                 # eval/baselib/*.R; exit 1 over the gate
+  go run ./cmd/cleanroom check --list 20 f.R   # every shared run of 20+ tokens, as file:line
+  go run ./cmd/cleanroom floor some/*.R        # the same scores for independent code
+  go test ./internal/cleanroom ./cmd/cleanroom # the gate as a test; skips without R's sources
+  ```
+
+  At v0.12.2 (first row the file before its rewrite): `datetime.R` exact
+  0.23, normalised 0.47, longest exact run 88 tokens; after: 0.17, 0.39, 38.
+  Every file of `eval/baselib` is under the gate.
+
 ## Status
 
 | milestone | contents | state |

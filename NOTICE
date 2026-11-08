@@ -24,6 +24,15 @@ code of base R is rewritten, never copied, never downloaded at run time):
 4. Contributors do not read src/main, src/nmath or the R code of the base
    packages while writing their Go or R counterparts (CONTRIBUTING.md).
 
+5. Clean-room process. cmd/cleanroom scores every file of eval/baselib
+   against the R code of R 4.6.2 (token k-gram winnowing, exact and with
+   identifiers normalised, plus the longest common token run); it reads R's
+   sources at check time only, from a tree the caller provides, and reports
+   file:line references, never R's text. The gate (thresholds measured on
+   independent code, README "Clean-room process") runs as a test and in the CI
+   oracle lane, against the tarball pinned by SHA-256. Run:
+   RGO_RSOURCE=<R-4.6.2 tree> go run ./cmd/cleanroom check
+
 Test tooling downloads, in CI and on a developer's machine, the conda-forge
 build of R 4.6.2 as an unmodified program. It is not part of this repository
 and is not redistributed by it.

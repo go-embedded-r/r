@@ -2,9 +2,10 @@
 # Written from the help pages of R 4.6.2 and checked against the oracle
 # (docs/m3-plan.md). BSD licence, like the rest of this repository.
 
-isTRUE <- function(x) is.logical(x) && length(x) == 1L && !is.na(x) && x
+# exactly one logical value, whatever attributes it carries
+isTRUE <- function(x) is.logical(x) && length(x) == 1L && identical(as.vector(x), TRUE)
 
-isFALSE <- function(x) is.logical(x) && length(x) == 1L && !is.na(x) && !x
+isFALSE <- function(x) is.logical(x) && length(x) == 1L && identical(as.vector(x), FALSE)
 
 xor <- function(x, y) (x | y) & !(x & y)
 
@@ -36,10 +37,10 @@ setdiff <- function(x, y) {
 }
 
 append <- function(x, values, after = length(x)) {
-  lengx <- length(x)
-  if (!after) c(values, x)
-  else if (after >= lengx) c(x, values)
-  else c(x[1L:after], values, x[(after + 1L):lengx])
+  split <- min(max(after, 0L), length(x))
+  head <- seq_len(split)
+  tail <- seq_len(length(x) - split) + split
+  c(x[head], values, x[tail])
 }
 
 head <- function(x, n = 6L, ...) {
@@ -69,26 +70,35 @@ tail <- function(x, n = 6L, ...) {
   x[seq.int(to = len, length.out = n)]
 }
 
+# yes is evaluated only when some element of test is true, no only when some
+# is false (their promises are forced inside fill)
 ifelse <- function(test, yes, no) {
-  if (is.atomic(test)) {
-    if (typeof(test) != "logical") storage.mode(test) <- "logical"
-  } else test <- as.logical(test)
-  ans <- test
-  len <- length(ans)
-  ypos <- which(test)
-  npos <- which(!test)
-  if (length(ypos) > 0L) ans[ypos] <- rep(yes, length.out = len)[ypos]
-  if (length(npos) > 0L) ans[npos] <- rep(no, length.out = len)[npos]
-  ans
+  flag <- if (!is.atomic(test)) as.logical(test)
+          else if (is.logical(test)) test
+          else `storage.mode<-`(test, "logical")
+  out <- flag
+  size <- length(flag)
+  fill <- function(where, from) {
+    if (length(where) > 0L) out[where] <<- rep(from, length.out = size)[where]
+  }
+  fill(which(flag), yes)
+  fill(which(!flag), no)
+  out
 }
 
 nrow <- function(x) dim(x)[1L]
 
 ncol <- function(x) dim(x)[2L]
 
-NROW <- function(x) if (length(d <- dim(x))) d[1L] else length(x)
+NROW <- function(x) {
+  extent <- dim(x)
+  if (is.null(extent)) length(x) else extent[1L]
+}
 
-NCOL <- function(x) if (length(d <- dim(x)) > 1L) d[2L] else 1L
+NCOL <- function(x) {
+  extent <- dim(x)
+  if (length(extent) < 2L) 1L else extent[2L]
+}
 
 lengths <- function(x, use.names = TRUE) {
   ans <- vapply(x, length, 1L, USE.NAMES = FALSE)
