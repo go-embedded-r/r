@@ -509,3 +509,27 @@ as.list.factor(factor(c("p", "q", "p")))
 as.list.function(function(a, b = 3) a * b)
 #---
 with.default(list(a = 4), a * a)
+#---
+within(list(a = 1, b = 2), c <- a + b)
+#---
+within(list(a = 1, b = 2), { c <- a + b; d <- c * 2 })
+#---
+within(list(a = 1, b = 2), { a <- 10 })
+#---
+within(list(a = 1, b = 2), rm(a))
+#---
+within(list(a = 1, b = 2), { d <- 4; a <- 0; e <- 5 })
+#---
+class(within(list(a = 1), b <- 2))
+#---
+within(list(), x <- 1)
+#---
+within(list(a = 1), NULL)
+#---
+within(structure(list(a = 1), class = "rec"), b <- a + 1)
+#---
+k <- 5; within(list(a = 1), b <- a + k)
+#---
+within(c(a = 1, b = 2), z <- 3)
+#---
+within.list(list(p = 1), q <- p * 3)

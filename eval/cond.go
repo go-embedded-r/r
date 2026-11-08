@@ -78,6 +78,14 @@ func condCall(v Value) *Lang {
 
 // callFunction applies a function value to evaluated arguments.
 func (s *Session) callFunction(fn Value, args []Value) Value {
+	// a function called from here (a handler, an active binding) may call
+	// back into the code that called it without any call in between that
+	// would count: the depth limit is checked here too
+	s.depth++
+	defer func() { s.depth-- }()
+	if s.depth > s.opts.MaxDepth {
+		s.errorf(nil, "evaluation nested too deeply: infinite recursion / options(expressions=)?")
+	}
 	call := &Lang{Fun: Intern("h")}
 	for _, a := range args {
 		call.Args = append(call.Args, Arg{Value: a})
