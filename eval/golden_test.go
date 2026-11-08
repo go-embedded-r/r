@@ -1,6 +1,7 @@
 package eval_test
 
 import (
+	"runtime"
 	"testing"
 
 	"github.com/go-embedded-r/r/internal/evalcheck"
@@ -18,12 +19,16 @@ func TestGoldens(t *testing.T) {
 	if len(recs) < 250 {
 		t.Fatalf("only %d records", len(recs))
 	}
-	bad := 0
+	bad, skipped := 0, 0
 	for _, rec := range recs {
+		if rec.Platform != "" && rec.Platform != runtime.GOOS {
+			skipped++ // recorded for another platform, where R's C library answers differently
+			continue
+		}
 		if why := evalcheck.Check(rec); why != "" {
 			bad++
 			t.Errorf("%q: %s", rec.Src, why)
 		}
 	}
-	t.Logf("%d of %d snippets agree with R", len(recs)-bad, len(recs))
+	t.Logf("%d of %d snippets agree with R (%d recorded for another platform, not compared here)", len(recs)-bad-skipped, len(recs)-skipped, skipped)
 }

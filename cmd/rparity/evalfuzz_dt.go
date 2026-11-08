@@ -15,9 +15,6 @@ const (
 	// the years after 2037, beyond the tabulated zone rules, where R and Go
 	// extrapolate daylight-saving time their own ways
 	exclPost2037 = "post2037"
-	// %s of a time in a zone with daylight-saving time: R's value follows the
-	// platform's strftime, not the zone's offset
-	exclEpochS = "epochs"
 )
 
 // fuzzDatetime builds a random program over dates and times: formatting with
@@ -42,7 +39,7 @@ func fuzzDatetime(r *rand.Rand) string {
 	day := func() string { return fmt.Sprintf("%04d-%02d-%02d", 1971+r.Intn(67), 1+r.Intn(12), 1+r.Intn(28)) }
 	fmts := []string{
 		"%Y-%m-%d %H:%M:%S", "%d/%m/%Y", "%A %d %B %Y", "%a %b %e", "%H:%M", "%I:%M %p", "%j", "%U %W %u %w",
-		"%y%m%d", "%G-W%V-%u", "%D", "%F %T", "%R", "%c", "%x %X", "%Z %z", "%e|%k|%l", "%C %y", "%h %%", "%OS3", "%H:%M:%OS2",
+		"%y%m%d", "%G-W%V-%u", "%D", "%F %T", "%R", "%c", "%x %X", "%Z %z", "%e|%k|%l", "%C %y", "%h %%", "%OS3", "%H:%M:%OS2", "%s", "%s %Z", "%z %s",
 	}
 	tz := func() string { return "tz = \"" + pick(zones) + "\"" }
 	ct := func() string { return "as.POSIXct(\"" + stamp(1971, 67) + "\", " + tz() + ")" }
@@ -106,12 +103,7 @@ func fuzzDatetime(r *rand.Rand) string {
 func fuzzDatetimeExcluded(r *rand.Rand) string {
 	pick := func(p []string) string { return p[r.Intn(len(p))] }
 	var class, prog string
-	switch r.Intn(5) {
-	case 4:
-		class = exclEpochS
-		prog = fmt.Sprintf("format(as.POSIXct(\"%04d-%02d-%02d 12:00:00\", tz = \"%s\"), \"%%s\")",
-			1971+r.Intn(67), 1+r.Intn(12), 1+r.Intn(28),
-			pick([]string{"UTC", "Asia/Tokyo", "Europe/Paris", "America/New_York", "Australia/Sydney", "Europe/London"}))
+	switch r.Intn(4) {
 	case 3:
 		class = exclPost2037
 		prog = fmt.Sprintf("format(as.POSIXct(\"%04d-%02d-%02d %02d:%02d:00\", tz = \"%s\"), \"%%s|%%Z|%%H|%%z\")",

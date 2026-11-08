@@ -266,10 +266,53 @@ type EvalRecord struct {
 	Stderr   string   `json:"stderr,omitempty"` // message() output
 	Error    string   `json:"error,omitempty"`  // conditionMessage
 	Call     string   `json:"call,omitempty"`   // deparsed conditionCall
+	// Platform, when set, is the GOOS of the machine R ran on: the record
+	// says what R does there (its C library's strftime, say), and is compared
+	// only on that platform.
+	Platform string `json:"platform,omitempty"`
+}
+
+// PlatformOf is the platform a snippet file is for: platform_darwin.R is
+// for darwin; any other file is for all of them.
+func PlatformOf(file string) string {
+	if p, ok := strings.CutPrefix(file, "platform_"); ok {
+		return strings.TrimSuffix(p, ".R")
+	}
+	return ""
+}
+
+// EvalInputsByPlatform reads the snippets under testdata/eval: those for
+// every platform, and those for one platform, keyed by its GOOS.
+func EvalInputsByPlatform(root string) (common []string, byPlatform map[string][]string, err error) {
+	entries, err := os.ReadDir(filepath.Join(root, "testdata/eval"))
+	if err != nil {
+		return nil, nil, err
+	}
+	byPlatform = map[string][]string{}
+	for _, e := range entries {
+		if !strings.HasSuffix(e.Name(), ".R") {
+			continue
+		}
+		s, err := ReadSnippets(root, "testdata/eval/"+e.Name())
+		if err != nil {
+			return nil, nil, err
+		}
+		if p := PlatformOf(e.Name()); p != "" {
+			byPlatform[p] = append(byPlatform[p], s...)
+		} else {
+			common = append(common, s...)
+		}
+	}
+	return common, byPlatform, nil
 }
 
 // EvalGolden asks R to evaluate each snippet as a cell.
 func EvalGolden(o parity.Oracle, snippets []string) ([]byte, error) {
+	return EvalGoldenFor(o, snippets, "")
+}
+
+// EvalGoldenFor is EvalGolden with the records marked as for a platform.
+func EvalGoldenFor(o parity.Oracle, snippets []string, platform string) ([]byte, error) {
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	enc.SetEscapeHTML(false)
@@ -296,7 +339,7 @@ func EvalGolden(o parity.Oracle, snippets []string) ([]byte, error) {
 			}
 			return ""
 		}
-		rec := EvalRecord{Src: s}
+		rec := EvalRecord{Src: s, Platform: platform}
 		if lg, ok := f["ok"].(*rds.Logical); ok && len(lg.V) == 1 && lg.V[0] == 1 {
 			rec.OK = true
 			if raw, ok := f["bytes"].(*rds.Raw); ok {

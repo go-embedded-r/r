@@ -163,7 +163,7 @@ func evalfuzzCmd() *cobra.Command {
 						e[0]++
 						if why != "" {
 							switch cls {
-							case exclInstalled, exclHash, exclTzAbbrev, exclDstGap, exclPost2037, exclEpochS:
+							case exclInstalled, exclHash, exclTzAbbrev, exclDstGap, exclPost2037:
 								e[1]++ // a known divergence, listed in the README
 							default:
 								bad++
@@ -212,7 +212,7 @@ func evalfuzzCmd() *cobra.Command {
 					total += e[0]
 				}
 				fmt.Fprintf(c.OutOrStdout(), "  exclusions, counted (%d cases, not in the figures above):\n", total)
-				for _, cls := range []string{exclAddr, exclBuiltin, exclInstalled, exclHash, exclPre1902, exclTzAbbrev, exclDstGap, exclPost2037, exclEpochS} {
+				for _, cls := range []string{exclAddr, exclBuiltin, exclInstalled, exclHash, exclPre1902, exclTzAbbrev, exclDstGap, exclPost2037} {
 					e, used := excl[cls]
 					if !used {
 						continue
@@ -225,7 +225,6 @@ func evalfuzzCmd() *cobra.Command {
 						exclPre1902:   "years before 1902: R warns once per session, so warnings are not compared; everything else exactly",
 						exclTzAbbrev:  "the tzone attribute of a time zone with unusual daylight abbreviations; compared exactly, differences are known divergences",
 						exclDstGap:    "local times that a daylight-saving change skips or repeats; compared exactly, differences are known divergences",
-						exclEpochS:    "%s (seconds since the epoch) of a time in a zone with daylight-saving time; compared exactly, differences are known divergences",
 						exclPost2037:  "years after 2037 in zones with daylight-saving time (%s, %Z, %z there); compared exactly, differences are known divergences",
 					}[cls]
 					fmt.Fprintf(c.OutOrStdout(), "    %-10s %5d cases, %d differ (%s)\n", cls, e[0], e[1], how)
