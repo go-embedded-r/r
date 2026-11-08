@@ -155,9 +155,9 @@ func init() {
 						break
 					}
 				}
-				target.set(sym, v)
+				s.assignTo(target, sym, v, s.currentCall())
 			} else {
-				c.env.set(sym, v)
+				s.assignTo(c.env, sym, v, s.currentCall())
 			}
 			s.visible = false
 			return v

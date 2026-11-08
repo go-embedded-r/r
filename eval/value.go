@@ -233,6 +233,8 @@ func attrsOf(v Value) []Attr {
 		return x.Attr
 	case *List:
 		return x.Attr
+	case *Env:
+		return x.attrs
 	}
 	return nil
 }
@@ -266,6 +268,10 @@ func withAttr(v Value, attr []Attr) Value {
 		return &String{V: x.V, Attr: attr}
 	case *List:
 		return &List{V: x.V, Attr: attr}
+	case *Env:
+		// environments have reference semantics: the attributes change in place
+		x.attrs = attr
+		return x
 	}
 	return v
 }
@@ -468,6 +474,9 @@ func ToRDS(v Value) rds.Value {
 	case nullT:
 		return rds.Null
 	case *Env:
+		if x.ns && x.alias != nil {
+			return rds.BaseNamespace
+		}
 		switch x.name {
 		case "R_GlobalEnv":
 			return rds.GlobalEnv

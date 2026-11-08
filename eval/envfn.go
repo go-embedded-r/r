@@ -65,7 +65,7 @@ func envName(s *Session, e *Env) string {
 	switch e {
 	case s.Global:
 		return "R_GlobalEnv"
-	case s.Base:
+	case s.Base, s.BaseNS:
 		return "base"
 	case s.Empty:
 		return "R_EmptyEnv"
@@ -83,7 +83,7 @@ func (s *Session) getVar(name string, env *Env, inherits bool, fnOnly bool) (Val
 	sym := Intern(name)
 	for e := env; e != nil; e = e.parent {
 		if b := e.lookup(sym); b != nil {
-			v := b.val
+			v := s.bval(b)
 			if p, ok := v.(*Promise); ok {
 				v = s.force(p)
 			}
@@ -148,7 +148,6 @@ func init() {
 	regBuiltin("globalenv", func(s *Session, c *callInfo) Value { return s.Global })
 	regBuiltin("emptyenv", func(s *Session, c *callInfo) Value { return s.Empty })
 	regBuiltin("baseenv", func(s *Session, c *callInfo) Value { return s.Base })
-	regBuiltin("topenv", func(s *Session, c *callInfo) Value { return s.Global })
 	regBuiltin("parent.env", func(s *Session, c *callInfo) Value {
 		a := s.matchFormals(c, "env")
 		e, ok := a[0].(*Env)
@@ -172,13 +171,6 @@ func init() {
 		}
 		e.parent = p
 		return e
-	})
-	regBuiltin("environmentName", func(s *Session, c *callInfo) Value {
-		a := s.matchFormals(c, "env")
-		if e, ok := a[0].(*Env); ok {
-			return mkString(envName(s, e))
-		}
-		return mkString("")
 	})
 	regBuiltin("parent.frame", func(s *Session, c *callInfo) Value {
 		a := s.matchFormals(c, "n")
@@ -257,7 +249,7 @@ func init() {
 				target = e
 			}
 		}
-		target.set(sym, a[1])
+		s.assignTo(target, sym, a[1], c.call)
 		return s.invisible(a[1])
 	})
 	regBuiltin("get", func(s *Session, c *callInfo) Value {
@@ -265,7 +257,7 @@ func init() {
 		if a[0] == nil {
 			s.errorf(c.call, "argument \"x\" is missing, with no default")
 		}
-		name := s.stringArg(c, a[0], "first")
+		name := s.nameArg(c, a[0])
 		env := c.env
 		if a[2] != nil {
 			env = s.envArg(c, a[2], "envir")
@@ -273,11 +265,11 @@ func init() {
 			env = e
 		}
 		inherits := a[4] == nil || s.truthy(c, a[4], "inherits")
-		fnOnly := s.modeIsFunction(c, a[3])
-		v, ok := s.getVar(name, env, inherits, fnOnly)
+		mode := s.modeArg(c, a[3])
+		v, ok := s.lookupMode(name, env, inherits, mode, true)
 		if !ok {
-			if fnOnly {
-				s.errorf(c.call, "object '%s' of mode 'function' was not found", name)
+			if mode != "any" {
+				s.errorf(c.call, "object '%s' of mode '%s' was not found", name, mode)
 			}
 			s.errorf(c.call, "object '%s' not found", name)
 		}
@@ -288,13 +280,13 @@ func init() {
 		if a[0] == nil {
 			s.errorf(c.call, "argument \"x\" is missing, with no default")
 		}
-		name := s.stringArg(c, a[0], "first")
+		name := s.nameArg(c, a[0])
 		env := c.env
 		if a[1] != nil {
 			env = s.envArg(c, a[1], "envir")
 		}
 		inherits := a[3] == nil || s.truthy(c, a[3], "inherits")
-		if v, ok := s.getVar(name, env, inherits, s.modeIsFunction(c, a[2])); ok {
+		if v, ok := s.lookupMode(name, env, inherits, s.modeArg(c, a[2]), true); ok {
 			return v
 		}
 		if a[4] != nil {
@@ -307,7 +299,7 @@ func init() {
 		if a[0] == nil {
 			s.errorf(c.call, "argument \"x\" is missing, with no default")
 		}
-		name := s.stringArg(c, a[0], "first")
+		name := s.nameArg(c, a[0])
 		env := c.env
 		if a[2] != nil {
 			env = s.envArg(c, a[2], "envir")
@@ -315,7 +307,7 @@ func init() {
 			env = e
 		}
 		inherits := a[5] == nil || s.truthy(c, a[5], "inherits")
-		_, ok := s.getVar(name, env, inherits, s.modeIsFunction(c, a[4]))
+		_, ok := s.lookupMode(name, env, inherits, s.modeArg(c, a[4]), false)
 		return mkLogical(ok)
 	})
 	regBuiltin("ls", func(s *Session, c *callInfo) Value {
@@ -343,8 +335,11 @@ func init() {
 	regSpecial("rm", func(s *Session, c *callInfo) Value {
 		env := c.env
 		var names []string
+		inherits := false
 		for _, ra := range c.raw {
 			switch {
+			case ra.HasName && ra.Name == "inherits":
+				inherits = s.truthy(c, s.eval(ra.Value, c.env), "inherits")
 			case ra.HasName && ra.Name == "list":
 				v := s.eval(ra.Value, c.env)
 				if st, ok := v.(*String); ok {
@@ -369,31 +364,69 @@ func init() {
 			}
 		}
 		for _, n := range names {
-			if !env.remove(Intern(n)) {
+			sym := Intern(n)
+			target := env
+			if inherits {
+				_, e := env.find(sym)
+				if e == nil {
+					// the search ends at the empty environment, which holds no bindings
+					s.errorf(c.call, "cannot remove bindings from a locked environment")
+				}
+				target = e
+			}
+			switch env { // the base environments named by the call itself
+			case s.BaseNS:
+				s.errorf(c.call, "cannot remove variables from base namespace")
+			case s.Base:
+				s.errorf(c.call, "cannot remove variables from the base environment")
+			}
+			if target.frame().locked {
+				s.errorf(c.call, "cannot remove bindings from a locked environment")
+			}
+			if !target.remove(sym) {
 				s.warningf(c.call, "object '%s' not found", n)
 			}
 		}
 		return s.invisible(Null)
 	})
 	regSpecial("local", func(s *Session, c *callInfo) Value {
-		var expr Value
-		env := (*Env)(nil)
-		haveExpr := false
+		// local(expr, envir = new.env()): R runs eval(quote(expr), envir)
+		var expr, envirExpr Value
+		haveExpr, haveEnvir := false, false
 		for _, ra := range c.raw {
 			switch {
 			case ra.HasName && ra.Name == "envir":
-				env = s.envArg(c, s.eval(ra.Value, c.env), "envir")
-			case ra.HasName && ra.Name == "expr", !ra.HasName && !haveExpr:
+				envirExpr, haveEnvir = ra.Value, true
+			case ra.HasName && ra.Name == "expr":
 				expr, haveExpr = ra.Value, true
 			}
 		}
+		for _, ra := range c.raw {
+			if ra.HasName {
+				continue
+			}
+			if !haveExpr {
+				expr, haveExpr = ra.Value, true
+			} else if !haveEnvir {
+				envirExpr, haveEnvir = ra.Value, true
+			}
+		}
+		quoted := &Lang{Fun: Intern("quote")}
+		if haveExpr {
+			quoted.Args = []Arg{{Value: expr}}
+		}
+		if !haveEnvir {
+			envirExpr = &Lang{Fun: Intern("new.env")}
+		}
+		evalCall := &Lang{Fun: Intern("eval"), Args: []Arg{{Value: quoted}, {Value: envirExpr}}}
 		if !haveExpr {
-			s.errorf(c.call, "argument \"expr\" is missing, with no default")
+			s.errorf(evalCall, "argument is missing, with no default")
 		}
-		if env == nil {
-			env = NewEnv(c.env)
+		env := NewEnv(c.env)
+		if haveEnvir {
+			env = s.envArg(c, s.eval(envirExpr, c.env), "envir")
 		}
-		return s.eval(expr, env)
+		return s.underEval(evalCall, func() Value { return s.eval(expr, env) })
 	})
 	regSpecial("evalq", func(s *Session, c *callInfo) Value {
 		if len(c.raw) == 0 {
@@ -403,7 +436,7 @@ func init() {
 		if len(c.raw) > 1 {
 			env = s.evalEnvArg(c, s.eval(c.raw[1].Value, c.env), nil)
 		}
-		return s.eval(c.raw[0].Value, env)
+		return s.underEval(c.call, func() Value { return s.eval(c.raw[0].Value, env) })
 	})
 	regBuiltin("eval", func(s *Session, c *callInfo) Value {
 		a := s.matchFormals(c, "expr", "envir", "enclos")
@@ -420,7 +453,7 @@ func init() {
 		}
 		switch x := a[0].(type) {
 		case *Lang, *Symbol:
-			return s.eval(x, env)
+			return s.underEval(c.call, func() Value { return s.eval(x, env) })
 		}
 		s.visible = true
 		return a[0]
@@ -430,6 +463,8 @@ func init() {
 		switch x := a[0].(type) {
 		case *Env:
 			return x
+		case nullT:
+			s.errorf(c.call, "using 'as.environment(NULL)' is defunct")
 		case *List:
 			e := NewEnv(s.Empty)
 			s.fillEnv(c, e, x)
@@ -439,8 +474,14 @@ func init() {
 				return s.Global
 			}
 		case *String:
-			if len(x.V) == 1 && (x.V[0].S == ".GlobalEnv" || x.V[0].S == "R_GlobalEnv") {
-				return s.Global
+			if len(x.V) == 1 {
+				switch x.V[0].S {
+				case ".GlobalEnv", "R_GlobalEnv":
+					return s.Global
+				case "package:base":
+					return s.Base
+				}
+				s.errorf(c.call, "no item called \"%s\" on the search list", x.V[0].S)
 			}
 		}
 		s.errorf(c.call, "invalid object for 'as.environment'")
@@ -466,7 +507,7 @@ func init() {
 		return env
 	})
 	regBuiltin("mget", func(s *Session, c *callInfo) Value {
-		a := s.matchFormals(c, "x", "envir")
+		a := s.matchFormals(c, "x", "envir", "mode", "ifnotfound", "inherits")
 		env := c.env
 		if a[1] != nil {
 			env = s.envArg(c, a[1], "envir")
@@ -475,11 +516,47 @@ func init() {
 		if !ok {
 			s.errorf(c.call, "invalid first argument")
 		}
-		out := &List{V: make([]Value, len(st.V)), Attr: namesAttr(st.V)}
-		for i, n := range st.V {
-			v, found := s.getVar(n.S, env, false, false)
+		n := len(st.V)
+		modes := []string{"any"}
+		if a[2] != nil {
+			ms, ok := a[2].(*String)
+			if !ok || len(ms.V) == 0 {
+				s.errorf(c.call, "invalid 'mode' argument")
+			}
+			modes = modes[:0]
+			for _, m := range ms.V {
+				modes = append(modes, m.S)
+			}
+		}
+		var nf []Value
+		if a[3] != nil {
+			if l, isList := a[3].(*List); isList {
+				nf = l.V
+			} else {
+				nf = s.asListElems(c, a[3])
+			}
+			if len(nf) != 1 && len(nf) != n {
+				s.errorf(c.call, "wrong length for 'ifnotfound' argument")
+			}
+		}
+		inherits := a[4] != nil && s.truthy(c, a[4], "inherits")
+		out := &List{V: make([]Value, n)}
+		if n > 0 {
+			out.Attr = namesAttr(st.V)
+		} else {
+			out.Attr = []Attr{{Name: "names", Value: &String{V: []Str{}}}}
+		}
+		for i, name := range st.V {
+			v, found := s.lookupMode(name.S, env, inherits, modes[i%len(modes)], true)
 			if !found {
-				s.errorf(c.call, "value for '%s' not found", n.S)
+				if nf == nil {
+					s.errorf(nil, "value for ‘%s’ not found", name.S)
+				}
+				v = nf[i%len(nf)]
+				switch v.(type) {
+				case *Closure, *Builtin:
+					v = s.callFunction(v, []Value{mkString(name.S)})
+				}
 			}
 			out.V[i] = v
 		}
@@ -503,7 +580,7 @@ func (s *Session) fillEnv(c *callInfo, e *Env, l *List) {
 		if nm.V[i].S == "" || nm.V[i].NA {
 			s.errorf(c.call, "attempt to use zero-length variable name")
 		}
-		e.set(Intern(nm.V[i].S), v)
+		s.assignTo(e, Intern(nm.V[i].S), v, c.call)
 	}
 }
 
@@ -530,6 +607,10 @@ func (s *Session) evalEnvArg(c *callInfo, v Value, enclos *Env) *Env {
 			enclos = c.env
 		}
 		return NewEnv(enclos)
+	case *Double, *Integer:
+		if Length(v) != 1 {
+			s.errorf(c.call, "numeric 'envir' arg not of length one")
+		}
 	}
 	s.errorf(c.call, "invalid 'envir' argument of type '%s'", typeName(v))
 	return nil
@@ -545,6 +626,9 @@ func (s *Session) truthy(c *callInfo, v Value, what string) bool {
 
 // remove deletes sym from the frame; it reports whether it was bound.
 func (e *Env) remove(sym *Symbol) bool {
+	if e.alias != nil {
+		return e.alias.remove(sym)
+	}
 	if e.lookup(sym) == nil {
 		return false
 	}

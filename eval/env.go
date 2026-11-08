@@ -14,12 +14,24 @@ type Env struct {
 	fn      *Closure // the function whose frame this is, nil otherwise
 	locked  bool
 	name    string
+	// special is set once the frame holds a locked or active binding, or is
+	// locked itself: only then does an assignment take the slow path.
+	special bool
+	// allLocked locks every binding of the frame at once (the base frame).
+	allLocked bool
+	// alias makes this environment another name for the frame of alias (the
+	// base namespace shares the frame of the base environment).
+	alias *Env
+	// ns says the environment is a namespace.
+	ns    bool
+	attrs []Attr
 }
 
 type binding struct {
 	sym    *Symbol
 	val    Value
 	locked bool
+	active Value // the function of an active binding, nil for a regular one
 }
 
 const smallMax = 8
@@ -33,6 +45,9 @@ func NewEnv(parent *Env) *Env { return &Env{parent: parent} }
 func (e *Env) Parent() *Env { return e.parent }
 
 func (e *Env) lookup(sym *Symbol) *binding {
+	if e.alias != nil {
+		return e.alias.lookup(sym)
+	}
 	if e.big != nil {
 		return e.big[sym]
 	}
@@ -54,6 +69,10 @@ func (e *Env) Get(name string) (Value, bool) {
 
 // set binds sym in this frame.
 func (e *Env) set(sym *Symbol, v Value) {
+	if e.alias != nil {
+		e.alias.set(sym, v)
+		return
+	}
 	if b := e.lookup(sym); b != nil {
 		b.val = v
 		delete(e.missing, sym) // assigning to a formal makes it not missing
@@ -82,6 +101,9 @@ func (e *Env) Set(name string, v Value) { e.set(Intern(name), v) }
 
 // Names lists the bound names in order of creation (ls(sorted = FALSE)).
 func (e *Env) Names() []string {
+	if e.alias != nil {
+		return e.alias.Names()
+	}
 	out := make([]string, len(e.order))
 	for i, s := range e.order {
 		out[i] = s.Name

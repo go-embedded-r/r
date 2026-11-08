@@ -81,6 +81,9 @@ func (s *Session) evalSym(sym *Symbol, env *Env) Value {
 	if b == nil {
 		s.errorf(s.currentCall(), "object '%s' not found", sym.Name)
 	}
+	if b.active != nil {
+		return s.callFunction(b.active, nil)
+	}
 	switch x := b.val.(type) {
 	case *Promise:
 		return s.force(x)
@@ -109,7 +112,7 @@ func (s *Session) findFun(sym *Symbol, env *Env, call *Lang) Value {
 		if b == nil {
 			continue
 		}
-		v := b.val
+		v := s.bval(b)
 		if p, ok := v.(*Promise); ok {
 			v = s.force(p)
 		}

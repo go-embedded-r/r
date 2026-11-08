@@ -2,9 +2,9 @@ package eval
 
 // setVar binds sym in env, or for <<- in the nearest enclosing environment
 // that has it (the global one when none does).
-func (s *Session) setVar(env *Env, sym *Symbol, v Value, super bool) {
+func (s *Session) setVar(env *Env, sym *Symbol, v Value, super bool, call *Lang) {
 	if !super {
-		env.set(sym, v)
+		s.assignTo(env, sym, v, call)
 		return
 	}
 	target := s.Global
@@ -14,7 +14,7 @@ func (s *Session) setVar(env *Env, sym *Symbol, v Value, super bool) {
 			break
 		}
 	}
-	target.set(sym, v)
+	s.assignTo(target, sym, v, call)
 }
 
 // targetValue is the current value of the variable (or expression) that a
@@ -45,6 +45,9 @@ func (s *Session) targetValue(c *callInfo, inner Value, super bool) Value {
 	if b == nil {
 		s.errorf(nil, "object '%s' not found", sym.Name)
 	}
+	if b.active != nil {
+		return s.callFunction(b.active, nil)
+	}
 	switch v := b.val.(type) {
 	case *Promise:
 		return s.force(v)
@@ -59,12 +62,12 @@ func (s *Session) targetValue(c *callInfo, inner Value, super bool) Value {
 func (s *Session) complexAssign(c *callInfo, target Value, value Value, super bool) {
 	switch t := target.(type) {
 	case *Symbol:
-		s.setVar(c.env, t, value, super)
+		s.setVar(c.env, t, value, super, c.call)
 	case *String:
 		if len(t.V) != 1 {
 			s.errorf(c.call, "invalid (do_set) left-hand side to assignment")
 		}
-		s.setVar(c.env, Intern(t.V[0].S), value, super)
+		s.setVar(c.env, Intern(t.V[0].S), value, super, c.call)
 	case *Lang:
 		f, ok := t.Fun.(*Symbol)
 		if !ok {

@@ -540,7 +540,12 @@ func init() {
 		return &Integer{V: out}
 	})
 	regBuiltin("names", func(s *Session, c *callInfo) Value {
-		if n := namesOf(s.nargs1(c, "names")); n != nil {
+		x := s.nargs1(c, "names")
+		if e, ok := x.(*Env); ok {
+			// the names of an environment: its bindings, all of them
+			return strVec(e.Names())
+		}
+		if n := namesOf(x); n != nil {
 			return n
 		}
 		return Null

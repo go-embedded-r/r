@@ -454,7 +454,7 @@ func (s *Session) subassign2(c *callInfo) Value {
 	idx := c.args[1 : len(c.args)-1]
 	if env, ok := x.(*Env); ok {
 		if st, ok := idx[0].(*String); ok && len(idx) == 1 && len(st.V) == 1 {
-			env.set(Intern(st.V[0].S), value)
+			s.assignTo(env, Intern(st.V[0].S), value, c.call)
 			return env
 		}
 		s.errorf(c.call, "wrong args for environment subassignment")
@@ -666,7 +666,7 @@ func (s *Session) subassignDollar(c *callInfo) Value {
 	name := st.V[0].S
 	switch v := x.(type) {
 	case *Env:
-		v.set(Intern(name), value)
+		s.assignTo(v, Intern(name), value, c.call)
 		return v
 	case nullT:
 		if _, vnull := value.(nullT); vnull {

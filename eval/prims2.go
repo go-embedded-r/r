@@ -587,21 +587,6 @@ func init() {
 	}
 	subset(".subset", "[")
 	subset(".subset2", "[[")
-	for _, n := range []string{"::", ":::"} {
-		n := n
-		regSpecial(n, func(s *Session, c *callInfo) Value {
-			if len(c.raw) != 2 {
-				s.errorf(c.call, "bad arguments")
-			}
-			name := symOrString(c.raw[1].Value)
-			if v, ok := s.getVar(name, s.Global, true, false); ok {
-				return v
-			}
-			s.errorf(nil, "object '%s' not found", name)
-			return nil
-		})
-	}
-
 	// matrix products
 	regBuiltin("%*%", func(s *Session, c *callInfo) Value { return s.matprod(c, false, false) })
 	regBuiltin("crossprod", func(s *Session, c *callInfo) Value { return s.matprod(c, true, false) })

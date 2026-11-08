@@ -117,12 +117,14 @@ func init() {
 			return &Integer{V: []int32{}}
 		}
 		n := Length(keys[0])
-		for _, k := range keys {
+		for ki, k := range keys {
 			if Length(k) != n {
 				s.errorf(c.call, "argument lengths differ")
 			}
 			switch k.(type) {
 			case *Logical, *Integer, *Double, *String:
+			case nullT:
+				s.errorf(c.call, "argument %d is not a vector", ki+1)
 			default:
 				s.errorf(c.call, "unimplemented type '%s' in 'orderVector1'\n", typeName(k))
 			}

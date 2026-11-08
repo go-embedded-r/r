@@ -127,17 +127,19 @@ func (e *Error) Unwrap() error { return e.err }
 // Eval to the next. It is not safe for concurrent use.
 type Session struct {
 	Base, Global, Empty *Env
+	BaseNS              *Env // the namespace of base: another name for the base frame
 	opts                Options
 
-	frames   []*frame
-	warnings []Warning
-	visible  bool
-	steps    int
-	depth    int
-	alloc    int64
-	tick     int
-	ctx      context.Context
-	deadline time.Time
+	frames    []*frame
+	evalMarks []evalMark
+	warnings  []Warning
+	visible   bool
+	steps     int
+	depth     int
+	alloc     int64
+	tick      int
+	ctx       context.Context
+	deadline  time.Time
 
 	handlers  []handler
 	restarts  []restartEntry
@@ -155,6 +157,21 @@ type Session struct {
 	flow    flowCode
 	flowVal Value
 	flowEnv *Env
+}
+
+// evalMark records that eval (or evalq, or local) is running code at the
+// given depth of the call stack, and the call that R names for it.
+type evalMark struct {
+	frames int
+	call   *Lang
+}
+
+// underEval runs f as the body of an eval call.
+func (s *Session) underEval(call *Lang, f func() Value) Value {
+	s.evalMarks = append(s.evalMarks, evalMark{frames: len(s.frames), call: call})
+	n := len(s.evalMarks)
+	defer func() { s.evalMarks = s.evalMarks[:n-1] }()
+	return f()
 }
 
 type frame struct {
@@ -196,7 +213,13 @@ func NewSession(opts Options) *Session {
 	s.Base.Set("letters", strVec(lower))
 	s.Base.Set("LETTERS", strVec(upper))
 	s.Global = &Env{parent: s.Base, name: "R_GlobalEnv"}
+	// the namespace of base shares the frame of the base environment
+	s.BaseNS = &Env{alias: s.Base, parent: s.Global, ns: true, special: true}
+	s.Base.Set(".GlobalEnv", s.Global)
+	s.Base.Set(".BaseNamespaceEnv", s.BaseNS)
 	s.installBaselib()
+	// as in R, the base environment and all its bindings are locked
+	s.Base.locked, s.Base.allLocked, s.Base.special = true, true, true
 	s.resetCounters()
 	return s
 }
@@ -225,6 +248,7 @@ func (s *Session) EvalIn(ctx context.Context, src string, env *Env) (res *Result
 	s.warnings = nil
 	s.steps, s.tick, s.alloc, s.depth = 0, 0, 0, 0
 	s.frames = s.frames[:0]
+	s.evalMarks = s.evalMarks[:0]
 	s.handlers, s.restarts = nil, nil
 	s.flow = flowNone
 	s.noDispatch = false
@@ -302,6 +326,11 @@ func (s *Session) warningf(call *Lang, format string, a ...any) {
 // currentCall is the call of the innermost function being evaluated, the
 // call R attaches to errors raised by the evaluator itself.
 func (s *Session) currentCall() *Lang {
+	// code run by eval() is a context of its own in R: an error raised
+	// directly by it names the eval call, until a function is entered
+	if n := len(s.evalMarks); n > 0 && s.evalMarks[n-1].frames == len(s.frames) {
+		return s.evalMarks[n-1].call
+	}
 	if n := len(s.frames); n > 0 {
 		return s.frames[n-1].call
 	}

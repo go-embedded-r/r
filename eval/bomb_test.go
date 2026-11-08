@@ -146,6 +146,25 @@ func TestColonInfInf(t *testing.T) {
 	}
 }
 
+// Environments: an active binding that reads itself, a promise that needs
+// itself, and bindings added without end are all refused, and the locks of the
+// session's base environment hold.
+func TestEnvironmentBombs(t *testing.T) {
+	underMemoryLimit(t)
+	s := eval.NewSession(eval.Options{})
+	refused(t, s, "makeActiveBinding(\"x\", function() x, environment()); x", "nested too deeply")
+	refused(t, s, "e <- new.env(); makeActiveBinding(\"z\", function() as.list(e), e); as.list(e)", "nested too deeply")
+	refused(t, s, "f <- function() { makeActiveBinding(\"q\", function() f(), environment()); q }; f()", "nested too deeply")
+	refused(t, s, "delayedAssign(\"p\", p); p", "promise already under evaluation")
+	refused(t, s, "delayedAssign(\"a\", b); delayedAssign(\"b\", a); a", "promise already under evaluation")
+	small := eval.NewSession(eval.Options{MaxSteps: 100000})
+	refused(t, small, "e <- new.env(); for (i in 1:2e7) assign(paste0(\"v\", i), i, e)", "step limit")
+	refused(t, s, "assign(\"sum\", 1, envir = baseenv())", "locked binding")
+	refused(t, s, "assign(\"mine\", 1, envir = baseenv())", "base environment")
+	refused(t, s, "rm(\"sum\", envir = baseenv())", "base environment")
+	refused(t, s, "e <- new.env(); lockEnvironment(e); assign(\"x\", 1, e)", "locked environment")
+}
+
 // Text built by sprintf, formatC and strrep counts against MaxAlloc: many
 // strings of moderate width are a bomb as well.
 func TestTextBombs(t *testing.T) {

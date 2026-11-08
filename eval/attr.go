@@ -159,6 +159,9 @@ func (s *Session) needVector(c *callInfo, x Value, what string) {
 	if _, isNull := x.(nullT); isNull {
 		s.errorf(c.call, "attempt to set an attribute on NULL")
 	}
+	if _, isEnv := x.(*Env); isEnv && what == "an attribute" {
+		return
+	}
 	if !isVector(x) {
 		s.errorf(c.call, "cannot set %s on this object", what)
 	}
@@ -242,7 +245,7 @@ func (s *Session) setClass(c *callInfo, x, value Value) Value {
 	if _, isNull := x.(nullT); isNull {
 		s.errorf(c.call, "attempt to set an attribute on NULL")
 	}
-	if !isVector(x) {
+	if _, isEnv := x.(*Env); !isVector(x) && !isEnv {
 		s.errorf(c.call, "cannot set class on this object")
 	}
 	switch v := value.(type) {
@@ -407,6 +410,9 @@ func init() {
 		x := s.nargs1(c, "unclass")
 		if getAttr(x, "class") == nil {
 			return x
+		}
+		if _, isEnv := x.(*Env); isEnv {
+			s.errorf(c.call, "cannot unclass an environment")
 		}
 		return setAttr(x, "class", Null)
 	})
