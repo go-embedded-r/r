@@ -460,6 +460,21 @@ var guardAttempts = []string{
 	".Internal(print.function(errorCondition, FALSE, NULL))",
 	"do.call('deparse', list(errorCondition))",
 	"Reduce(function(a, b) b, list(1, errorCondition))",
+	// short bodies: there is no size below which a copy is let through
+	"identity",
+	"f <- identity; environment(f) <- globalenv(); f",
+	"f <- nlevels; environment(f) <- globalenv(); print(f)",
+	"f <- isTRUE; environment(f) <- globalenv(); deparse(f)",
+	"f <- isTRUE; environment(f) <- globalenv(); as.list(f)",
+	"f <- identity; environment(f) <- emptyenv(); f",
+	"f <- identity; attr(f, 'x') <- 1; f",
+	"g <- function() NULL; body(g) <- body(identity); g",
+	"as.function(c(formals(identity), quote(x)))",
+	"as.function(c(formals(isTRUE), body(isTRUE)))",
+	"lapply(list(identity), function(z) z)",
+	"f <- print; environment(f) <- globalenv(); f", // a reader, as wrapped
+	// a long body whose formals were changed
+	"f <- errorCondition; environment(f) <- globalenv(); formals(f) <- alist(zz = ); f",
 }
 
 func TestLiveBaseClosuresAreRefused(t *testing.T) {

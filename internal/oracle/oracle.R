@@ -42,9 +42,13 @@ local({
   # of its supplied arguments prepended to its body, so its formals, calls and
   # errors stay what R has. The check, and what it needs, are copies made
   # before any function is changed. A request cannot reach .Internal (refused
-  # in the source). Copies of a base closure made in the global environment are
-  # recognised by a fingerprint of the body (bodies under 100 serialized bytes,
-  # such as `function(x) x`, are not: independent code has them too).
+  # in the source). A copy of a base closure made elsewhere (environment<-,
+  # body<-, as.function) is recognised by identical(): the body and formals
+  # equal those of a function of the packages (a body of 100 serialized bytes
+  # or more is matched without the formals, so that changing them does not
+  # help). There is no size below which a body is let through: a user function
+  # that is textually a base function, such as `function(x) x` (identity), is
+  # refused too.
   refusal <- "oracle: printing base closures is disallowed by the clean-room rule"
   guard_pkgs <- c("base", "stats", "utils", "methods", "graphics", "grDevices",
                   "datasets", "tools", "grid", "splines", "stats4", "parallel",
@@ -52,23 +56,17 @@ local({
   orig <- list(serialize = serialize, body = body, as.list = as.list,
                set_body = `body<-`, topenv = topenv, envname = environmentName,
                environment = environment, is.function = is.function,
-               is.primitive = is.primitive)
-  fingerprint <- function(f) {
-    s <- orig$serialize(orig$body(f), NULL, version = 3L)
-    if (length(s) < 100L) return(NA_character_)
-    paste(length(s), sum(as.numeric(s) * ((seq_along(s) %% 251L) + 1)))
+               is.primitive = is.primitive, formals = formals)
+  # a cheap key for the body, then identical() decides
+  body_key <- function(b) {
+    s <- orig$serialize(b, NULL, version = 3L)
+    list(key = paste(length(s), sum(as.numeric(s) * ((seq_along(s) %% 251L) + 1))),
+         long = length(s) >= 100L)
   }
-  registry <- new.env(hash = TRUE, parent = emptyenv())
-  for (pkg in intersect(guard_pkgs, loadedNamespaces())) {
-    ns <- asNamespace(pkg)
-    for (nm in ls(ns, all.names = TRUE)) {
-      f <- tryCatch(get0(nm, envir = ns, inherits = FALSE), error = function(e) NULL)
-      if (orig$is.function(f) && !orig$is.primitive(f)) {
-        fp <- tryCatch(fingerprint(f), error = function(e) NA_character_)
-        if (!is.na(fp)) assign(fp, TRUE, envir = registry)
-      }
-    }
-  }
+  # a reader as wrapped: its body starts with the guard (serializing it would
+  # drag in the guard's environment, so it is recognised by that first step)
+  is_wrapper <- function(b) is.call(b) && length(b) >= 2L && identical(b[[2L]], guard_call)
+  registry <- NULL  # built below, once the readers are wrapped (their bodies change)
   busy <- FALSE
   is_base_closure <- function(f) {
     if (!orig$is.function(f) || orig$is.primitive(f)) return(FALSE)
@@ -76,8 +74,14 @@ local({
     if (is.environment(env) &&
         orig$envname(tryCatch(orig$topenv(env), error = function(e) emptyenv())) %in% guard_pkgs)
       return(TRUE)
-    fp <- tryCatch(fingerprint(f), error = function(e) NA_character_)
-    !is.na(fp) && exists(fp, envir = registry, inherits = FALSE)
+    b <- orig$body(f)
+    if (is_wrapper(b)) return(TRUE)
+    k <- tryCatch(body_key(b), error = function(e) NULL)
+    if (is.null(k) || !exists(k$key, envir = registry, inherits = FALSE)) return(FALSE)
+    fm <- orig$formals(f)
+    for (known in get(k$key, envir = registry, inherits = FALSE))
+      if (identical(known$body, b) && (k$long || identical(known$formals, fm))) return(TRUE)
+    FALSE
   }
   # does v hold a base closure, in itself, its elements or its attributes?
   holds_base_closure <- function(v, budget = new.env()) {
@@ -145,6 +149,21 @@ local({
     where <- tryCatch(list(asNamespace(pkg), as.environment(paste0("package:", pkg))),
                       error = function(e) list())
     for (env in where) for (nm in readers[[pkg]]) tryCatch(wrap(env, nm), error = function(e) NULL)
+  }
+  # every function of the packages as it now is (the wrapped readers included)
+  registry <- new.env(hash = TRUE, parent = emptyenv())
+  for (pkg in intersect(guard_pkgs, loadedNamespaces())) {
+    ns <- asNamespace(pkg)
+    for (nm in ls(ns, all.names = TRUE)) {
+      f <- tryCatch(get0(nm, envir = ns, inherits = FALSE), error = function(e) NULL)
+      if (orig$is.function(f) && !orig$is.primitive(f)) tryCatch({
+        b <- orig$body(f)
+        if (is_wrapper(b)) stop("recognised by its guard")
+        k <- body_key(b)$key
+        assign(k, c(get0(k, envir = registry, inherits = FALSE),
+                    list(list(body = b, formals = orig$formals(f)))), envir = registry)
+      }, error = function(e) NULL)
+    }
   }
 
   # Run expr with output and warnings captured; never lets a condition out.
