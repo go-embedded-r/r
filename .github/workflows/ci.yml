@@ -143,6 +143,7 @@ jobs:
           - { pkg: ./syntax, target: FuzzLexNumbers }
           - { pkg: ./syntax, target: FuzzDeparse }
           - { pkg: ./eval,   target: FuzzEval }
+          - { pkg: ./internal/cleanroom, target: FuzzFingerprint }
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
@@ -200,6 +201,13 @@ jobs:
           go run ./cmd/rparity corpus --platform-numbers "$RUNNER_TEMP/rsrc/R-4.6.2/tests" >> corpus.txt
           cat corpus.txt
           go run ./cmd/rparity check corpus.txt
+      - name: Clean-room gate (our R files against R's library code; read, never stored)
+        run: |
+          export RGO_RSOURCE="$RUNNER_TEMP/rsrc/R-4.6.2"
+          export RGO_REQUIRE_RSOURCE=1
+          go test -count=1 -run 'BaselibIsCleanRoom|GateCatches' ./internal/cleanroom
+          go test -count=1 ./cmd/cleanroom
+          go run ./cmd/cleanroom check
       - name: Evaluator differential fuzz, report only (x86-64 Linux R computes in long double, with libm functions that differ from macOS's)
         run: |
           export RGO_RSCRIPT="$RUNNER_TEMP/r/bin/Rscript"

@@ -34,6 +34,119 @@ local({
     list(ok = FALSE, class = class(cond), message = conditionMessage(cond))
   }
 
+  # ---- the clean-room guard ------------------------------------------------
+  # R's own R code is GPL; the oracle must give its answers (values, output),
+  # never its source. A closure of base, stats, utils, methods, ... must not be
+  # printed, deparsed, serialized, listed (as.list, body) or returned. The
+  # functions below are the ways to read a closure's source; each gets a check
+  # of its supplied arguments prepended to its body, so its formals, calls and
+  # errors stay what R has. The check, and what it needs, are copies made
+  # before any function is changed. A request cannot reach .Internal (refused
+  # in the source). Copies of a base closure made in the global environment are
+  # recognised by a fingerprint of the body (bodies under 100 serialized bytes,
+  # such as `function(x) x`, are not: independent code has them too).
+  refusal <- "oracle: printing base closures is disallowed by the clean-room rule"
+  guard_pkgs <- c("base", "stats", "utils", "methods", "graphics", "grDevices",
+                  "datasets", "tools", "grid", "splines", "stats4", "parallel",
+                  "compiler", "tcltk")
+  orig <- list(serialize = serialize, body = body, as.list = as.list,
+               set_body = `body<-`, topenv = topenv, envname = environmentName,
+               environment = environment, is.function = is.function,
+               is.primitive = is.primitive)
+  fingerprint <- function(f) {
+    s <- orig$serialize(orig$body(f), NULL, version = 3L)
+    if (length(s) < 100L) return(NA_character_)
+    paste(length(s), sum(as.numeric(s) * ((seq_along(s) %% 251L) + 1)))
+  }
+  registry <- new.env(hash = TRUE, parent = emptyenv())
+  for (pkg in intersect(guard_pkgs, loadedNamespaces())) {
+    ns <- asNamespace(pkg)
+    for (nm in ls(ns, all.names = TRUE)) {
+      f <- tryCatch(get0(nm, envir = ns, inherits = FALSE), error = function(e) NULL)
+      if (orig$is.function(f) && !orig$is.primitive(f)) {
+        fp <- tryCatch(fingerprint(f), error = function(e) NA_character_)
+        if (!is.na(fp)) assign(fp, TRUE, envir = registry)
+      }
+    }
+  }
+  busy <- FALSE
+  is_base_closure <- function(f) {
+    if (!orig$is.function(f) || orig$is.primitive(f)) return(FALSE)
+    env <- orig$environment(f)
+    if (is.environment(env) &&
+        orig$envname(tryCatch(orig$topenv(env), error = function(e) emptyenv())) %in% guard_pkgs)
+      return(TRUE)
+    fp <- tryCatch(fingerprint(f), error = function(e) NA_character_)
+    !is.na(fp) && exists(fp, envir = registry, inherits = FALSE)
+  }
+  # does v hold a base closure, in itself, its elements or its attributes?
+  holds_base_closure <- function(v, budget = new.env()) {
+    budget$n <- (if (is.null(budget$n)) 0L else budget$n) + 1L
+    if (budget$n > 20000L) return(FALSE)
+    if (orig$is.function(v)) return(is_base_closure(v))
+    if (is.environment(v) || is.null(v) || (is.atomic(v) && is.null(attributes(v)))) return(FALSE)
+    items <- if (is.list(v) || is.pairlist(v) || is.call(v) || is.expression(v)) orig$as.list(unclass(v)) else list()
+    for (i in seq_along(items))
+      if (holds_base_closure(items[[i]], budget)) return(TRUE)
+    at <- attributes(v)
+    if (!is.null(at)) for (i in seq_along(at))
+      if (holds_base_closure(at[[i]], budget)) return(TRUE)
+    FALSE
+  }
+  refuse_value <- function(v) {
+    if (!busy) {
+      busy <<- TRUE
+      on.exit(busy <<- FALSE)
+      if (holds_base_closure(v)) stop(refusal, call. = FALSE)
+    }
+    invisible(v)
+  }
+  # the check prepended to a function: its supplied arguments are inspected
+  guard_args <- function(env) {
+    if (busy) return(invisible())
+    # force the supplied arguments first, with the guard still armed: they are
+    # promises, and the code in them (print(print(f))) must be checked too
+    seen <- list()
+    for (nm in ls(env, all.names = TRUE)) {
+      if (nm == "...") {
+        seen <- c(seen, eval(quote(list(...)), env))
+      } else if (!eval(call("missing", as.name(nm)), env)) {
+        seen[[length(seen) + 1L]] <- get(nm, envir = env, inherits = FALSE)
+      }
+    }
+    busy <<- TRUE
+    on.exit(busy <<- FALSE)
+    for (v in seen) if (holds_base_closure(v)) stop(refusal, call. = FALSE)
+    invisible()
+  }
+  guard_call <- as.call(list(guard_args, quote(environment())))
+  guard_source <- function(exprs) {
+    if (any(all.names(exprs) %in% ".Internal"))
+      stop(refusal, call. = FALSE)
+    exprs
+  }
+  wrap <- function(env, name) {
+    f <- get0(name, envir = env, inherits = FALSE)
+    if (is.null(f) || !orig$is.function(f) || orig$is.primitive(f)) return(invisible())
+    b <- orig$body(f)
+    f <- orig$set_body(f, value = as.call(list(as.name("{"), guard_call, b)))
+    unlockBinding(name, env)
+    assign(name, f, envir = env)
+    lockBinding(name, env)
+  }
+  readers <- list(
+    base = c("print", "print.default", "print.function", "deparse", "deparse1",
+             "dput", "dump", "body", "as.list", "as.list.function", "format",
+             "format.default", "toString", "toString.default", "serialize",
+             "saveRDS", "save", "as.character.default", "show"),
+    utils = "str",
+    methods = c("show", "showDefault"))
+  for (pkg in names(readers)) {
+    where <- tryCatch(list(asNamespace(pkg), as.environment(paste0("package:", pkg))),
+                      error = function(e) list())
+    for (env in where) for (nm in readers[[pkg]]) tryCatch(wrap(env, nm), error = function(e) NULL)
+  }
+
   # Run expr with output and warnings captured; never lets a condition out.
   guarded <- function(expr) {
     warnings <- character()
@@ -42,6 +155,7 @@ local({
       withCallingHandlers(
         {
           out <- utils::capture.output(value <- expr)
+          refuse_value(value)
           list(ok = TRUE, value = value)
         },
         warning = function(w) {
@@ -112,7 +226,7 @@ local({
     # eval(source): evaluate every expression of the text in a fresh child
     # of the global environment; the value is that of the last one.
     eval = function(args) {
-      guarded(eval(parse(text = args[[1L]], keep.source = FALSE),
+      guarded(eval(guard_source(parse(text = args[[1L]], keep.source = FALSE)),
                    new.env(parent = globalenv())))
     },
     # deparse(source): parse, then deparse each top-level expression; the
@@ -131,8 +245,9 @@ local({
     # the bytes serialize() writes for the result and what R says about it.
     describe = function(args) {
       guarded({
-        v <- eval(parse(text = args[[1L]], keep.source = FALSE),
+        v <- eval(guard_source(parse(text = args[[1L]], keep.source = FALSE)),
                   new.env(parent = globalenv()))
+        refuse_value(v)
         list(bytes = serialize(v, NULL, xdr = TRUE, version = 3L),
              typeof = typeof(v), length = length(v), class = class(v))
       })
@@ -140,7 +255,11 @@ local({
     # reserialize(bytes): unserialize and serialize again; the value is the
     # raw vector R writes for the object it read.
     reserialize = function(args) {
-      guarded(serialize(unserialize(args[[1L]]), NULL, xdr = TRUE, version = 3L))
+      guarded({
+        v <- unserialize(args[[1L]])
+        refuse_value(v)
+        serialize(v, NULL, xdr = TRUE, version = 3L)
+      })
     },
     # tree(source): the parse as a canonical one-node-per-line dump (see
     # dump_tree); the value is a character vector of lines.
@@ -227,13 +346,14 @@ local({
       res <- tryCatch(
         withCallingHandlers({
           env <- new.env(parent = globalenv())
-          exprs <- parse(text = args[[1L]], keep.source = FALSE)
+          exprs <- guard_source(parse(text = args[[1L]], keep.source = FALSE))
           wv <- list(value = NULL, visible = FALSE)
           for (e in exprs) {
             wv <- withVisible(eval(e, env))
             if (wv$visible) print(wv$value)   # the console's auto-print
           }
           val <- wv$value
+          refuse_value(val)
           if ((is.atomic(val) && !is.null(val)) || is.list(val)) {   # version 2 has no ALTREP: 1:3 becomes a plain vector, nested ones too
             val <- tryCatch(unserialize(serialize(val, NULL, xdr = TRUE, version = 2L)), error = function(e) val)
           }

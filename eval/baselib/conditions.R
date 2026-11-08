@@ -1,10 +1,18 @@
-# Base library, part 3: conditions. Written from the help pages of R 4.6.2
-# and checked against the oracle (docs/m3-plan.md). BSD licence.
+# Condition constructors, written from the help page and the oracle.
 
-errorCondition <- function(message, ..., class = character(), call = NULL)
-  structure(class = c(class, "error", "condition"),
-            list(message = as.character(message), call = call, ...))
+..newCondition <- function(message, ..., class, call, kind) {
+  obj <- list()
+  obj["message"] <- list(as.character(message))
+  obj["call"] <- list(call)
+  obj <- c(obj, list(...))
+  attr(obj, "class") <- c(class, kind, "condition")
+  obj
+}
 
-warningCondition <- function(message, ..., class = character(), call = NULL)
-  structure(class = c(class, "warning", "condition"),
-            list(message = as.character(message), call = call, ...))
+errorCondition <- function(message, ..., class = NULL, call = NULL) {
+  ..newCondition(message, ..., class = class, call = call, kind = "error")
+}
+
+warningCondition <- function(message, ..., class = NULL, call = NULL) {
+  ..newCondition(message, ..., class = class, call = call, kind = "warning")
+}

@@ -425,3 +425,93 @@ func TestLiveMemoryLimit(t *testing.T) {
 		t.Errorf("session lost after the refusal: %v", err)
 	}
 }
+
+// ---- the clean-room guard: the oracle never shows R's R source --------------
+
+const refusal = "oracle: printing base closures is disallowed by the clean-room rule"
+
+// attempts that must be refused, from the plain to the roundabout
+var guardAttempts = []string{
+	"errorCondition", // the value itself
+	"print(errorCondition)",
+	"deparse(errorCondition)",
+	"body(errorCondition)",
+	"dput(errorCondition)",
+	"as.list(errorCondition)",
+	"format(errorCondition)",
+	"toString(errorCondition)",
+	"utils::capture.output(print(errorCondition))",
+	"utils::capture.output(errorCondition)",
+	"base::print.default(errorCondition)",
+	"print.function(errorCondition)",
+	"serialize(errorCondition, NULL)",
+	"stats::sd",                                                   // another package
+	"stats:::print.density",                                       // :::
+	"list(1, list(2, errorCondition))",                            // inside a list
+	"structure(list(), f = errorCondition)",                       // inside an attribute
+	"f <- errorCondition; environment(f) <- globalenv(); body(f)", // a copy outside the namespace
+	"f <- errorCondition; environment(f) <- globalenv(); f",
+	"utils::getAnywhere('errorCondition')",
+	"get('errorCondition', baseenv())",
+	"match.fun('errorCondition')",
+	"Negate(is.na)", // a closure built by base
+	"methods::show(errorCondition)",
+	"utils::str(errorCondition)",
+	".Internal(print.function(errorCondition, FALSE, NULL))",
+	"do.call('deparse', list(errorCondition))",
+	"Reduce(function(a, b) b, list(1, errorCondition))",
+}
+
+func TestLiveBaseClosuresAreRefused(t *testing.T) {
+	p := live(t)
+	for _, src := range guardAttempts {
+		r, err := p.Eval(src)
+		if err == nil {
+			t.Errorf("%q was answered: %+v", src, r)
+			continue
+		}
+		if r == nil || r.Message != refusal {
+			t.Errorf("%q: %v", src, err)
+		}
+	}
+	// the console's auto-print path (what the goldens use)
+	for _, src := range []string{"errorCondition", "stats::sd", "x <- errorCondition; x", "print(errorCondition)"} {
+		r, err := p.Call("evalcase", src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		l := r.Value.(*rds.List)
+		names := l.Attr("names").(*rds.Character)
+		got := map[string]rds.Value{}
+		for i, n := range names.V {
+			got[n.S] = l.V[i]
+		}
+		if m, _ := got["message"].(*rds.Character); m == nil || len(m.V) != 1 || m.V[0].S != refusal {
+			t.Errorf("evalcase %q: %v", src, got)
+		}
+		if o, _ := got["output"].(*rds.Character); o != nil && len(o.V) > 0 && strings.Contains(o.V[0].S, "function") {
+			t.Errorf("evalcase %q printed %q", src, o.V[0].S)
+		}
+	}
+}
+
+func TestLiveOwnClosuresStillPrint(t *testing.T) {
+	p := live(t)
+	r, err := p.Eval("f <- function(x, y = 2) x + y; utils::capture.output(print(f)); deparse(f); body(f); format(f); as.list(f); identity")
+	_ = r
+	if err == nil || r.Message != refusal {
+		t.Fatalf("identity is a base closure and must be refused: %v", err)
+	}
+	r, err = p.Eval("f <- function(x, y = 2) x + y; g <- f; paste(utils::capture.output(print(f)), deparse(g), format(body(f)), length(as.list(f)), sep = '|')")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s := r.Value.(*rds.Character).V[0].S; !strings.Contains(s, "x + y") {
+		t.Errorf("a user closure must still print: %q", s)
+	}
+	// non-closures through the same functions are untouched
+	r, err = p.Eval("paste(deparse(quote(a + b)), format(1:3, width = 3), toString(1:3), body(function() 1), sep = ';')")
+	if err != nil {
+		t.Fatal(err)
+	}
+}
