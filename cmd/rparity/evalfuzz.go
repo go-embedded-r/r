@@ -92,6 +92,7 @@ func evalfuzzCmd() *cobra.Command {
 			r := rand.New(rand.NewSource(seed))
 			ok, bad, libm, approx := 0, 0, 0, 0
 			perFn := map[string][2]int{}
+			excl := map[string][2]int{} // env mode: cases per exclusion class, and known divergences
 			worstULP := map[string]int64{}
 			var failures []string
 			const batch = 200
@@ -142,6 +143,33 @@ func evalfuzzCmd() *cobra.Command {
 					} else if i := strings.IndexByte(fn, '('); i > 0 {
 						fn = fn[:i]
 					}
+					if cls, isExcl := strings.CutPrefix(fn, "excl:"); isExcl && mode == "env" {
+						// a counted exclusion: compared as weakly as its class needs
+						var why string
+						switch cls {
+						case exclAddr:
+							why = evalcheck.CheckNormalized(rec, normAddr)
+						case exclBuiltin:
+							why = evalcheck.CheckNormalized(rec, normBuiltin)
+						default:
+							why = evalcheck.Check(rec)
+						}
+						e := excl[cls]
+						e[0]++
+						if why != "" {
+							switch cls {
+							case exclInstalled, exclHash:
+								e[1]++ // a known divergence, listed in the README
+							default:
+								bad++
+								if len(failures) < maxFail {
+									failures = append(failures, fmt.Sprintf("%s: %s", rec.Src, why))
+								}
+							}
+						}
+						excl[cls] = e
+						continue
+					}
 					t := perFn[fn]
 					var why string
 					if strings.HasSuffix(rec.Src, "# libm") {
@@ -172,6 +200,23 @@ func evalfuzzCmd() *cobra.Command {
 			}
 			if libm > 0 {
 				fmt.Fprintf(c.OutOrStdout(), "  of which %d libm cases compared within %d ulp (C-library last-bit noise); every other case is compared exactly\n", libm, maxULP)
+			}
+			if mode == "env" {
+				total := 0
+				for _, e := range excl {
+					total += e[0]
+				}
+				fmt.Fprintf(c.OutOrStdout(), "  exclusions, counted (%d cases, not in the figures above):\n", total)
+				for _, cls := range []string{exclAddr, exclBuiltin, exclInstalled, exclHash} {
+					e := excl[cls]
+					how := map[string]string{
+						exclAddr:      "R prints an address; compared with addresses replaced, any difference fails",
+						exclBuiltin:   "R prints a builtin with formals, ours without; compared as .Primitive(\"name\"), any difference fails",
+						exclInstalled: "installed package other than base resolves through our base; compared exactly, differences are known divergences",
+						exclHash:      "R's order of an unsorted hashed environment is undefined; compared exactly, differences are known divergences",
+					}[cls]
+					fmt.Fprintf(c.OutOrStdout(), "    %-10s %5d cases, %d differ (%s)\n", cls, e[0], e[1], how)
+				}
 			}
 			names := make([]string, 0, len(perFn))
 			for k := range perFn {

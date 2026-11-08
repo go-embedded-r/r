@@ -2,6 +2,7 @@ package main
 
 import (
 	"math/rand"
+	"regexp"
 	"strings"
 )
 
@@ -13,6 +14,9 @@ import (
 // first line is a comment that names the family, for the per-family count.
 func fuzzEnv(r *rand.Rand) string {
 	pick := func(p []string) string { return p[r.Intn(len(p))] }
+	if r.Intn(8) == 0 {
+		return fuzzEnvExcluded(r)
+	}
 	names := []string{"a", "b", "c", ".h", "zz"}
 	// no closures among the values: R prints a closure defined here with its
 	// environment's address, which is not a value to compare
@@ -158,3 +162,62 @@ func fuzzEnv(r *rand.Rand) string {
 	}
 	return "# " + family + "\n" + prog
 }
+
+// The classes of case that cannot be compared exactly, each generated on
+// purpose so that the report counts them (the first line of the program is
+// "# excl:<class>"):
+//
+//	addr       R prints an environment's address; compared after the address is
+//	           replaced by a placeholder on both sides
+//	builtin    R prints a builtin with its formals, ours does not; compared
+//	           after both are reduced to .Primitive("name")
+//	installed  a package R installs besides base resolves through our base
+//	           environment; compared exactly, a difference is a known divergence
+//	hash       the order of an unsorted listing of a hashed environment is not
+//	           defined by R; compared exactly, a difference is a known divergence
+const (
+	exclAddr      = "addr"
+	exclBuiltin   = "builtin"
+	exclInstalled = "installed"
+	exclHash      = "hash"
+)
+
+func fuzzEnvExcluded(r *rand.Rand) string {
+	pick := func(p []string) string { return p[r.Intn(len(p))] }
+	var class, prog string
+	switch r.Intn(4) {
+	case 0:
+		class = exclAddr
+		prog = "f <- function(x) x; e <- new.env(); assign(\"f\", f, e); print(" +
+			pick([]string{"get(\"f\", e)", "mget(\"f\", envir = e)", "as.list(e)", "f", "eapply(e, identity)", "list(f, 1)"}) + "); 0"
+	case 1:
+		class = exclBuiltin
+		prog = "print(" + pick([]string{
+			"get(\"sum\", mode = \"function\")", "mget(\"c\", envir = baseenv())", "sum", "`+`", "list(length, 1)",
+			"get0(\"max\", mode = \"function\")", "base::sum", "asNamespace(\"base\")$min",
+		}) + "); 0"
+	case 2:
+		class = exclInstalled
+		prog = pick([]string{
+			"stats::paste", "is.function(utils::head)", "is.function(stats::sd)", "utils::sum(1, 2)",
+			"environmentName(asNamespace(\"stats\"))", "isNamespace(asNamespace(\"utils\"))", "stats:::nope", "isNamespaceLoaded(\"stats\")",
+			"requireNamespace(\"stats\", quietly = TRUE)",
+		})
+	default:
+		class = exclHash
+		prog = "e <- new.env(); " + pick([]string{"assign(\"b\", 1, e); assign(\"a\", 2, e); assign(\"c\", 3, e); ", "e$x <- 1; e$y <- 2; e$z <- 3; "}) +
+			pick([]string{"names(as.list(e))", "names(e)", "names(eapply(e, identity))", "unlist(as.list(e))"})
+	}
+	return "# excl:" + class + "\n" + prog
+}
+
+var (
+	addrRE    = regexp.MustCompile(`<(environment|bytecode): 0x[0-9a-f]+>`)
+	builtinRE = regexp.MustCompile(`function \([^)]*\) +\.Primitive\("([^"]*)"\)`)
+)
+
+// normAddr replaces the address R prints for an environment by a placeholder.
+func normAddr(s string) string { return addrRE.ReplaceAllString(s, "<$1>") }
+
+// normBuiltin reduces the printed form of a builtin to its name.
+func normBuiltin(s string) string { return builtinRE.ReplaceAllString(s, ".Primitive(\"$1\")") }
