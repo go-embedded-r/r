@@ -12,10 +12,14 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -240,13 +244,55 @@ func writeNonprint(o oracleSession, root string, out io.Writer) error {
 }
 
 func writeEval(o oracleSession, root string, out io.Writer) error {
-	srcs, err := gen.EvalInputs(root)
+	common, byPlatform, err := gen.EvalInputsByPlatform(root)
 	if err != nil {
 		return err
 	}
-	data, err := gen.EvalGolden(o, srcs)
+	data, err := gen.EvalGolden(o, common)
 	if err != nil {
 		return err
+	}
+	// Records for a platform are regenerated where R runs on that platform;
+	// those of the other platforms are kept as committed.
+	existing, _ := gen.ReadJSONL[gen.EvalRecord](filepath.Join(root, "testdata/golden/eval.jsonl"))
+	platforms := map[string]bool{}
+	for p := range byPlatform {
+		platforms[p] = true
+	}
+	for _, r := range existing {
+		if r.Platform != "" {
+			platforms[r.Platform] = true
+		}
+	}
+	names := make([]string, 0, len(platforms))
+	for p := range platforms {
+		names = append(names, p)
+	}
+	sort.Strings(names)
+	for _, p := range names {
+		if p == runtime.GOOS {
+			more, err := gen.EvalGoldenFor(o, byPlatform[p], p)
+			if err != nil {
+				return err
+			}
+			data = append(data, more...)
+			continue
+		}
+		var kept []gen.EvalRecord
+		for _, r := range existing {
+			if r.Platform == p {
+				kept = append(kept, r)
+			}
+		}
+		var buf bytes.Buffer
+		enc := json.NewEncoder(&buf)
+		enc.SetEscapeHTML(false)
+		for _, r := range kept {
+			if err := enc.Encode(r); err != nil {
+				return err
+			}
+		}
+		data = append(data, buf.Bytes()...)
 	}
 	return write(root, "testdata/golden/eval.jsonl", data, out)
 }

@@ -332,6 +332,11 @@ func init() {
 			if len(off) > 0 {
 				zo = off[i%len(off)]
 			}
+			if !strings.Contains(f.S, "%z") && !strings.Contains(f.S, "%Z") {
+				// R's strftime knows the zone's offset only when the format
+				// asks for the zone: %s is otherwise the fields read as UTC
+				zo = naInt
+			}
 			txt, err := strftime(t, frac, expandOS(f.S, float64(t.Second())+frac, np), zn, zo)
 			if err != "" {
 				s.errorf(c.call, "%s", err)
