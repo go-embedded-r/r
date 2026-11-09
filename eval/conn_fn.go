@@ -191,7 +191,7 @@ func init() {
 		s.flushSinks()
 		return &String{V: cn.lines[:len(cn.lines):len(cn.lines)]}
 	})
-	regBuiltin("file",func(s *Session, c *callInfo) Value {
+	regBuiltin("file", func(s *Session, c *callInfo) Value {
 		a := s.matchFormals(c, "description", "open", "blocking", "encoding", "raw", "method")
 		desc := s.optString(c, a[0], "", "description")
 		open := s.optString(c, a[1], "", "open")
