@@ -252,6 +252,14 @@ func namesOf(v Value) *String {
 	if n, ok := getAttr(v, "names").(*String); ok {
 		return n
 	}
+	// the names of a one-dimensional array are its dimnames
+	if d, ok := getAttr(v, "dim").(*Integer); ok && len(d.V) == 1 {
+		if dn, ok := getAttr(v, "dimnames").(*List); ok && len(dn.V) == 1 {
+			if n, ok := dn.V[0].(*String); ok {
+				return n
+			}
+		}
+	}
 	return nil
 }
 

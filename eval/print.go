@@ -313,6 +313,12 @@ func (s *Session) printValueTagged(v Value, prefix string, env *Env) {
 	case *Logical, *Integer, *Double, *String:
 		if d := dimsOf(v); len(d) >= 2 {
 			s.printArray(v, d, !s.noQuote)
+		} else if len(d) == 1 {
+			view, dnn, named := oneDView(v)
+			if named {
+				s.out.WriteString(dnn + "\n")
+			}
+			s.printVector(view, !s.noQuote)
 		} else {
 			s.printVector(v, !s.noQuote)
 		}
@@ -328,6 +334,9 @@ func (s *Session) printValueTagged(v Value, prefix string, env *Env) {
 			return
 		}
 		nm := namesOf(x)
+		if d := dimsOf(x); len(d) == 1 {
+			nm = dimnamesOf(x, 0) // a one-dimensional list array is named by its dimnames
+		}
 		for i, e := range x.V {
 			tag := prefix + "[[" + strconv.Itoa(i+1) + "]]"
 			if nm != nil && nm.V[i].NA {

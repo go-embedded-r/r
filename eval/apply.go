@@ -46,6 +46,54 @@ func (s *Session) matchFun(c *callInfo, v Value, env *Env) Value {
 	return nil
 }
 
+// higherArray is sapply(simplify = "array"): when every result is an array of
+// one and the same dim, the simplified matrix is given the dims of a result
+// followed by the number of results.
+func (s *Session) higherArray(res Value, vals []Value, names *String) Value {
+	if len(vals) == 0 || !isVector(res) {
+		return res
+	}
+	d0 := dimsOf(vals[0])
+	if len(d0) < 2 {
+		return res
+	}
+	for _, v := range vals {
+		d := dimsOf(v)
+		if len(d) != len(d0) {
+			return res
+		}
+		for i := range d {
+			if d[i] != d0[i] {
+				return res
+			}
+		}
+	}
+	dims := make([]int32, 0, len(d0)+1)
+	for _, d := range d0 {
+		dims = append(dims, int32(d))
+	}
+	dims = append(dims, int32(len(vals)))
+	out := setAttr(withAttr(res, nil), "dim", &Integer{V: dims})
+	n1, _ := getAttr(vals[0], "dimnames").(*List)
+	if n1 != nil || names != nil {
+		dn := &List{}
+		if n1 != nil {
+			dn.V = append(dn.V, n1.V...)
+		} else {
+			for range d0 {
+				dn.V = append(dn.V, Null)
+			}
+		}
+		if names != nil {
+			dn.V = append(dn.V, names)
+		} else {
+			dn.V = append(dn.V, Null)
+		}
+		out = setAttr(out, "dimnames", dn)
+	}
+	return out
+}
+
 // asListElems splits X into its elements, as as.list does for lapply.
 func (s *Session) asListElems(c *callInfo, x Value) []Value {
 	if _, isList := x.(*List); !isList && isObject(x) && !hasString(classAttr(x), "factor") {
@@ -269,12 +317,16 @@ func init() {
 		if m[0] == nil || m[1] == nil {
 			s.errorf(c.call, "argument \"%s\" is missing, with no default", map[bool]string{true: "X", false: "FUN"}[m[0] == nil])
 		}
-		simp, useN := true, true
+		simp, useN, higher := true, true, false
 		var rest []Arg
 		for _, a := range extra {
 			switch a.Name {
 			case "simplify":
-				simp = s.truthy(c, a.Value, "simplify")
+				if st, ok := a.Value.(*String); ok && len(st.V) == 1 && st.V[0].S == "array" {
+					higher = true
+				} else {
+					simp = s.truthy(c, a.Value, "simplify")
+				}
 			case "USE.NAMES":
 				useN = s.truthy(c, a.Value, "USE.NAMES")
 			default:
@@ -287,7 +339,11 @@ func init() {
 		if !simp {
 			return listOf(vals, names)
 		}
-		return s.simplify(c, vals, names)
+		res := s.simplify(c, vals, names)
+		if higher {
+			res = s.higherArray(res, vals, names)
+		}
+		return res
 	})
 	regBuiltin("vapply", func(s *Session, c *callInfo) Value {
 		m, extra := s.splitArgs(c, []string{"X", "FUN", "FUN.VALUE"})

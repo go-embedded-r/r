@@ -192,6 +192,42 @@ func takeElems(x Value, pos []int) Value {
 	return Null
 }
 
+// langList is a call as the list R makes of it: the function, then the
+// arguments, named by their tags.
+func langList(l *Lang) *List {
+	out := &List{V: make([]Value, 0, len(l.Args)+1)}
+	names := make([]Str, 0, len(l.Args)+1)
+	named := false
+	out.V = append(out.V, l.Fun)
+	names = append(names, Str{})
+	for _, a := range l.Args {
+		out.V = append(out.V, a.Value)
+		names = append(names, Str{S: a.Name})
+		named = named || a.HasName
+	}
+	if named {
+		out.Attr = namesAttr(names)
+	}
+	return out
+}
+
+// listLang is langList backwards: the call a list stands for, NULL when empty.
+func listLang(l *List) Value {
+	if len(l.V) == 0 {
+		return Null
+	}
+	nm := namesOf(l)
+	c := &Lang{Fun: l.V[0]}
+	for i := 1; i < len(l.V); i++ {
+		a := Arg{Value: l.V[i]}
+		if nm != nil && nm.V[i].S != "" && !nm.V[i].NA {
+			a.Name, a.HasName = nm.V[i].S, true
+		}
+		c.Args = append(c.Args, a)
+	}
+	return c
+}
+
 func (s *Session) subsettable(c *callInfo, x Value) {
 	if !isVector(x) {
 		s.errorf(c.call, "object of type '%s' is not subsettable", typeName(x))
@@ -227,6 +263,15 @@ func (s *Session) subset1(c *callInfo) Value {
 	x, idx, drop, _, _ := s.subsetArgs(c)
 	if _, isNull := x.(nullT); isNull {
 		return Null
+	}
+	if lg, ok := x.(*Lang); ok {
+		// a call is subset as the list it is made of, and stays a call
+		c.args[0] = langList(lg)
+		r := s.subset1(c)
+		if l, ok := r.(*List); ok {
+			return listLang(l)
+		}
+		return r
 	}
 	s.subsettable(c, x)
 	dims := dimsOf(x)
@@ -515,6 +560,10 @@ func (s *Session) subset2(c *callInfo) Value {
 			}
 		}
 		s.errorf(c.call, "wrong arguments for subsetting an environment")
+	}
+	if lg, ok := x.(*Lang); ok {
+		x = langList(lg)
+		c.args[0] = x
 	}
 	s.subsettable(c, x)
 	if len(idx) == 0 {

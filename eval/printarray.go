@@ -15,7 +15,11 @@ func labelOrNA(s Str) string {
 
 // printMatrix prints a two-dimensional slice of v (elements at offset base,
 // nr rows, nc columns) as R does.
-func (s *Session) printMatrix(v Value, base, nr, nc int, rowNames, colNames *String, quote bool) {
+//
+// dnn is names(dimnames(v)), or nil: when it is set, the corner and a line over
+// the columns carry the names of the two dimensions, and the row labels are
+// offset (two columns, or as many as the row name needs).
+func (s *Session) printMatrix(v Value, base, nr, nc int, rowNames, colNames *String, quote bool, dnn []string) {
 	if nr > maxPrintRows || nc > maxPrintRows {
 		s.errorf(nil, "matrix too large to print: more than %d rows or columns", maxPrintRows)
 	}
@@ -32,9 +36,20 @@ func (s *Session) printMatrix(v Value, base, nr, nc int, rowNames, colNames *Str
 			}
 		}
 	}
+	lbloff := 0
+	if dnn != nil {
+		rnw := utf8.RuneCountInString(dnn[0])
+		if rnw < rw+2 {
+			lbloff = 2
+		} else {
+			lbloff = rnw - rw
+		}
+	}
+	labw := rw // the width of the labels themselves
+	rw += lbloff
 	rowLabel := func(i int) string {
 		if rowNames != nil {
-			return padRight(labelOrNA(rowNames.V[i]), rw)
+			return strings.Repeat(" ", lbloff) + padRight(labelOrNA(rowNames.V[i]), labw)
 		}
 		return padLeft("["+strconv.Itoa(i+1)+",]", rw)
 	}
@@ -84,7 +99,12 @@ func (s *Session) printMatrix(v Value, base, nr, nc int, rowNames, colNames *Str
 			width += cols[end].w + 1
 			end++
 		}
-		s.out.WriteString(strings.Repeat(" ", rw))
+		if dnn != nil {
+			s.out.WriteString(strings.Repeat(" ", rw) + dnn[1] + "\n")
+			s.out.WriteString(padRight(dnn[0], rw))
+		} else {
+			s.out.WriteString(strings.Repeat(" ", rw))
+		}
 		for j := start; j < end; j++ {
 			s.out.WriteString(pad(cols[j], cols[j].label))
 		}
@@ -107,6 +127,46 @@ const maxPrintSlices = 1 << 20
 // maxPrintRows bounds the rows of a matrix printed with no column to show them.
 const maxPrintRows = 1 << 22
 
+// dimnamesNames is names(dimnames(v)) as strings, or nil when there are none.
+func dimnamesNames(v Value) []string {
+	dn, ok := getAttr(v, "dimnames").(*List)
+	if !ok {
+		return nil
+	}
+	nm := namesOf(dn)
+	if nm == nil {
+		return nil
+	}
+	out := make([]string, len(nm.V))
+	for i, e := range nm.V {
+		if !e.NA {
+			out[i] = e.S
+		}
+	}
+	return out
+}
+
+// oneDView is a one-dimensional array with dimnames as the named vector R
+// prints it as: the dimension's labels become names; dnn is the name of the
+// dimension when the dimnames are named.
+func oneDView(v Value) (view Value, dnn string, named bool) {
+	lab := dimnamesOf(v, 0)
+	if lab == nil {
+		return v, "", false
+	}
+	if n := dimnamesNames(v); n != nil {
+		dnn, named = n[0], true
+	}
+	var attr []Attr
+	for _, a := range attrsOf(v) {
+		if a.Name != "dim" && a.Name != "dimnames" && a.Name != "names" {
+			attr = append(attr, a)
+		}
+	}
+	attr = append(attr, Attr{Name: "names", Value: lab})
+	return withAttr(v, attr), dnn, named
+}
+
 func dimnamesOf(v Value, d int) *String {
 	if dn, ok := getAttr(v, "dimnames").(*List); ok && d < len(dn.V) {
 		if nm, ok := dn.V[d].(*String); ok {
@@ -120,8 +180,13 @@ func dimnamesOf(v Value, d int) *String {
 // matrix for each slice of the higher dimensions.
 func (s *Session) printArray(v Value, dims []int, quote bool) {
 	nr, nc := dims[0], dims[1]
+	dnn := dimnamesNames(v)
+	var mdnn []string
+	if len(dnn) >= 2 {
+		mdnn = dnn[:2]
+	}
 	if len(dims) == 2 {
-		s.printMatrix(v, 0, nr, nc, dimnamesOf(v, 0), dimnamesOf(v, 1), quote)
+		s.printMatrix(v, 0, nr, nc, dimnamesOf(v, 0), dimnamesOf(v, 1), quote, mdnn)
 		return
 	}
 	slice := nr * nc
@@ -141,14 +206,17 @@ func (s *Session) printArray(v Value, dims []int, quote bool) {
 			if i > 0 {
 				label += ", "
 			}
+			one := strconv.Itoa(c + 1)
 			if nm := dimnamesOf(v, i+2); nm != nil {
-				label += labelOrNA(nm.V[c])
-			} else {
-				label += strconv.Itoa(c + 1)
+				one = labelOrNA(nm.V[c])
 			}
+			if i+2 < len(dnn) && dnn[i+2] != "" {
+				one = dnn[i+2] + " = " + one
+			}
+			label += one
 		}
 		s.out.WriteString(label + "\n\n")
-		s.printMatrix(v, k*slice, nr, nc, dimnamesOf(v, 0), dimnamesOf(v, 1), quote)
+		s.printMatrix(v, k*slice, nr, nc, dimnamesOf(v, 0), dimnamesOf(v, 1), quote, mdnn)
 		s.out.WriteString("\n")
 		for i := range counter {
 			counter[i]++

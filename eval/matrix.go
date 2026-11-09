@@ -166,7 +166,7 @@ func init() {
 			data = &Logical{V: []int32{naInt}}
 		}
 		if _, isNull := data.(nullT); isNull {
-			data = &Logical{}
+			s.errorf(c.call, "'data' must be of a vector type, was 'NULL'")
 		}
 		var dims []int32
 		if a[1] == nil {
