@@ -1,6 +1,7 @@
 package eval
 
 import (
+	"errors"
 	"os"
 	"strings"
 
@@ -36,9 +37,10 @@ type conn struct {
 	pos  int
 
 	// output text connections
-	lines   []string
+	lines   []Str
 	partial []byte
-	varEnv  *Env // nil for an anonymous one
+	size    int64 // bytes written to a text connection, bounded by MaxFileBytes
+	varEnv  *Env  // nil for an anonymous one
 	varName string
 
 	sinked int // diversions this connection is the target of
@@ -60,6 +62,8 @@ type ioState struct {
 	sinks [2][]sinkEntry // output, message
 	mark  [2]int
 	env   map[string]string
+	// sinkErr is the first error of a diversion that could not be written
+	sinkErr error
 }
 
 func (s *Session) initIO() {
@@ -209,7 +213,7 @@ func (s *Session) openFailed(call *Lang, cn *conn, err error) {
 // closeConn closes cn; destroy also removes it from the table.
 func (s *Session) closeConn(cn *conn, destroy bool) {
 	if cn.kind == kText && cn.canWrite && len(cn.partial) > 0 {
-		cn.lines = append(cn.lines, string(cn.partial))
+		cn.lines = append(cn.lines, Str{S: string(cn.partial)})
 		cn.partial = nil
 		s.syncTextVar(cn)
 	}
@@ -228,11 +232,9 @@ func (s *Session) syncTextVar(cn *conn) {
 	if cn.varEnv == nil {
 		return
 	}
-	out := make([]Str, len(cn.lines))
-	for i, l := range cn.lines {
-		out[i] = Str{S: l}
-	}
-	cn.varEnv.Set(cn.varName, &String{V: out})
+	// the lines already stored are never modified, only appended to: a vector
+	// that shares them is cut at its length, so each store is O(1)
+	cn.varEnv.Set(cn.varName, &String{V: cn.lines[:len(cn.lines):len(cn.lines)]})
 }
 
 // ---- writing --------------------------------------------------------------
@@ -240,6 +242,9 @@ func (s *Session) syncTextVar(cn *conn) {
 // connWrite writes text to an open connection; a failure is an R error.
 func (s *Session) connWrite(call *Lang, cn *conn, text string) {
 	if err := s.rawWrite(cn, text); err != nil {
+		if errors.Is(err, errTooBig) {
+			s.errorf(call, "the file size limit of this session was reached (Options.MaxFileBytes)")
+		}
 		s.errorf(call, "cannot write to this connection")
 	}
 }
@@ -260,15 +265,20 @@ func (s *Session) rawWrite(cn *conn, text string) error {
 			s.out.WriteString(text)
 		}
 	case kText:
-		cn.partial = append(cn.partial, text...)
+		if max := int64(s.opts.MaxFileBytes); max > 0 && cn.size+int64(len(text)) > max {
+			return errTooBig
+		}
+		cn.size += int64(len(text))
 		changed := false
 		for {
-			i := strings.IndexByte(string(cn.partial), '\n')
+			i := strings.IndexByte(text, '\n')
 			if i < 0 {
+				cn.partial = append(cn.partial, text...)
 				break
 			}
-			cn.lines = append(cn.lines, string(cn.partial[:i]))
-			cn.partial = cn.partial[i+1:]
+			cn.lines = append(cn.lines, Str{S: string(cn.partial) + text[:i]})
+			cn.partial = cn.partial[:0]
+			text = text[i+1:]
 			changed = true
 		}
 		if changed {
@@ -384,7 +394,25 @@ func (s *Session) flushSinks() {
 			b.Reset()
 			b.WriteString(str[:m])
 		}
-		_ = s.rawWrite(top.c, seg)
+		if err := s.rawWrite(top.c, seg); err != nil && s.io.sinkErr == nil {
+			s.io.sinkErr = err
+		}
+	}
+}
+
+// sinkCheck moves diverted output on (so that it does not pile up in memory)
+// and raises the error of a diversion that could not be written.
+func (s *Session) sinkCheck() {
+	if len(s.io.sinks[0])+len(s.io.sinks[1]) == 0 {
+		return
+	}
+	s.flushSinks()
+	if err := s.io.sinkErr; err != nil {
+		s.io.sinkErr = nil
+		if errors.Is(err, errTooBig) {
+			s.errorf(s.currentCall(), "the file size limit of this session was reached (Options.MaxFileBytes)")
+		}
+		s.errorf(s.currentCall(), "cannot write to the sink connection")
 	}
 }
 

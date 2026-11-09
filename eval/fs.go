@@ -130,7 +130,9 @@ func (m *memFS) Write(p string, data []byte, appendTo bool) error {
 		return errTooBig
 	}
 	if appendTo {
-		n.data = append(n.data[:len(n.data):len(n.data)], data...)
+		// bytes already stored are never modified, only appended to, so a
+		// slice a reader holds stays valid
+		n.data = append(n.data, data...)
 	} else {
 		n.data = append([]byte(nil), data...)
 	}

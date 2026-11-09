@@ -195,6 +195,7 @@ func init() {
 // checkInterrupt ends the evaluation when its context is done or its time
 // is up.
 func (s *Session) checkInterrupt() {
+	s.sinkCheck()
 	if s.ctx != nil {
 		if err := s.ctx.Err(); err != nil {
 			s.abort("evaluation interrupted: "+err.Error(), err)

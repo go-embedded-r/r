@@ -169,7 +169,7 @@ func init() {
 					if old, ok := cn.varEnv.Get(cn.varName); ok {
 						if os, ok := old.(*String); ok {
 							for _, e := range os.V {
-								cn.lines = append(cn.lines, e.S)
+								cn.lines = append(cn.lines, e)
 							}
 						}
 					}
@@ -189,13 +189,9 @@ func init() {
 			s.errorf(c.call, "'con' is not an output textConnection")
 		}
 		s.flushSinks()
-		out := make([]Str, len(cn.lines))
-		for i, l := range cn.lines {
-			out[i] = Str{S: l}
-		}
-		return &String{V: out}
+		return &String{V: cn.lines[:len(cn.lines):len(cn.lines)]}
 	})
-	regBuiltin("file", func(s *Session, c *callInfo) Value {
+	regBuiltin("file",func(s *Session, c *callInfo) Value {
 		a := s.matchFormals(c, "description", "open", "blocking", "encoding", "raw", "method")
 		desc := s.optString(c, a[0], "", "description")
 		open := s.optString(c, a[1], "", "open")
