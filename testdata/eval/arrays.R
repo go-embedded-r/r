@@ -683,3 +683,25 @@ x <- 1:4; `split<-.default`(x, c(1, 2, 1, 2), value = list(10L, 20L))
 unclass(row(matrix(1:4, 2, dimnames = list(c("a", "b"), NULL)), as.factor = TRUE))
 #---
 unclass(col(matrix(1:4, 2, dimnames = list(NULL, c("p", "q"))), as.factor = TRUE))
+#---
+m <- matrix(1:6, 2, dimnames = list(r = c("a", "b"), c = c("x", "y", "z"))); names(dimnames(apply(m, 1, function(v) c(lo = 1, hi = 2, mid = 3))))
+#---
+m <- matrix(1:6, 2, dimnames = list(r = c("a", "b"), c = c("x", "y", "z"))); names(dimnames(apply(m, 2, function(v) c(lo = 1, hi = 2))))
+#---
+m <- matrix(1:6, 2, dimnames = list(r = c("a", "b"), c = c("x", "y", "z"))); names(dimnames(apply(m, 2, function(v) c(v, 9))))
+#---
+m <- matrix(1:6, 2, dimnames = list(r = c("a", "b"), c = c("x", "y", "z"))); dimnames(apply(m, 2, function(v) unname(v * 2)))
+#---
+m <- matrix(1:6, 2, dimnames = list(r = c("a", "b"), c = c("x", "y", "z"))); apply(m, 1, rev)
+#---
+m <- matrix(1:6, 2, dimnames = list(r = c("a", "b"), c = c("x", "y", "z"))); apply(m, 1, function(v) if (v[1] > 1) list(v) else 0)
+#---
+apply(matrix(c(-3, 1, 4, -4), 2), c(1, 2), function(v) v[v > 0])
+#---
+apply(matrix(1:4, 2), c(1, 2), function(v) c(1, 2))
+#---
+identical(quote(f(x)), quote(f))
+#---
+identical(quote(f), quote(f(x)))
+#---
+bquote(0()())

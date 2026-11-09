@@ -127,6 +127,30 @@ const maxPrintSlices = 1 << 20
 // maxPrintRows bounds the rows of a matrix printed with no column to show them.
 const maxPrintRows = 1 << 22
 
+// listCellText is what a list matrix shows for one cell: the value of a plain
+// length-one vector, else the type and length ("numeric,3"); NULL for NULL.
+func listCellText(e Value) string {
+	switch v := e.(type) {
+	case nullT:
+		return "NULL"
+	case *Logical, *Integer, *Double, *String:
+		if Length(v) == 1 && !isObject(v) {
+			items, _ := formatElements(v, true)
+			return strings.TrimSpace(items[0])
+		}
+		name := typeName(v)
+		if name == "double" {
+			name = "numeric"
+		}
+		return name + "," + strconv.Itoa(Length(v))
+	case *List:
+		return "list," + strconv.Itoa(len(v.V))
+	case *Closure, *Builtin:
+		return "?"
+	}
+	return "?"
+}
+
 // dimnamesNames is names(dimnames(v)) as strings, or nil when there are none.
 func dimnamesNames(v Value) []string {
 	dn, ok := getAttr(v, "dimnames").(*List)

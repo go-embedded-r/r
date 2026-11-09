@@ -195,3 +195,19 @@ func TestTextBombs(t *testing.T) {
 	refused(t, s, "formatC(1:2000, width = 1000000)", "memory limit")
 	refused(t, s, "strrep(\"abcdefghij\", rep(1e6, 100))", "memory limit")
 }
+
+// Matrices, arrays and grouping: sizes are bounded by the vector limit and the
+// allocation budget, not by the product of what the arguments claim.
+func TestArrayBombs(t *testing.T) {
+	underMemoryLimit(t)
+	s := eval.NewSession(eval.Options{MaxAlloc: 256 << 20})
+	refused(t, s, "replicate(1e12, 1)", "vector", "too large", "limit", "allocate")
+	refused(t, s, "sequence(rep(1e12, 2))", "vector", "too large", "limit", "allocate")
+	refused(t, s, "x <- 1:2e5; tapply(x, list(x, x), sum)", "vector", "too large", "limit", "allocate")
+	refused(t, s, "sweep(array(0, c(1e5, 1e5)), 1, 1:2)", "vector", "too large", "limit", "allocate")
+	refused(t, s, "aperm(array(0, c(1e5, 1e5, 10)))", "vector", "too large", "limit", "allocate")
+	refused(t, s, "apply(matrix(0, 1e4, 1e4), 1, function(v) rep(v, 100))", "memory limit", "step limit", "time limit", "limit")
+	refused(t, s, "split(1:1e6, 1:1e6)", "step limit", "time limit", "memory limit", "limit")
+	refused(t, s, "rle(numeric(1e12))", "vector", "too large", "limit", "allocate")
+	refused(t, s, "mat.or.vec(1e12, 1)", "vector", "too large", "limit", "allocate")
+}

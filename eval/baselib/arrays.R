@@ -157,10 +157,11 @@ apply <- function(X, MARGIN, FUN, ..., simplify = TRUE) {
   }
   keepNames <- if (is.null(dn)) NULL else dn[keep]
   lens <- unique(lengths(out))
-  if (simplify && length(out) > 0L && length(lens) == 1L && lens == 0L && !is.recursive(out[[1L]]))
+  flat <- length(out) > 0L && !is.recursive(out[[1L]])
+  if (simplify && length(out) > 0L && length(lens) == 1L && lens == 0L && flat)
     return(unlist(out))
-  if (simplify && length(out) > 0L && length(lens) == 1L && lens >= 1L && !is.recursive(out[[1L]])) {
-    vals <- unlist(out, use.names = FALSE)
+  if (simplify && length(out) > 0L && length(lens) == 1L && lens >= 1L && flat) {
+    vals <- unlist(out, recursive = FALSE, use.names = FALSE)
     if (lens == 1L) {
       if (length(keep) == 1L) {
         names(vals) <- keepNames[[1L]]
@@ -168,8 +169,11 @@ apply <- function(X, MARGIN, FUN, ..., simplify = TRUE) {
       }
       return(array(vals, d[keep], keepNames))
     }
-    firstNames <- names(out[[1L]])
-    allNames <- c(list(firstNames), keepNames)
+    firstNames <- list(names(out[[1L]]))
+    if (length(rest) == 1L && !is.null(names(dn)) && !is.null(firstNames[[1L]]) &&
+        length(firstNames[[1L]]) == d[rest])
+      names(firstNames) <- names(dn)[rest]
+    allNames <- c(firstNames, keepNames)
     if (all(vapply(allNames, is.null, NA))) allNames <- NULL
     return(array(vals, c(lens, d[keep]), allNames))
   }

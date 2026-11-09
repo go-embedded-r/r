@@ -324,6 +324,21 @@ func (s *Session) printValueTagged(v Value, prefix string, env *Env) {
 		}
 		s.printAttributes(v, prefix, env)
 	case *List:
+		if d := dimsOf(x); len(d) >= 2 && len(x.V) > 0 {
+			// a list matrix is a grid of one-line summaries of its cells
+			cells := make([]Str, len(x.V))
+			for i, e := range x.V {
+				cells[i] = Str{S: listCellText(e)}
+			}
+			var attr []Attr
+			for _, a := range x.Attr {
+				if a.Name == "dim" || a.Name == "dimnames" {
+					attr = append(attr, a)
+				}
+			}
+			s.printArray(&String{V: cells, Attr: attr}, d, false)
+			return
+		}
 		if len(x.V) == 0 {
 			if namesOf(x) != nil {
 				s.out.WriteString("named list()\n")
