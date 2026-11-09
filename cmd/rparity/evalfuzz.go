@@ -105,6 +105,8 @@ func evalfuzzCmd() *cobra.Command {
 						srcs[i] = fuzzDatetime(r)
 					} else if mode == "io" {
 						srcs[i] = fuzzIO(r)
+					} else if mode == "arrays" {
+						srcs[i] = fuzzArrays(r)
 					} else if mode == "strings2" {
 						srcs[i] = fuzzStrings2(r)
 					} else if mode == "vec" {
@@ -141,7 +143,7 @@ func evalfuzzCmd() *cobra.Command {
 				}
 				for _, rec := range recs {
 					fn := rec.Src
-					if mode == "env" || mode == "datetime" || mode == "io" {
+					if mode == "env" || mode == "datetime" || mode == "io" || mode == "arrays" {
 						// the first line names the family
 						fn = strings.TrimPrefix(fn[:strings.IndexByte(fn, '\n')], "# ")
 					} else if i := strings.IndexByte(fn, '('); i > 0 {
@@ -257,7 +259,7 @@ func evalfuzzCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().Int64Var(&maxULP, "ulp", 4, "math mode: units in the last place allowed to libm cases")
-	cmd.Flags().StringVar(&mode, "mode", "arith", "arith, subset, regex, strings, apply, math, vec, strings2, env, datetime or io")
+	cmd.Flags().StringVar(&mode, "mode", "arith", "arith, subset, regex, strings, apply, math, vec, strings2, env, datetime, io or arrays")
 	cmd.Flags().IntVar(&n, "n", 2000, "expressions")
 	cmd.Flags().Int64Var(&seed, "seed", 1, "random seed")
 	cmd.Flags().IntVar(&maxFail, "max-diff", 15, "differences to print")

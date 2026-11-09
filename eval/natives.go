@@ -98,7 +98,8 @@ func identical(a, b Value) bool {
 		}
 		return true
 	case *Lang:
-		return callText(x) == callText(b.(*Lang)) || x == b
+		y, ok := b.(*Lang)
+		return ok && (callText(x) == callText(y) || x == y)
 	}
 	return a == b
 }

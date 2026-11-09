@@ -548,6 +548,9 @@ func init() {
 		if d[0] > 1<<52 {
 			s.errorf(c.call, "result would be too long a vector")
 		}
+		if d[0] > float64(s.opts.MaxVector) {
+			s.checkLen(c.call, s.opts.MaxVector+1) // not int(d[0]): on 32 bits it wraps
+		}
 		n := int(d[0])
 		s.checkLen(c.call, n)
 		out := make([]int32, n)

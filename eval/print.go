@@ -313,11 +313,32 @@ func (s *Session) printValueTagged(v Value, prefix string, env *Env) {
 	case *Logical, *Integer, *Double, *String:
 		if d := dimsOf(v); len(d) >= 2 {
 			s.printArray(v, d, !s.noQuote)
+		} else if len(d) == 1 {
+			view, dnn, named := oneDView(v)
+			if named {
+				s.out.WriteString(dnn + "\n")
+			}
+			s.printVector(view, !s.noQuote)
 		} else {
 			s.printVector(v, !s.noQuote)
 		}
 		s.printAttributes(v, prefix, env)
 	case *List:
+		if d := dimsOf(x); len(d) >= 2 && len(x.V) > 0 {
+			// a list matrix is a grid of one-line summaries of its cells
+			cells := make([]Str, len(x.V))
+			for i, e := range x.V {
+				cells[i] = Str{S: listCellText(e)}
+			}
+			var attr []Attr
+			for _, a := range x.Attr {
+				if a.Name == "dim" || a.Name == "dimnames" {
+					attr = append(attr, a)
+				}
+			}
+			s.printArray(&String{V: cells, Attr: attr}, d, false)
+			return
+		}
 		if len(x.V) == 0 {
 			if namesOf(x) != nil {
 				s.out.WriteString("named list()\n")
@@ -328,6 +349,9 @@ func (s *Session) printValueTagged(v Value, prefix string, env *Env) {
 			return
 		}
 		nm := namesOf(x)
+		if d := dimsOf(x); len(d) == 1 {
+			nm = dimnamesOf(x, 0) // a one-dimensional list array is named by its dimnames
+		}
 		for i, e := range x.V {
 			tag := prefix + "[[" + strconv.Itoa(i+1) + "]]"
 			if nm != nil && nm.V[i].NA {
