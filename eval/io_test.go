@@ -3,6 +3,8 @@ package eval_test
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,6 +12,7 @@ import (
 	"time"
 
 	"github.com/go-embedded-r/r/eval"
+	"github.com/go-embedded-r/r/syntax"
 )
 
 // The files a session sees are private by default and confined when they are
@@ -168,4 +171,126 @@ func TestSinkSpansCells(t *testing.T) {
 	if !strings.Contains(res.Output, `"[1] 1" "[1] 2"`) {
 		t.Fatalf("kept: %q", res.Output)
 	}
+}
+
+// Windows and other exotic path forms are only file names inside the session's
+// tree: none reaches outside, whatever the host.
+func TestExoticPathsStayInside(t *testing.T) {
+	skipOnWasm(t)
+	dir := t.TempDir()
+	outside := t.TempDir()
+	if err := os.WriteFile(filepath.Join(outside, "secret.txt"), []byte("outside\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, s := range []*eval.Session{eval.NewSession(eval.Options{}), eval.NewSession(eval.Options{FileRoot: dir})} {
+		for _, p := range []string{`C:\\Windows\\win.ini`, `C:/Windows/win.ini`, `C:win.ini`, `\\\\server\\share\\x`, `\\\\?\\C:\\x`, `//server/share/x`, `/\\..\\..\\etc\\hosts`, `..\\..\\x`, filepath.ToSlash(filepath.Join(outside, "secret.txt"))} {
+			if _, err := s.Eval(`readLines("` + p + `")`); err == nil {
+				t.Errorf("%s was read", p)
+			}
+		}
+		s.Close()
+	}
+}
+
+// A symbolic link swapped between inside and outside while the session opens
+// through it never lets a read out: os.Root resolves and opens in one step.
+func TestSymlinkSwapRace(t *testing.T) {
+	skipOnWasm(t)
+	dir := t.TempDir()
+	outside := t.TempDir()
+	if err := os.WriteFile(filepath.Join(outside, "f.txt"), []byte("OUTSIDE\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(dir, "in"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "in", "f.txt"), []byte("inside\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(dir, "swap")
+	if os.Symlink(filepath.Join(dir, "in"), link) != nil {
+		t.Skip("no symbolic links here")
+	}
+	stop := make(chan struct{})
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for i := 0; ; i++ {
+			select {
+			case <-stop:
+				return
+			default:
+			}
+			target := filepath.Join(dir, "in")
+			if i%2 == 1 {
+				target = outside
+			}
+			tmp := link + ".tmp"
+			os.Remove(tmp)
+			if os.Symlink(target, tmp) == nil {
+				os.Rename(tmp, link)
+			}
+		}
+	}()
+	s := eval.NewSession(eval.Options{FileRoot: dir, MaxSteps: eval.Unbounded})
+	defer s.Close()
+	for i := 0; i < 3000; i++ {
+		res, err := s.Eval(`tryCatch(readLines("/swap/f.txt", warn = FALSE), error = function(e) "err", warning = function(w) "warn")`)
+		if err == nil && strings.Contains(res.Output, "OUTSIDE") {
+			t.Fatal("read through a swapped link left the root")
+		}
+		if res != nil && res.Value != nil {
+			if strings.Contains(res.Output, "OUTSIDE") {
+				t.Fatal("left the root")
+			}
+		}
+	}
+	close(stop)
+	<-done
+}
+
+func TestPathBombs(t *testing.T) {
+	underMemoryLimit(t)
+	s := eval.NewSession(eval.Options{})
+	refused(t, s, `writeLines("x", strrep("a", 5000))`, "file name too long")
+	refused(t, s, `dir.create(strrep("a/", 400), recursive = TRUE)`, "file name too long")
+	// the number of files is bounded
+	refused(t, eval.NewSession(eval.Options{MaxSteps: eval.Unbounded, Timeout: 20 * time.Second}),
+		`d <- tempfile(); dir.create(d); i <- 0; repeat { i <- i + 1; if (!file.create(file.path(d, i), showWarnings = FALSE)) stop("files are bounded") }`, "files are bounded")
+}
+
+// Sys.sleep ends at the time limit and at a cancelled context.
+func TestSleepHonoursLimits(t *testing.T) {
+	skipOnWasm(t)
+	s := eval.NewSession(eval.Options{Timeout: 200 * time.Millisecond})
+	start := time.Now()
+	refused(t, s, `Sys.sleep(1e6)`, "time limit")
+	if time.Since(start) > 3*time.Second {
+		t.Fatalf("slept past the limit: %v", time.Since(start))
+	}
+	s = eval.NewSession(eval.Options{Timeout: eval.Unbounded})
+	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
+	defer cancel()
+	start = time.Now()
+	if _, err := s.EvalContext(ctx, `Sys.sleep(1e6)`); !errors.Is(err, context.DeadlineExceeded) || time.Since(start) > 3*time.Second {
+		t.Fatalf("context ignored by Sys.sleep: %v after %v", err, time.Since(start))
+	}
+}
+
+// Untrusted input to readRDS and source is bounded: the document by the
+// decoder's limits, the code by the session's parser limits.
+func TestUntrustedDocuments(t *testing.T) {
+	underMemoryLimit(t)
+	dir := t.TempDir()
+	deep := strings.Repeat("(", 20000) + "1" + strings.Repeat(")", 20000)
+	if err := os.WriteFile(filepath.Join(dir, "deep.R"), []byte(deep), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "junk.rds"), []byte("\x1f\x8b not gzip at all"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s := eval.NewSession(eval.Options{FileRoot: dir, Parse: syntax.Limits{MaxBytes: 1 << 14, MaxDepth: 100, MaxNodes: 5000}})
+	defer s.Close()
+	refused(t, s, `source("/deep.R")`, "limit", "deep", "nest")
+	refused(t, s, `readRDS("/junk.rds")`, "unknown input format")
 }
