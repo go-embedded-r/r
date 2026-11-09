@@ -342,7 +342,7 @@ func (s *Session) printValueTagged(v Value, prefix string, env *Env) {
 			s.out.WriteString(tag + "\n")
 			// an element that is an object is printed through print()
 			if isObject(e) {
-				s.printObject(e, tag, s.Global)
+				s.printObject(e, "", s.Global) // as a value of its own: no tag prefix
 			} else {
 				s.printValueTagged(e, tag, env)
 			}
@@ -512,7 +512,11 @@ func init() {
 	})
 	regBuiltin("cat", func(s *Session, c *callInfo) Value {
 		sep := []string{" "}
-		var items []string
+		type catObj struct {
+			strs []string
+			null bool
+		}
+		var objs []catObj
 		var file Value
 		appendMode := false
 		for i, a := range c.args {
@@ -534,14 +538,27 @@ func init() {
 				case *Closure, *Builtin, *Env:
 					s.errorf(c.call, "argument %d (type '%s') cannot be handled by 'cat'", i+1, typeName(a))
 				}
-				items = append(items, catStrings(a)...)
+				_, isNull := a.(nullT)
+				objs = append(objs, catObj{strs: catStrings(a), null: isNull})
 			}
 		}
+		// a separator goes before every argument but the first, whatever its
+		// length (NULL excepted), and between the elements of one argument
 		var sb strings.Builder
-		for i, it := range items {
-			sb.WriteString(it)
-			if i < len(items)-1 {
-				sb.WriteString(sep[i%len(sep)])
+		nsep := 0
+		putSep := func() {
+			sb.WriteString(sep[nsep%len(sep)])
+			nsep++
+		}
+		for k, o := range objs {
+			if k > 0 && !o.null {
+				putSep()
+			}
+			for i, it := range o.strs {
+				sb.WriteString(it)
+				if i < len(o.strs)-1 {
+					putSep()
+				}
 			}
 		}
 		// a separator with a newline in it makes the output end with one

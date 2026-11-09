@@ -60,9 +60,9 @@ tc <- textConnection("out", "w"); writeLines("hi", tc); a <- out; cat("x", file 
 #---
 tc <- textConnection("out", "w"); r <- out; close(tc); r
 #---
-out <- c("old1", "old2"); tc <- textConnection("out", "a"); writeLines("new", tc); close(tc); out
+assign("app_out", c("old1", "old2"), envir = globalenv()); tc <- textConnection("app_out", "a"); writeLines("new", tc); close(tc); app_out
 #---
-out <- c("old1", "old2"); tc <- textConnection("out", "w"); writeLines("new", tc); close(tc); out
+assign("app_out2", c("old1", "old2"), envir = globalenv()); tc <- textConnection("app_out2", "w"); writeLines("new", tc); close(tc); app_out2
 #---
 f <- function() { tc <- textConnection("loc", "w", local = TRUE); writeLines("inside", tc); close(tc); loc }; list(f(), exists("loc"))
 #---
@@ -123,6 +123,30 @@ cat("a\n", sep = "\n")
 cat(character(0), sep = "\n")
 #---
 cat("a", "b", sep = ", ")
+#---
+cat("a", NULL, "b", sep = "-")
+#---
+cat(NULL, "b", sep = "-")
+#---
+cat("a", character(0), "b", sep = "-")
+#---
+cat(character(0), "", sep = "-")
+#---
+cat("a", "b", NULL, NULL, sep = "-")
+#---
+cat("a", "b", character(0), sep = "-")
+#---
+cat(c("a", "b"), "c", sep = c("-", "+"))
+#---
+cat(character(0), "")
+#---
+cat(NULL, 2.5, sep = "\n\n")
+#---
+cat("a", "b", sep = " \n")
+#---
+tc <- textConnection("append_nonexist_zz", "a"); close(tc); append_nonexist_zz
+#---
+list(1, structure(list(a = 1), class = "kk"))
 #---
 f <- tempfile(); cat("123\nabc", file = f); r <- tryCatch(readLines(f), warning = function(w) sub(f, "FILE", conditionMessage(w), fixed = TRUE)); unlink(f); r
 #---

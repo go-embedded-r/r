@@ -168,10 +168,10 @@ func init() {
 				if open[0] == 'a' {
 					if old, ok := cn.varEnv.Get(cn.varName); ok {
 						if os, ok := old.(*String); ok {
-							for _, e := range os.V {
-								cn.lines = append(cn.lines, e)
-							}
+							cn.lines = append(cn.lines, os.V...)
 						}
+					} else {
+						s.warningf(c.call, "text connection: appending to a non-existent char vector")
 					}
 				}
 				s.syncTextVar(cn)
