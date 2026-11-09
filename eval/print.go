@@ -342,7 +342,7 @@ func (s *Session) printValueTagged(v Value, prefix string, env *Env) {
 			s.out.WriteString(tag + "\n")
 			// an element that is an object is printed through print()
 			if isObject(e) {
-				s.printObject(e, tag, s.Global)
+				s.printObject(e, "", s.Global) // as a value of its own: no tag prefix
 			} else {
 				s.printValueTagged(e, tag, env)
 			}
@@ -512,7 +512,13 @@ func init() {
 	})
 	regBuiltin("cat", func(s *Session, c *callInfo) Value {
 		sep := []string{" "}
-		var items []string
+		type catObj struct {
+			strs []string
+			null bool
+		}
+		var objs []catObj
+		var file Value
+		appendMode := false
 		for i, a := range c.args {
 			switch c.names[i] {
 			case "sep":
@@ -522,25 +528,58 @@ func init() {
 						sep = append(sep, e.S)
 					}
 				}
-			case "fill", "file", "append", "labels":
+			case "file":
+				file = a
+			case "append":
+				appendMode = s.boolArg(c, a, false, "append")
+			case "fill", "labels":
 			default:
 				switch a.(type) {
 				case *Closure, *Builtin, *Env:
 					s.errorf(c.call, "argument %d (type '%s') cannot be handled by 'cat'", i+1, typeName(a))
 				}
-				items = append(items, catStrings(a)...)
+				_, isNull := a.(nullT)
+				objs = append(objs, catObj{strs: catStrings(a), null: isNull})
 			}
 		}
-		for i, it := range items {
-			s.out.WriteString(it)
-			if i < len(items)-1 {
-				s.out.WriteString(sep[i%len(sep)])
+		// a separator goes before every argument but the first, whatever its
+		// length (NULL excepted), and between the elements of one argument
+		var sb strings.Builder
+		nsep := 0
+		putSep := func() {
+			sb.WriteString(sep[nsep%len(sep)])
+			nsep++
+		}
+		for k, o := range objs {
+			if k > 0 && !o.null {
+				putSep()
 			}
+			for i, it := range o.strs {
+				sb.WriteString(it)
+				if i < len(o.strs)-1 {
+					putSep()
+				}
+			}
+		}
+		// a separator with a newline in it makes the output end with one
+		for _, sp := range sep {
+			if strings.Contains(sp, "\n") {
+				sb.WriteByte('\n')
+				break
+			}
+		}
+		if file == nil {
+			s.out.WriteString(sb.String())
+		} else {
+			s.writeTo(c, file, "file", appendMode, sb.String(), catOpenCall)
 		}
 		s.visible = false
 		return Null
 	})
 }
+
+// catOpenCall is the call R shows when cat cannot open the file it was given.
+var catOpenCall = callOf(`file(file, ifelse(append, "a", "w"))`)
 
 func (s *Session) nargs1First(c *callInfo) Value {
 	if len(c.args) == 0 {

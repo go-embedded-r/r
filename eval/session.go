@@ -26,6 +26,8 @@ const (
 	DefaultMaxSteps = 30_000_000
 	DefaultMaxAlloc = 16 << 30
 	DefaultTimeout  = 10 * time.Second
+	// DefaultMaxFileBytes bounds the files of a session (see Options).
+	DefaultMaxFileBytes = 256 << 20
 )
 
 // Options bound a session. A zero field selects its default; Unbounded
@@ -48,6 +50,20 @@ type Options struct {
 	Timeout time.Duration
 	// Parse bounds the source text of an Eval.
 	Parse syntax.Limits
+	// FileRoot, when not empty, is a directory of the host that the session's
+	// files live in: "/" in R code is this directory, and nothing outside it
+	// can be named (".." and symbolic links are confined by os.Root). The
+	// default, "", is a private in-memory file system that the host never
+	// sees. NewSession panics if the directory cannot be opened; call
+	// Session.Close to release it.
+	FileRoot string
+	// MaxFileBytes bounds the size of the in-memory file system and of any one
+	// file read or written under FileRoot (default DefaultMaxFileBytes;
+	// Unbounded removes the limit).
+	MaxFileBytes int
+	// Env is the initial environment of Sys.getenv. The host's own
+	// environment is never exposed to R code.
+	Env map[string]string
 }
 
 func (o Options) withDefaults() Options {
@@ -72,6 +88,7 @@ func (o Options) withDefaults() Options {
 	o.MaxSteps = int(min(norm(int64(o.MaxSteps), DefaultMaxSteps), math.MaxInt))
 	o.MaxAlloc = int(min(norm(int64(o.MaxAlloc), DefaultMaxAlloc), math.MaxInt))
 	o.Timeout = time.Duration(norm(int64(o.Timeout), int64(DefaultTimeout)))
+	o.MaxFileBytes = int(min(norm(int64(o.MaxFileBytes), DefaultMaxFileBytes), math.MaxInt))
 	return o
 }
 
@@ -150,6 +167,8 @@ type Session struct {
 	out       strings.Builder
 	stderr    strings.Builder
 
+	io ioState // connections, sinks, files and the environment variables
+
 	noQuote    bool // print(quote = FALSE) is running
 	noDispatch bool // the next primitive runs its default, not a method
 
@@ -221,6 +240,7 @@ func NewSession(opts Options) *Session {
 	s.BaseNS = &Env{alias: s.Base, parent: s.Global, ns: true, special: true}
 	s.Base.Set(".GlobalEnv", s.Global)
 	s.Base.Set(".BaseNamespaceEnv", s.BaseNS)
+	s.initIO()
 	s.installBaselib()
 	// as in R, the base environment and all its bindings are locked
 	s.Base.locked, s.Base.allLocked, s.Base.special = true, true, true
@@ -258,6 +278,7 @@ func (s *Session) EvalIn(ctx context.Context, src string, env *Env) (res *Result
 	s.noDispatch = false
 	s.out.Reset()
 	s.stderr.Reset()
+	s.io.mark = [2]int{}
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -268,6 +289,7 @@ func (s *Session) EvalIn(ctx context.Context, src string, env *Env) (res *Result
 	res = &Result{Value: Null}
 	defer func() {
 		s.ctx = nil
+		s.flushSinks()
 		if r := recover(); r != nil {
 			e := &Error{Output: s.out.String(), Stderr: s.stderr.String(), Warnings: s.warnings}
 			switch x := r.(type) {
@@ -293,6 +315,7 @@ func (s *Session) EvalIn(ctx context.Context, src string, env *Env) (res *Result
 			s.printValue(v, env)
 		}
 	}
+	s.flushSinks()
 	res.Output, res.Stderr, res.Warnings = s.out.String(), s.stderr.String(), s.warnings
 	return res, nil
 }

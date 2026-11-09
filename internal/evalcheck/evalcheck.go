@@ -77,7 +77,11 @@ func check(rec gen.EvalRecord, maxULP int64, worst *int64) string {
 		if eerr != nil {
 			return eerr.Error()
 		}
-		if hex.EncodeToString(b) != rec.Hex {
+		got, want := hex.EncodeToString(b), rec.Hex
+		if encIgnore {
+			got, want = hexUnmarked(got), hexUnmarked(want)
+		}
+		if got != want {
 			want, _, _ := rds.Decode(mustHex(rec.Hex), rds.Limits{})
 			got, _, _ := rds.Decode(b, rds.Limits{})
 			if maxULP > 0 && ulpEqual(want, got, maxULP, worst) {
