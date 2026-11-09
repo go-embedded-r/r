@@ -143,11 +143,25 @@ func (s *Session) newConn(cn *conn) *conn {
 
 // ---- opening, closing -----------------------------------------------------
 
+// The bounds of a path: a file name R code builds cannot be arbitrarily long
+// or deep (it would cost memory in the in-memory tree and a walk on the host).
+const (
+	maxPathBytes = 4096
+	maxPathDepth = 256
+)
+
 func (s *Session) abspath(p string) string {
+	if len(p) > maxPathBytes {
+		s.errorf(s.currentCall(), "file name too long")
+	}
 	if !strings.HasPrefix(p, "/") {
 		p = s.io.cwd + "/" + p
 	}
-	return cleanPath(p)
+	p = cleanPath(p)
+	if len(p) > maxPathBytes || strings.Count(p, "/") > maxPathDepth {
+		s.errorf(s.currentCall(), "file name too long")
+	}
+	return p
 }
 
 func cleanPath(p string) string {
