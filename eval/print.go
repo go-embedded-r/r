@@ -513,6 +513,8 @@ func init() {
 	regBuiltin("cat", func(s *Session, c *callInfo) Value {
 		sep := []string{" "}
 		var items []string
+		var file Value
+		appendMode := false
 		for i, a := range c.args {
 			switch c.names[i] {
 			case "sep":
@@ -522,7 +524,11 @@ func init() {
 						sep = append(sep, e.S)
 					}
 				}
-			case "fill", "file", "append", "labels":
+			case "file":
+				file = a
+			case "append":
+				appendMode = s.boolArg(c, a, false, "append")
+			case "fill", "labels":
 			default:
 				switch a.(type) {
 				case *Closure, *Builtin, *Env:
@@ -531,16 +537,32 @@ func init() {
 				items = append(items, catStrings(a)...)
 			}
 		}
+		var sb strings.Builder
 		for i, it := range items {
-			s.out.WriteString(it)
+			sb.WriteString(it)
 			if i < len(items)-1 {
-				s.out.WriteString(sep[i%len(sep)])
+				sb.WriteString(sep[i%len(sep)])
 			}
+		}
+		// a separator with a newline in it makes the output end with one
+		for _, sp := range sep {
+			if strings.Contains(sp, "\n") {
+				sb.WriteByte('\n')
+				break
+			}
+		}
+		if file == nil {
+			s.out.WriteString(sb.String())
+		} else {
+			s.writeTo(c, file, "file", appendMode, sb.String(), catOpenCall)
 		}
 		s.visible = false
 		return Null
 	})
 }
+
+// catOpenCall is the call R shows when cat cannot open the file it was given.
+var catOpenCall = callOf(`file(file, ifelse(append, "a", "w"))`)
 
 func (s *Session) nargs1First(c *callInfo) Value {
 	if len(c.args) == 0 {
