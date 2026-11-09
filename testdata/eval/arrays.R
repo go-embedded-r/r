@@ -332,7 +332,7 @@ signif(factorial(c(0.5, 10)), 10)
 #---
 factorial(-1)
 #---
-lfactorial(10)
+signif(lfactorial(10), 10)
 #---
 signif(lfactorial(c(0, 1, 100)), 10)
 #---
