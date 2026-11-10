@@ -188,7 +188,7 @@ is.vector <- function(x, mode = "any") {
   a <- attributes(x)
   if (length(a) > 0L && !identical(names(a), "names")) return(FALSE)
   switch(mode,
-         any = (is.atomic(x) || is.list(x)) && !is.null(x),
+         any = (is.atomic(x) || is.list(x) || is.expression(x)) && !is.null(x),
          numeric = is.numeric(x),
          name = is.symbol(x),
          symbol = is.symbol(x),

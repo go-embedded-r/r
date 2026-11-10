@@ -508,6 +508,9 @@ func (s *Session) anyAll(isAny bool) func(s *Session, c *callInfo) Value {
 			case *String:
 				s.warningf(c.call, "coercing argument of type 'character' to logical")
 				vals = s.asLogical(&callInfo{call: c.call, args: []Value{x}}).(*Logical).V
+			case *Complex:
+				s.warningf(c.call, "coercing argument of type 'complex' to logical")
+				vals = logicalOf(s, c, a, "")
 			case *Raw:
 				s.warningf(c.call, "coercing argument of type 'raw' to logical")
 				vals = s.asLogical(&callInfo{call: c.call, args: []Value{x}}).(*Logical).V

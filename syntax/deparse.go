@@ -482,11 +482,11 @@ func formatComplex15(c *Const) string {
 		return "NA_complex_"
 	}
 	re, im := c.Double, c.Im
-	if math.IsNaN(re) || math.IsInf(im, 0) || math.IsNaN(im) || math.IsInf(re, 0) {
+	if math.IsNaN(re) || math.IsInf(im, 0) || math.IsNaN(im) {
 		return "complex(real=" + formatReal15(re) + ", imaginary=" + formatReal15(im) + ")"
 	}
 	sign := "+"
-	if im < 0 || (im == 0 && math.Signbit(im)) {
+	if im < 0 {
 		sign = "-"
 		im = -im
 	}

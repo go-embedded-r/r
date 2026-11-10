@@ -44,7 +44,7 @@ func complexReals(z *Complex) ([]float64, bool) {
 	out := make([]float64, len(z.V))
 	warn := false
 	for i, e := range z.V {
-		if isNAComplex(e) {
+		if math.IsNaN(real(e)) {
 			out[i] = naReal
 			continue
 		}

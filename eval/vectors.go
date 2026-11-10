@@ -466,7 +466,7 @@ func init() {
 				s.errorf(c.call, "'x' must be an array of at least two dimensions")
 			}
 			switch x.(type) {
-			case *Logical, *Integer, *Double:
+			case *Logical, *Integer, *Double, *Complex:
 			default:
 				s.errorf(c.call, "'x' must be numeric or complex")
 			}
@@ -474,6 +474,46 @@ func init() {
 			nr, nc := dims[0], 1
 			for _, d := range dims[1:] {
 				nc *= d
+			}
+			if zx, isC := x.(*Complex); isC {
+				var out []complex128
+				if rows {
+					out = make([]complex128, nr)
+				} else {
+					out = make([]complex128, nc)
+				}
+				cnt := make([]int, len(out))
+				for j := 0; j < nc; j++ {
+					for i := 0; i < nr; i++ {
+						e := zx.V[i+j*nr]
+						if narm && (math.IsNaN(real(e)) || math.IsNaN(imag(e))) {
+							continue
+						}
+						k := j
+						if rows {
+							k = i
+						}
+						out[k] += e
+						cnt[k]++
+					}
+				}
+				if mean {
+					for i := range out {
+						n := float64(cnt[i])
+						out[i] = complex(real(out[i])/n, imag(out[i])/n)
+					}
+				}
+				res := &Complex{V: out}
+				if len(dims) == 2 {
+					d := 0
+					if !rows {
+						d = 1
+					}
+					if nm := dimNamesOf(x, d); nm != nil {
+						res.Attr = namesAttr(nm.V)
+					}
+				}
+				return res
 			}
 			v := asDoubles(x)
 			var out []float64
@@ -590,9 +630,18 @@ func init() {
 			x = mkDouble(1)
 		}
 		switch x.(type) {
-		case *Logical, *Integer, *Double:
+		case *Logical, *Integer, *Double, *Complex:
 		default:
 			s.errorf(c.call, "invalid 'nrow' value (too large or NA)")
+		}
+		if zx, isC := x.(*Complex); isC && len(dimsOf(x)) != 2 && a[1] == nil && a[2] == nil && Length(x) > 1 {
+			n := len(zx.V)
+			s.checkLen(c.call, n*n)
+			out := make([]complex128, n*n)
+			for i, z := range zx.V {
+				out[i+i*n] = z
+			}
+			return withAttr(&Complex{V: out}, []Attr{{Name: "dim", Value: &Integer{V: []int32{int32(n), int32(n)}}}})
 		}
 		if d := dimsOf(x); len(d) == 2 {
 			m := min(d[0], d[1])

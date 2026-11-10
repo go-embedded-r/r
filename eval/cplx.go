@@ -33,7 +33,7 @@ func asComplex(v Value) []complex128 {
 		out := make([]complex128, len(iv))
 		for i, e := range iv {
 			if e == naInt {
-				out[i] = naComplex
+				out[i] = complex(naReal, 0) // as R coerces: only the real part is NA
 			} else {
 				out[i] = complex(float64(e), 0)
 			}
@@ -162,38 +162,54 @@ func cdiv(a, b complex128) complex128 {
 
 func cmul(a, b complex128) complex128 {
 	ar, ai, br, bi := real(a), imag(a), real(b), imag(b)
-	return complex(ar*br-ai*bi, ar*bi+ai*br)
+	// float64(...) forbids the fused multiply-add a compiler may choose
+	return complex(float64(ar*br)-float64(ai*bi), float64(ar*bi)+float64(ai*br))
 }
 
 // cpow is x^y: a small integer power by repeated multiplication, else through
-// the exponential.
+// the exponential; 0 to a real power and the NA cases have their own answers.
 func cpow(x, y complex128) complex128 {
+	if y == 0 {
+		return 1
+	}
+	if isNAComplex(x) || isNAComplex(y) {
+		return naComplex
+	}
 	if imag(y) == 0 {
 		k := real(y)
-		if k == 0 {
-			return 1
+		if x == 0 {
+			switch {
+			case k > 0:
+				return 0
+			case k < 0:
+				return complex(math.Inf(1), 0)
+			}
 		}
 		if k == math.Trunc(k) && math.Abs(k) <= 65536 {
 			n := int(math.Abs(k))
-			var res complex128 = 1
+			var res complex128
+			have := false
 			base := x
 			for n > 0 {
 				if n&1 == 1 {
-					res = cmul(res, base)
+					if !have {
+						res, have = base, true
+					} else {
+						res = cmul(res, base)
+					}
 				}
-				base = cmul(base, base)
 				n >>= 1
+				if n > 0 {
+					base = cmul(base, base)
+				}
 			}
 			if k < 0 {
 				return cdiv(1, res)
 			}
 			return res
 		}
-	}
-	if x == 0 {
-		if real(y) > 0 {
-			return 0
-		}
+	} else if x == 0 {
+		return complex(rNaN, rNaN)
 	}
 	return cmplx.Exp(cmul(y, cmplx.Log(x)))
 }
@@ -203,7 +219,7 @@ func (s *Session) arithComplex(op string, c *callInfo, x, y Value, n int, attrs 
 	switch op {
 	case "+", "-", "*", "/", "^":
 	default:
-		s.errorf(c.call, "invalid operation on complex numbers")
+		s.errorf(c.call, "unimplemented complex operation")
 	}
 	a, b := asComplex(x), asComplex(y)
 	out := make([]complex128, n)
@@ -254,12 +270,118 @@ func (s *Session) compareComplex(op string, c *callInfo, x, y Value, n int) Valu
 
 // ---- the math group ---------------------------------------------------------------
 
+// zmul is a product in which an exact zero factor gives zero, as the C99
+// complex functions give it (sin 0 * cosh 800 is 0, not NaN).
+func zmul(a, b float64) float64 {
+	if a == 0 || b == 0 {
+		return 0
+	}
+	return a * b
+}
+
+func csin(z complex128) complex128 {
+	x, y := real(z), imag(z)
+	return complex(zmul(math.Sin(x), math.Cosh(y)), zmul(math.Cos(x), math.Sinh(y)))
+}
+
+func ccos(z complex128) complex128 {
+	x, y := real(z), imag(z)
+	return complex(zmul(math.Cos(x), math.Cosh(y)), -zmul(math.Sin(x), math.Sinh(y)))
+}
+
+func csinh(z complex128) complex128 {
+	x, y := real(z), imag(z)
+	return complex(zmul(math.Sinh(x), math.Cos(y)), zmul(math.Cosh(x), math.Sin(y)))
+}
+
+func ccosh(z complex128) complex128 {
+	x, y := real(z), imag(z)
+	return complex(zmul(math.Cosh(x), math.Cos(y)), zmul(math.Sinh(x), math.Sin(y)))
+}
+
+func cexp(z complex128) complex128 {
+	if imag(z) == 0 {
+		return complex(math.Exp(real(z)), 0)
+	}
+	return cmplx.Exp(z)
+}
+
+// ctan is tan(z); where the library's answer overflows the limit is returned.
+func ctan(z complex128) complex128 {
+	r := cmplx.Tan(z)
+	if !math.IsNaN(real(r)) && !math.IsInf(real(r), 0) && !math.IsNaN(imag(r)) && !math.IsInf(imag(r), 0) {
+		return r
+	}
+	x, y := real(z), imag(z)
+	if math.IsNaN(x) || math.IsNaN(y) || math.IsInf(x, 0) {
+		return r
+	}
+	if math.Abs(y) > 350 {
+		return complex(math.Copysign(0, math.Sin(2*x)), math.Copysign(1, y))
+	}
+	d := math.Cos(2*x) + math.Cosh(2*y)
+	return complex(math.Sin(2*x)/d, math.Sinh(2*y)/d)
+}
+
+// ctanh is -i tan(iz).
+func ctanh(z complex128) complex128 {
+	w := ctan(complex(-imag(z), real(z)))
+	return complex(imag(w), -real(w))
+}
+
+// catan is the arctangent with the branch cuts on the imaginary axis the
+// oracle shows: beyond +-i the real part is +-pi/2, at +-i it is +-pi/4.
+func catan(z complex128) complex128 {
+	x, y := real(z), imag(z)
+	var re float64
+	switch {
+	case x == 0 && math.Abs(y) > 1:
+		re = math.Copysign(math.Pi/2, y)
+	case x == 0 && math.Abs(y) == 1:
+		re = math.Copysign(math.Pi/4, y)
+	default:
+		re = 0.5 * math.Atan2(2*x, 1-x*x-y*y)
+	}
+	im := 0.25 * math.Log((x*x+(y+1)*(y+1))/(x*x+(y-1)*(y-1)))
+	return complex(re, im)
+}
+
+// casin: on the real axis beyond +-1 the imaginary part is -sign(x) acosh|x|.
+func casin(z complex128) complex128 {
+	x := real(z)
+	if imag(z) == 0 && math.Abs(x) > 1 {
+		return complex(math.Copysign(math.Pi/2, x), -math.Copysign(math.Acosh(math.Abs(x)), x))
+	}
+	return cmplx.Asin(z)
+}
+
+func cacos(z complex128) complex128 {
+	a := casin(z)
+	return complex(math.Pi/2-real(a), -imag(a))
+}
+
+// cacosh is i acos(z), the sign convention the oracle shows.
+func cacosh(z complex128) complex128 {
+	a := cacos(z)
+	return complex(-imag(a), real(a))
+}
+
+// catanh is -i atan(iz); at +-1 it is +-Inf with a NaN imaginary part (nan
+// tells the caller to warn).
+func catanh(z complex128) (r complex128, nan bool) {
+	if imag(z) == 0 && math.Abs(real(z)) == 1 {
+		return complex(math.Copysign(math.Inf(1), real(z)), rNaN), true
+	}
+	w := catan(complex(-imag(z), real(z)))
+	return complex(imag(w), -real(w)), false
+}
+
 var complexMath = map[string]func(complex128) complex128{
-	"sqrt": cmplx.Sqrt, "exp": cmplx.Exp,
-	"sin": cmplx.Sin, "cos": cmplx.Cos, "tan": cmplx.Tan,
-	"asin": cmplx.Asin, "acos": cmplx.Acos, "atan": cmplx.Atan,
-	"sinh": cmplx.Sinh, "cosh": cmplx.Cosh, "tanh": cmplx.Tanh,
-	"asinh": cmplx.Asinh, "acosh": cmplx.Acosh, "atanh": cmplx.Atanh,
+	"sqrt": cmplx.Sqrt, "exp": cexp,
+	"sin": csin, "cos": ccos, "tan": ctan,
+	"asin": casin, "acos": cacos, "atan": catan,
+	"sinh": csinh, "cosh": ccosh, "tanh": ctanh,
+	"asinh": cmplx.Asinh, "acosh": cacosh,
 }
 
 // complexUnary is the math group on a complex vector.
@@ -273,16 +395,26 @@ func (s *Session) complexUnary(c *callInfo, name string, x *Complex) Value {
 		return &Double{V: out, Attr: x.Attr}
 	}
 	f, ok := complexMath[name]
-	if !ok {
+	if !ok && name != "atanh" {
 		s.errorf(c.call, "unimplemented complex function")
 	}
 	out := make([]complex128, len(x.V))
+	warn := false
 	for i, z := range x.V {
 		if isNAComplex(z) {
 			out[i] = naComplex
 			continue
 		}
+		if name == "atanh" {
+			var w bool
+			out[i], w = catanh(z)
+			warn = warn || w
+			continue
+		}
 		out[i] = f(z)
+	}
+	if warn {
+		s.warningf(c.call, "NaNs produced in function \"atanh\"")
 	}
 	return &Complex{V: out, Attr: x.Attr}
 }
@@ -375,22 +507,14 @@ func init() {
 			case *Complex:
 				out := make([]float64, len(v.V))
 				for i, z := range v.V {
-					if isNAComplex(z) {
-						out[i] = naReal
-					} else {
-						out[i] = f(z)
-					}
+					out[i] = f(z)
 				}
 				return &Double{V: out, Attr: v.Attr}
 			case *Logical, *Integer, *Double:
 				z := asComplex(v)
 				out := make([]float64, len(z))
 				for i, e := range z {
-					if isNAComplex(e) {
-						out[i] = naReal
-					} else {
-						out[i] = f(e)
-					}
+					out[i] = f(e)
 				}
 				return &Double{V: out, Attr: attrsOf(x)}
 			}
@@ -426,9 +550,23 @@ func init() {
 			if v == nil {
 				return nil
 			}
-			switch v.(type) {
+			switch t := v.(type) {
 			case *Logical, *Integer, *Double:
 				return asDoubles(v)
+			case *String:
+				out := make([]float64, len(t.V))
+				warn := false
+				for i, e := range t.V {
+					f, ok := parseNumber(e)
+					if !ok {
+						f, warn = naReal, true
+					}
+					out[i] = f
+				}
+				if warn {
+					s.warningf(c.call, "NAs introduced by coercion")
+				}
+				return out
 			}
 			s.errorf(c.call, "invalid argument type")
 			return nil
@@ -436,7 +574,7 @@ func init() {
 		n := 0
 		if a[0] != nil {
 			d := num(a[0], "length.out")
-			if len(d) != 1 || math.IsNaN(d[0]) || d[0] < 0 {
+			if len(d) < 1 || math.IsNaN(d[0]) || d[0] < 0 {
 				s.errorf(c.call, "invalid length")
 			}
 			if d[0] > float64(s.opts.MaxVector) {
@@ -480,6 +618,14 @@ func (s *Session) asComplexFn(c *callInfo) Value {
 		return &Complex{V: v.V}
 	case *Logical, *Integer, *Double, *Raw:
 		return &Complex{V: asComplex(x)}
+	case *List:
+		for _, e := range v.V {
+			if Length(e) != 1 || !isVector(e) || kindOf(e) == kList {
+				s.errorf(c.call, "'list' object cannot be coerced to type 'complex'")
+			}
+		}
+		comb := s.combine(&callInfo{call: c.call, env: c.env, args: v.V, names: make([]string, len(v.V))})
+		return s.asComplexFn(&callInfo{call: c.call, env: c.env, args: []Value{withAttr(comb, nil)}, names: []string{""}})
 	case *String:
 		out := make([]complex128, len(v.V))
 		warn := false
@@ -505,4 +651,63 @@ func cless(a, b complex128) bool {
 		return real(a) < real(b)
 	}
 	return imag(a) < imag(b)
+}
+
+// formatComplexItems is format() of a complex vector: the real parts and the
+// absolute values of the imaginary parts are formatted as two double vectors
+// (nsmall, scientific and big.mark apply to each; width pads each), and
+// trim drops the padding between the parts.
+func (s *Session) formatComplexItems(x []complex128, digits, scipen, nsmall, width int, trim bool, bigMark Value) []string {
+	var rs, is []float64
+	for _, z := range x {
+		if isNAComplex(z) {
+			continue
+		}
+		rs = append(rs, real(z))
+		is = append(is, math.Abs(imag(z)))
+	}
+	fr, fi := formatRealVecSci(rs, digits, scipen), formatRealVecSci(is, digits, scipen)
+	for _, f := range []*realFormat{&fr, &fi} {
+		if nsmall > 0 && !f.e && f.d < nsmall {
+			f.w += nsmall - f.d
+			if f.d == 0 {
+				f.w++
+			}
+			f.d = nsmall
+		}
+		if width > f.w {
+			f.w = width
+		}
+		if trim {
+			f.w = 0
+		}
+	}
+	mark := ""
+	if st, ok := bigMark.(*String); ok && len(st.V) == 1 {
+		mark = st.V[0].S
+	}
+	part := func(f realFormat, v float64) string {
+		t := strings.TrimLeft(f.encode(v), " ")
+		if mark != "" {
+			t = insertBigMark(t, mark)
+		}
+		return padLeft(t, f.w)
+	}
+	items := make([]string, len(x))
+	total := fr.w + fi.w + 2
+	for i, z := range x {
+		if isNAComplex(z) {
+			items[i] = padLeft("NA", total)
+			if trim {
+				items[i] = "NA"
+			}
+			continue
+		}
+		sign := "+"
+		if imag(z) < 0 {
+			sign = "-"
+		}
+		items[i] = part(fr, real(z)) + sign + part(fi, math.Abs(imag(z))) + "i"
+	}
+	return items
 }

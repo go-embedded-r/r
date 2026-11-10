@@ -1,6 +1,7 @@
 package eval
 
 import (
+	"math"
 	"strconv"
 	"strings"
 
@@ -428,6 +429,14 @@ func (s *Session) asCondition(v Value, call *Lang) bool {
 		case x.V[0] != x.V[0]:
 			r = naInt
 		case x.V[0] != 0:
+			r = 1
+		}
+	case *Complex:
+		z := x.V[0]
+		switch {
+		case math.IsNaN(real(z)) || math.IsNaN(imag(z)):
+			r = naInt
+		case z != 0:
 			r = 1
 		}
 	case *String:

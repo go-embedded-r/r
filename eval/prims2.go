@@ -826,10 +826,11 @@ func (s *Session) roundLike(c *callInfo, sig bool) Value {
 	if cx, ok := x.(*Complex); ok {
 		out := make([]complex128, len(cx.V))
 		digits := int(dig)
-		if math.IsNaN(dig) {
-			digits = 0
-		}
 		for i, z := range cx.V {
+			if math.IsNaN(dig) {
+				out[i] = naComplex
+				continue
+			}
 			out[i] = roundComplex(z, digits, sig, func(v float64, dg int) float64 {
 				if math.IsNaN(v) || math.IsInf(v, 0) {
 					return v
@@ -1178,7 +1179,7 @@ func (s *Session) matprod(c *callInfo, cross, tcross bool) Value {
 	}
 	for _, v := range []Value{x, y} {
 		switch v.(type) {
-		case *Logical, *Integer, *Double:
+		case *Logical, *Integer, *Double, *Complex:
 		default:
 			s.errorf(c.call, "requires numeric/complex matrix/vector arguments")
 		}
@@ -1263,7 +1264,16 @@ func (s *Session) matprod(c *callInfo, cross, tcross bool) Value {
 
 // gemm multiplies op(x) by op(y), op being a transpose when asked.
 func (s *Session) gemm(c *callInfo, x, y Value, nrx, ncx, nry, ncy int, tx, ty bool, xd, yd []int) Value {
-	xv, yv := asDoubles(x), asDoubles(y)
+	_, cx := x.(*Complex)
+	_, cy := y.(*Complex)
+	isC := cx || cy
+	var xv, yv []float64
+	var xz, yz []complex128
+	if isC {
+		xz, yz = asComplex(x), asComplex(y)
+	} else {
+		xv, yv = asDoubles(x), asDoubles(y)
+	}
 	m, k, n := nrx, ncx, ncy
 	if tx {
 		m, k = ncx, nrx
@@ -1287,17 +1297,44 @@ func (s *Session) gemm(c *callInfo, x, y Value, nrx, ncx, nry, ncy int, tx, ty b
 		}
 		return yv[p+j*nry]
 	}
-	out := make([]float64, m*n)
-	for j := 0; j < n; j++ {
-		for i := 0; i < m; i++ {
-			var sum float64
-			for p := 0; p < k; p++ {
-				sum += at(i, p) * bt(p, j)
+	var res Value
+	if isC {
+		zat := func(i, p int) complex128 {
+			if tx {
+				return xz[p+i*nrx]
 			}
-			out[i+j*m] = sum
+			return xz[i+p*nrx]
 		}
+		zbt := func(p, j int) complex128 {
+			if ty {
+				return yz[j+p*nry]
+			}
+			return yz[p+j*nry]
+		}
+		out := make([]complex128, m*n)
+		for j := 0; j < n; j++ {
+			for i := 0; i < m; i++ {
+				var sum complex128
+				for p := 0; p < k; p++ {
+					sum += cmul(zat(i, p), zbt(p, j))
+				}
+				out[i+j*m] = sum
+			}
+		}
+		res = &Complex{V: out}
+	} else {
+		out := make([]float64, m*n)
+		for j := 0; j < n; j++ {
+			for i := 0; i < m; i++ {
+				var sum float64
+				for p := 0; p < k; p++ {
+					sum += at(i, p) * bt(p, j)
+				}
+				out[i+j*m] = sum
+			}
+		}
+		res = &Double{V: out}
 	}
-	res := &Double{V: out}
 	attr := []Attr{{Name: "dim", Value: &Integer{V: []int32{int32(m), int32(n)}}}}
 	// dimnames follow the operands' own, for the dimensions that survive
 	rowN := dimNamesOf(x, boolInt(tx))
@@ -1312,8 +1349,7 @@ func (s *Session) gemm(c *callInfo, x, y Value, nrx, ncx, nry, ncy int, tx, ty b
 		}
 		attr = append(attr, Attr{Name: "dimnames", Value: &List{V: []Value{r, cc}}})
 	}
-	res.Attr = attr
-	return res
+	return withAttr(res, attr)
 }
 
 func boolInt(b bool) int {

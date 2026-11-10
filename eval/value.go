@@ -450,7 +450,7 @@ func toSyntax(v Value) syntax.Node {
 			return atomicToSyntax(x)
 		}
 		c := &syntax.Const{Kind: syntax.Complex, Double: real(x.V[0]), Im: imag(x.V[0])}
-		c.NA = isNAComplex(x.V[0])
+		c.NA = isNAReal(real(x.V[0])) && isNAReal(imag(x.V[0]))
 		return c
 	case *Raw:
 		rawConst := func(b byte) syntax.Node { return &syntax.Const{Kind: syntax.Raw, Int: int32(b)} }
