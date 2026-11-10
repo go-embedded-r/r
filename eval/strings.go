@@ -19,7 +19,7 @@ func (s *Session) charVec(c *callInfo, v Value, fname string) []Str {
 	switch x := v.(type) {
 	case *String:
 		return x.V
-	case *Logical, *Integer, *Double:
+	case *Logical, *Integer, *Double, *Complex, *Raw:
 		if cl := classAttr(v); len(cl) == 1 && cl[0] == "factor" {
 			s.errorf(c.call, "'%s' requires a character vector", fname)
 		}
@@ -468,8 +468,11 @@ func init() {
 	regBuiltin("utf8ToInt", func(s *Session, c *callInfo) Value {
 		a := s.matchFormals(c, "x")
 		x, ok := a[0].(*String)
-		if !ok || len(x.V) != 1 {
+		if !ok || len(x.V) < 1 {
 			s.errorf(c.call, "argument must be a character vector of length 1")
+		}
+		if len(x.V) > 1 {
+			s.warningf(c.call, "argument should be a character vector of length 1\nall but the first element will be ignored")
 		}
 		if x.V[0].NA {
 			return &Integer{V: []int32{naInt}}
@@ -815,7 +818,7 @@ func (s *Session) sprintf1(c *callInfo, f string, args []Value, row int, used []
 				} else {
 					str = v.V[idx].S
 				}
-			case *Logical, *Integer, *Double:
+			case *Logical, *Integer, *Double, *Complex, *Raw:
 				e := asStrings(v)[idx]
 				if e.NA {
 					str = "NA"
@@ -905,7 +908,22 @@ func (s *Session) format(c *callInfo) Value {
 	switch v := x.(type) {
 	case nullT:
 		return mkString("NULL")
+	case *Complex:
+		f := formatComplexVec(v.V, digits)
+		for _, e := range v.V {
+			items = append(items, f.encode(e))
+		}
+		if trim {
+			for i := range items {
+				items[i] = strings.TrimLeft(items[i], " ")
+			}
+		}
+	case *Raw:
+		items, _ = formatElements(v, false)
 	case *List:
+		if v.Expr {
+			return mkString(strings.Join(syntax.Deparse(toSyntax(withAttr(v, keepNamesOnly(v))), nil), "\n"))
+		}
 		out := make([]Str, len(v.V))
 		for i, e := range v.V {
 			if _, isNull := e.(nullT); isNull {

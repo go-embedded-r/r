@@ -4,6 +4,8 @@ import (
 	"math"
 	"strconv"
 	"strings"
+
+	"github.com/go-embedded-r/r/syntax"
 )
 
 // parseNumber is R's String2Real for the common spellings: blanks around, a
@@ -87,8 +89,14 @@ func (s *Session) asDouble(c *callInfo, name string) Value {
 		return &Double{V: []float64{}}
 	case *Double:
 		return &Double{V: v.V}
-	case *Logical, *Integer:
+	case *Logical, *Integer, *Raw:
 		return &Double{V: asDoubles(x)}
+	case *Complex:
+		d, warn := complexReals(v)
+		if warn {
+			s.warningf(c.call, "imaginary parts discarded in coercion")
+		}
+		return &Double{V: d}
 	case *String:
 		out := make([]float64, len(v.V))
 		warn := false
@@ -104,6 +112,9 @@ func (s *Session) asDouble(c *callInfo, name string) Value {
 		}
 		return &Double{V: out}
 	}
+	if l, ok := x.(*List); ok && l.Expr {
+		s.errorf(c.call, "'list' object cannot be coerced to type 'double'")
+	}
 	s.errorf(c.call, "cannot coerce type '%s' to vector of type 'double'", typeName(x))
 	return nil
 }
@@ -113,12 +124,18 @@ func (s *Session) asInteger(c *callInfo) Value {
 	switch v := x.(type) {
 	case nullT:
 		return &Integer{V: []int32{}}
-	case *Logical, *Integer:
+	case *Logical, *Integer, *Raw:
 		return &Integer{V: asInts(x)}
-	case *Double, *String:
+	case *Double, *String, *Complex:
 		var d []float64
 		warnCoerce := false
-		if sv, ok := v.(*String); ok {
+		if cv, ok := v.(*Complex); ok {
+			var w bool
+			d, w = complexReals(cv)
+			if w {
+				s.warningf(c.call, "imaginary parts discarded in coercion")
+			}
+		} else if sv, ok := v.(*String); ok {
 			d = make([]float64, len(sv.V))
 			for i, e := range sv.V {
 				f, ok := parseNumber(e)
@@ -161,8 +178,14 @@ func (s *Session) asLogical(c *callInfo) Value {
 		return &Logical{V: []int32{}}
 	case *Logical:
 		return &Logical{V: v.V}
-	case *Integer, *Double:
+	case *Integer, *Double, *Complex:
 		return &Logical{V: logicalOf(s, c, x, "")}
+	case *Raw:
+		out := make([]int32, len(v.V))
+		for i, e := range v.V {
+			out[i] = b2i(e != 0)
+		}
+		return &Logical{V: out}
 	case *String:
 		out := make([]int32, len(v.V))
 		for i, e := range v.V {
@@ -190,11 +213,28 @@ func (s *Session) asCharacter(c *callInfo) Value {
 		return &String{V: []Str{}}
 	case *Symbol:
 		return mkString(v.Name)
-	case *Logical, *Integer, *Double, *String:
+	case *Logical, *Integer, *Double, *String, *Complex, *Raw:
 		if st, ok := factorStrings(x); ok {
 			return &String{V: st}
 		}
 		return &String{V: asStrings(x)}
+	case *List:
+		if v.Expr {
+			out := make([]Str, len(v.V))
+			for i, e := range v.V {
+				switch e.(type) {
+				case *Lang, *Symbol:
+					out[i] = Str{S: strings.Join(syntax.Deparse(toSyntax(e), nil), "\n")}
+				default:
+					if Length(e) == 1 && isVector(e) && kindOf(e) != kList {
+						out[i] = asStrings(e)[0]
+					} else {
+						out[i] = Str{S: strings.Join(syntax.Deparse(toSyntax(e), nil), "\n")}
+					}
+				}
+			}
+			return &String{V: out}
+		}
 	}
 	s.errorf(c.call, "cannot coerce type '%s' to vector of type 'character'", typeName(x))
 	return nil
@@ -227,8 +267,10 @@ func factorStrings(v Value) ([]Str, bool) {
 func (s *Session) math1(name string, f func(float64) float64, keepInt bool) func(s *Session, c *callInfo) Value {
 	return func(s *Session, c *callInfo) Value {
 		x := s.nargs1(c, name)
-		switch x.(type) {
+		switch xv := x.(type) {
 		case *Logical, *Integer, *Double:
+		case *Complex:
+			return s.complexUnary(c, name, xv)
 		default:
 			s.errorf(c.call, "non-numeric argument to mathematical function")
 		}
@@ -281,6 +323,20 @@ func (s *Session) narm(c *callInfo) (data []Value, rm bool) {
 func (s *Session) summary(name string) func(s *Session, c *callInfo) Value {
 	return func(s *Session, c *callInfo) Value {
 		data, rm := s.narm(c)
+		if name == "sum" || name == "prod" {
+			for _, a := range data {
+				if _, ok := a.(*Complex); ok {
+					for _, b := range data {
+						switch b.(type) {
+						case nullT, *Logical, *Integer, *Double, *Complex:
+						default:
+							s.errorf(c.call, "invalid 'type' (%s) of argument", typeName(b))
+						}
+					}
+					return &Complex{V: []complex128{complexSum(data, name == "prod", rm)}}
+				}
+			}
+		}
 		allInt := true
 		if name == "min" || name == "max" {
 			for _, a := range data {
@@ -452,6 +508,9 @@ func (s *Session) anyAll(isAny bool) func(s *Session, c *callInfo) Value {
 			case *String:
 				s.warningf(c.call, "coercing argument of type 'character' to logical")
 				vals = s.asLogical(&callInfo{call: c.call, args: []Value{x}}).(*Logical).V
+			case *Raw:
+				s.warningf(c.call, "coercing argument of type 'raw' to logical")
+				vals = s.asLogical(&callInfo{call: c.call, args: []Value{x}}).(*Logical).V
 			default:
 				s.errorf(c.call, "invalid 'type' (%s) of argument", typeName(a))
 			}
@@ -491,7 +550,7 @@ func init() {
 		return false
 	})
 	pred("is.character", func(v Value) bool { _, ok := v.(*String); return ok })
-	pred("is.list", func(v Value) bool { _, ok := v.(*List); return ok })
+	pred("is.list", func(v Value) bool { l, ok := v.(*List); return ok && !l.Expr })
 	pred("is.function", func(v Value) bool {
 		switch v.(type) {
 		case *Closure, *Builtin:
@@ -505,7 +564,7 @@ func init() {
 	pred("is.environment", func(v Value) bool { _, ok := v.(*Env); return ok })
 	pred("is.atomic", func(v Value) bool {
 		switch v.(type) {
-		case *Logical, *Integer, *Double, *String:
+		case *Logical, *Integer, *Double, *String, *Complex, *Raw:
 			return true
 		}
 		return false

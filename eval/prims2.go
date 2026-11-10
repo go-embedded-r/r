@@ -63,8 +63,25 @@ func init() {
 		}
 		a := s.matchFormals(c, "x", "base")
 		x := a[0]
-		switch x.(type) {
+		switch xv := x.(type) {
 		case *Logical, *Integer, *Double:
+		case *Complex:
+			var base *complex128
+			if a[1] != nil {
+				switch a[1].(type) {
+				case *Logical, *Integer, *Double, *Complex:
+				default:
+					s.errorf(c.call, "non-numeric argument to mathematical function")
+				}
+				if bz := asComplex(a[1]); len(bz) > 0 {
+					base = &bz[0]
+				}
+			}
+			out := make([]complex128, len(xv.V))
+			for i, z := range xv.V {
+				out[i] = complexLog(z, base)
+			}
+			return &Complex{V: out, Attr: xv.Attr}
 		default:
 			s.errorf(c.call, "non-numeric argument to mathematical function")
 		}
@@ -128,8 +145,30 @@ func init() {
 			if _, isNull := x.(nullT); isNull {
 				return &Double{V: []float64{}}
 			}
-			switch x.(type) {
+			switch xv := x.(type) {
 			case *Logical, *Integer, *Double:
+			case *Complex:
+				if name == "cumsum" || name == "cumprod" {
+					out := make([]complex128, len(xv.V))
+					var acc complex128
+					if name == "cumprod" {
+						acc = 1
+					}
+					for i, z := range xv.V {
+						if name == "cumsum" {
+							acc += z
+						} else {
+							acc = cmul(acc, z)
+						}
+						out[i] = acc
+					}
+					var nmAttr []Attr
+					if n := namesOf(x); n != nil {
+						nmAttr = namesAttr(n.V)
+					}
+					return &Complex{V: out, Attr: nmAttr}
+				}
+				s.errorf(c.call, "'%s' not defined for complex numbers", name)
 			case *String:
 				x = s.asDouble(&callInfo{call: c.call, env: c.env, args: []Value{x}, names: []string{""}}, name)
 			default:
@@ -268,6 +307,26 @@ func init() {
 						out[i] = 1
 					}
 				}
+			case *Complex:
+				out = make([]int32, len(v.V))
+				for i, z := range v.V {
+					re, im := real(z), imag(z)
+					switch name {
+					case "is.finite":
+						out[i] = b2i(!math.IsNaN(re) && !math.IsInf(re, 0) && !math.IsNaN(im) && !math.IsInf(im, 0))
+					case "is.infinite":
+						out[i] = b2i(math.IsInf(re, 0) || math.IsInf(im, 0))
+					default:
+						out[i] = b2i((math.IsNaN(re) && !isNAReal(re)) || (math.IsNaN(im) && !isNAReal(im)))
+					}
+				}
+			case *Raw:
+				out = make([]int32, len(v.V))
+				if name == "is.finite" {
+					for i := range out {
+						out[i] = 1
+					}
+				}
 			case *Integer, *Logical:
 				in := asInts(v)
 				out = make([]int32, len(in))
@@ -349,16 +408,17 @@ func init() {
 		return false
 	})
 	typeTest("is.language", func(v Value) bool {
-		switch v.(type) {
+		switch x := v.(type) {
 		case *Lang, *Symbol:
 			return true
+		case *List:
+			return x.Expr
 		}
 		return false
 	})
 	typeTest("is.pairlist", func(v Value) bool { _, null := v.(nullT); return null })
-	typeTest("is.expression", func(Value) bool { return false })
-	typeTest("is.complex", func(Value) bool { return false })
-	typeTest("is.raw", func(Value) bool { return false })
+	typeTest("is.expression", func(v Value) bool { l, ok := v.(*List); return ok && l.Expr })
+	typeTest("is.raw", func(v Value) bool { _, ok := v.(*Raw); return ok })
 	typeTest("isS4", func(Value) bool { return false })
 	regBuiltin("interactive", func(s *Session, c *callInfo) Value { return mkLogical(false) })
 	regBuiltin("gc.time", func(s *Session, c *callInfo) Value { return &Double{V: make([]float64, 5)} })
@@ -399,7 +459,7 @@ func init() {
 					out[i] = Null
 				}
 			}
-			res := &List{V: out}
+			res := &List{V: out, Expr: l.Expr}
 			if nm := namesOf(l); nm != nil {
 				res.Attr = namesAttr(fitNamesEmpty(nm.V, n))
 			}
@@ -606,7 +666,7 @@ func init() {
 			return nil
 		})
 	}
-	for _, n := range []string{"expression", "~", "@", "@<-", "Exec", "Tailcall", "declare", "browser", "standardGeneric", ".Internal", ".isMethodsDispatchOn", "pos.to.env", "tracemem", "untracemem", "retracemem"} {
+	for _, n := range []string{"~", "@", "@<-", "Exec", "Tailcall", "declare", "browser", "standardGeneric", ".Internal", ".isMethodsDispatchOn", "pos.to.env", "tracemem", "untracemem", "retracemem"} {
 		n := n
 		regSpecial(n, func(s *Session, c *callInfo) Value {
 			s.errorf(c.call, "'%s' is not supported by this evaluator (%s)", n, unsupportedWhy(n))
@@ -618,12 +678,12 @@ func init() {
 // unsupportedPrims are the primitives that need a type or a runtime this
 // evaluator does not have yet; Unsupported lists them.
 var unsupportedPrims = []string{
-	"Re", "Im", "Mod", "Arg", "Conj", "as.complex", "as.raw", "is.single",
+	"is.single",
 	".C", ".Call", ".Call.graphics", ".External", ".External.graphics", ".External2", ".Fortran",
 	"lazyLoadDBfetch", ".cache_class", ".primTrace", ".primUntrace", "unCfillPOSIXlt",
 }
 
-var unsupportedSpecials = []string{"expression", "~", "@", "@<-", "Exec", "Tailcall", "declare", "browser", "standardGeneric", ".Internal", ".isMethodsDispatchOn", "pos.to.env", "tracemem", "untracemem", "retracemem"}
+var unsupportedSpecials = []string{"~", "@", "@<-", "Exec", "Tailcall", "declare", "browser", "standardGeneric", ".Internal", ".isMethodsDispatchOn", "pos.to.env", "tracemem", "untracemem", "retracemem"}
 
 // Unsupported lists the primitives that exist as names but refuse to run:
 // they are not counted as implemented.
@@ -633,14 +693,10 @@ func Unsupported() []string {
 
 func unsupportedWhy(n string) string {
 	switch n {
-	case "Re", "Im", "Mod", "Arg", "Conj", "as.complex":
-		return "there is no complex type yet"
-	case "as.raw", "is.single":
-		return "there is no raw or single type yet"
+	case "is.single":
+		return "there is no single type"
 	case ".C", ".Call", ".Call.graphics", ".External", ".External.graphics", ".External2", ".Fortran", "lazyLoadDBfetch":
 		return "foreign code is not loaded; routines are ported to Go instead"
-	case "expression":
-		return "there is no expression vector type yet"
 	case "~":
 		return "formulas need attributes on calls"
 	case "@", "@<-", "standardGeneric", "isS4", ".isMethodsDispatchOn":
@@ -716,6 +772,12 @@ func anyNAValue(v Value, rec bool) bool {
 				return true
 			}
 		}
+	case *Complex:
+		for _, e := range x.V {
+			if math.IsNaN(real(e)) || math.IsNaN(imag(e)) {
+				return true
+			}
+		}
 	case *List:
 		for _, e := range x.V {
 			if rec {
@@ -741,7 +803,7 @@ func (s *Session) roundLike(c *callInfo, sig bool) Value {
 	a := s.matchFormals(c, "x", "digits")
 	x := a[0]
 	switch x.(type) {
-	case *Logical, *Integer, *Double:
+	case *Logical, *Integer, *Double, *Complex:
 	default:
 		s.errorf(c.call, "non-numeric argument to mathematical function")
 	}
@@ -760,6 +822,22 @@ func (s *Session) roundLike(c *callInfo, sig bool) Value {
 			s.errorf(c.call, "invalid second argument of length 0")
 		}
 		dig = dd[0]
+	}
+	if cx, ok := x.(*Complex); ok {
+		out := make([]complex128, len(cx.V))
+		digits := int(dig)
+		if math.IsNaN(dig) {
+			digits = 0
+		}
+		for i, z := range cx.V {
+			out[i] = roundComplex(z, digits, sig, func(v float64, dg int) float64 {
+				if math.IsNaN(v) || math.IsInf(v, 0) {
+					return v
+				}
+				return fround(v, float64(dg))
+			})
+		}
+		return &Complex{V: out, Attr: cx.Attr}
 	}
 	d := asDoubles(x)
 	out := make([]float64, len(d))

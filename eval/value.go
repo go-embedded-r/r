@@ -104,6 +104,15 @@ type (
 	List struct {
 		V    []Value
 		Attr []Attr
+		Expr bool // an expression vector (EXPRSXP)
+	}
+	Complex struct {
+		V    []complex128
+		Attr []Attr
+	}
+	Raw struct {
+		V    []byte
+		Attr []Attr
 	}
 )
 
@@ -111,7 +120,14 @@ func (*Logical) Type() Type { return rds.LGLSXP }
 func (*Integer) Type() Type { return rds.INTSXP }
 func (*Double) Type() Type  { return rds.REALSXP }
 func (*String) Type() Type  { return rds.STRSXP }
-func (*List) Type() Type    { return rds.VECSXP }
+func (l *List) Type() Type {
+	if l.Expr {
+		return rds.EXPRSXP
+	}
+	return rds.VECSXP
+}
+func (*Complex) Type() Type { return rds.CPLXSXP }
+func (*Raw) Type() Type     { return rds.RAWSXP }
 
 // Arg is one argument of a call.
 type Arg struct {
@@ -213,6 +229,10 @@ func Length(v Value) int {
 		return len(x.V)
 	case *List:
 		return len(x.V)
+	case *Complex:
+		return len(x.V)
+	case *Raw:
+		return len(x.V)
 	case *Lang:
 		return len(x.Args) + 1
 	case nullT:
@@ -232,6 +252,10 @@ func attrsOf(v Value) []Attr {
 	case *String:
 		return x.Attr
 	case *List:
+		return x.Attr
+	case *Complex:
+		return x.Attr
+	case *Raw:
 		return x.Attr
 	case *Env:
 		return x.attrs
@@ -275,7 +299,11 @@ func withAttr(v Value, attr []Attr) Value {
 	case *String:
 		return &String{V: x.V, Attr: attr}
 	case *List:
-		return &List{V: x.V, Attr: attr}
+		return &List{V: x.V, Attr: attr, Expr: x.Expr}
+	case *Complex:
+		return &Complex{V: x.V, Attr: attr}
+	case *Raw:
+		return &Raw{V: x.V, Attr: attr}
 	case *Env:
 		// environments have reference semantics: the attributes change in place
 		x.attrs = attr
@@ -325,7 +353,13 @@ func FromSyntax(n syntax.Node) Value {
 			}
 			return mkString(x.Str)
 		}
-		return Null // complex constants are not in this slice
+		if x.Kind == syntax.Complex {
+			if x.NA {
+				return &Complex{V: []complex128{complex(naReal, naReal)}}
+			}
+			return &Complex{V: []complex128{complex(x.Double, x.Im)}}
+		}
+		return Null
 	case *syntax.Function:
 		f := &Formals{}
 		for _, p := range x.Params {
@@ -411,7 +445,38 @@ func toSyntax(v Value) syntax.Node {
 		return &syntax.Const{Kind: syntax.String, Str: x.V[0].S, NA: x.V[0].NA}
 	case *Promise:
 		return toSyntax(x.Expr)
+	case *Complex:
+		if len(x.V) != 1 || namesOf(x) != nil {
+			return atomicToSyntax(x)
+		}
+		c := &syntax.Const{Kind: syntax.Complex, Double: real(x.V[0]), Im: imag(x.V[0])}
+		c.NA = isNAComplex(x.V[0])
+		return c
+	case *Raw:
+		rawConst := func(b byte) syntax.Node { return &syntax.Const{Kind: syntax.Raw, Int: int32(b)} }
+		if len(x.V) == 0 {
+			return &syntax.Call{Fun: &syntax.Sym{Name: "raw"}, Args: []syntax.Arg{{Value: &syntax.Const{Kind: syntax.Double, Double: 0}}}}
+		}
+		var inner syntax.Node
+		if len(x.V) == 1 && namesOf(x) == nil {
+			inner = rawConst(x.V[0])
+		} else {
+			call := &syntax.Call{Fun: &syntax.Sym{Name: "c"}}
+			nm := namesOf(x)
+			for i, b := range x.V {
+				a := syntax.Arg{Value: rawConst(b)}
+				if nm != nil && !nm.V[i].NA && nm.V[i].S != "" {
+					a.Name, a.HasName = nm.V[i].S, true
+				}
+				call.Args = append(call.Args, a)
+			}
+			inner = call
+		}
+		return &syntax.Call{Fun: &syntax.Sym{Name: "as.raw"}, Args: []syntax.Arg{{Value: inner}}}
 	case *List:
+		if x.Expr {
+			return vecToSyntax("expression", x.V, x)
+		}
 		return vecToSyntax("list", x.V, x)
 	case *Lang:
 		if s, ok := x.Fun.(*Symbol); ok && s.Name == "function" && len(x.Args) == 2 {
@@ -455,7 +520,7 @@ func vecToSyntax(head string, elems []Value, v Value) syntax.Node {
 func atomicToSyntax(v Value) syntax.Node {
 	n := Length(v)
 	if n == 0 {
-		name := map[Type]string{rds0Lgl: "logical", rds0Int: "integer", rds0Dbl: "numeric", rds0Str: "character"}[v.Type()]
+		name := map[Type]string{rds0Lgl: "logical", rds0Int: "integer", rds0Dbl: "numeric", rds0Str: "character", rds.CPLXSXP: "complex"}[v.Type()]
 		return &syntax.Call{Fun: &syntax.Sym{Name: name}, Args: []syntax.Arg{{Value: &syntax.Const{Kind: syntax.Double, Double: 0}}}}
 	}
 	if iv, ok := v.(*Integer); ok && n > 1 && namesOf(v) == nil {
@@ -531,8 +596,12 @@ func ToRDS(v Value) rds.Value {
 			}
 		}
 		return out
+	case *Complex:
+		return &rds.Complex{Meta: meta(x.Attr), V: append([]complex128(nil), x.V...)}
+	case *Raw:
+		return &rds.Raw{Meta: meta(x.Attr), V: append([]byte(nil), x.V...)}
 	case *List:
-		out := &rds.List{Meta: meta(x.Attr), V: make([]rds.Value, len(x.V))}
+		out := &rds.List{Meta: meta(x.Attr), Expr: x.Expr, V: make([]rds.Value, len(x.V))}
 		for i, e := range x.V {
 			out.V[i] = ToRDS(e)
 		}

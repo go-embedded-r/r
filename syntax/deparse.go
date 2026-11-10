@@ -466,6 +466,8 @@ func (d *deparser) constant(c *Const) {
 		}
 	case Complex:
 		d.print(formatComplex15(c))
+	case Raw:
+		d.print("0x" + strconv.FormatInt(int64(c.Int)|0x100, 16)[1:])
 	case String:
 		if c.NA {
 			d.print("NA_character_")

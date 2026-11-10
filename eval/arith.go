@@ -10,9 +10,13 @@ const (
 	kLogical
 	kInteger
 	kDouble
+	kComplex
 	kString
 	kList
 	kOther
+	// kRaw is outside the promotion order (raw is the lowest type, but it
+	// is not a number): c() and the operators treat it on its own.
+	kRaw
 )
 
 func kindOf(v Value) int {
@@ -25,30 +29,46 @@ func kindOf(v Value) int {
 		return kInteger
 	case *Double:
 		return kDouble
+	case *Complex:
+		return kComplex
 	case *String:
 		return kString
 	case *List:
 		return kList
+	case *Raw:
+		return kRaw
 	}
 	return kOther
 }
 
-// asInts returns the elements of a logical or integer vector (NULL: none).
+// asInts returns the elements of a logical, integer or raw vector (NULL: none).
 func asInts(v Value) []int32 {
 	switch x := v.(type) {
 	case *Logical:
 		return x.V
 	case *Integer:
 		return x.V
+	case *Raw:
+		out := make([]int32, len(x.V))
+		for i, e := range x.V {
+			out[i] = int32(e)
+		}
+		return out
 	}
 	return nil
 }
 
-// asDoubles converts a logical, integer or double vector to doubles, NA to NA.
+// asDoubles converts a logical, integer, raw or double vector to doubles, NA to NA.
 func asDoubles(v Value) []float64 {
 	switch x := v.(type) {
 	case *Double:
 		return x.V
+	case *Raw:
+		out := make([]float64, len(x.V))
+		for i, e := range x.V {
+			out[i] = float64(e)
+		}
+		return out
 	case *Logical, *Integer:
 		iv := asInts(v)
 		out := make([]float64, len(iv))
@@ -154,7 +174,7 @@ func (s *Session) arith(op string, c *callInfo) Value {
 	}
 	x, y := c.args[0], c.args[1]
 	kx, ky := kindOf(x), kindOf(y)
-	if kx > kDouble || ky > kDouble {
+	if kx > kComplex || ky > kComplex {
 		s.errorf(c.call, "non-numeric argument to binary operator")
 	}
 	s.conform(c, x, y)
@@ -165,6 +185,9 @@ func (s *Session) arith(op string, c *callInfo) Value {
 		s.warningf(c.call, "longer object length is not a multiple of shorter object length")
 	}
 	attrs := copyAttrs(x, y, n)
+	if kx == kComplex || ky == kComplex {
+		return s.arithComplex(op, c, x, y, n, attrs)
+	}
 	toDouble := kx == kDouble || ky == kDouble || op == "/" || op == "^"
 	if toDouble {
 		a, b := asDoubles(x), asDoubles(y)
@@ -297,6 +320,15 @@ func (s *Session) unary(op string, c *callInfo) Value {
 			out[i] = -e
 		}
 		return &Double{V: out, Attr: v.Attr}
+	case *Complex:
+		if op == "+" {
+			return v
+		}
+		out := make([]complex128, len(v.V))
+		for i, e := range v.V {
+			out[i] = -e
+		}
+		return &Complex{V: out, Attr: v.Attr}
 	}
 	s.errorf(c.call, "invalid argument to unary operator")
 	return nil

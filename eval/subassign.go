@@ -38,6 +38,8 @@ func coerceTo(x Value, kind int) Value {
 		return &Integer{V: append([]int32(nil), asInts(x)...), Attr: attr}
 	case kDouble:
 		return &Double{V: append([]float64(nil), asDoubles(x)...), Attr: attr}
+	case kComplex:
+		return &Complex{V: append([]complex128(nil), asComplex(x)...), Attr: attr}
 	case kString:
 		return &String{V: append([]Str(nil), asStrings(x)...), Attr: attr}
 	case kList:
@@ -62,6 +64,10 @@ func emptyOf(kind int) Value {
 		return &Double{V: []float64{}}
 	case kString:
 		return &String{V: []Str{}}
+	case kComplex:
+		return &Complex{V: []complex128{}}
+	case kRaw:
+		return &Raw{V: []byte{}}
 	}
 	return &List{V: []Value{}}
 }
@@ -135,7 +141,30 @@ func assignAt(x Value, pos []int, value Value, n int) Value {
 				out[p] = vv[i%lv]
 			}
 		}
-		return &List{V: out, Attr: v.Attr}
+		return &List{V: out, Attr: v.Attr, Expr: v.Expr}
+	case *Complex:
+		out := make([]complex128, n)
+		copy(out, v.V)
+		for i := len(v.V); i < n; i++ {
+			out[i] = naComplex
+		}
+		vv := value.(*Complex).V
+		for i, p := range pos {
+			if p >= 0 {
+				out[p] = vv[i%lv]
+			}
+		}
+		return &Complex{V: out, Attr: v.Attr}
+	case *Raw:
+		out := make([]byte, n)
+		copy(out, v.V)
+		vv := value.(*Raw).V
+		for i, p := range pos {
+			if p >= 0 {
+				out[p] = vv[i%lv]
+			}
+		}
+		return &Raw{V: out, Attr: v.Attr}
 	}
 	return x
 }
@@ -193,6 +222,19 @@ func (s *Session) commonKind(c *callInfo, x, value Value) (Value, Value) {
 	k := kx
 	if kv > k {
 		k = kv
+	}
+	if kx == kRaw || kv == kRaw {
+		// raw mixes with nothing but itself and lists
+		switch {
+		case kx == kRaw && kv == kRaw:
+			k = kRaw
+		case kx == kList || kv == kList:
+			k = kList
+		case kx == kNull || kv == kNull:
+			k = kx + kv - kNull
+		default:
+			s.errorf(c.call, "incompatible types (from %s to %s) in subassignment type fix", typeName(x), typeName(value))
+		}
 	}
 	if kx == kOther {
 		s.errorf(c.call, "object of type '%s' is not subsettable", typeName(x))
@@ -289,7 +331,7 @@ func (s *Session) subassign1(c *callInfo) Value {
 				}
 			}
 		}
-		res := &List{V: out, Attr: attrsOf(l)}
+		res := &List{V: out, Attr: attrsOf(l), Expr: l.Expr}
 		if out == nil {
 			res.V = []Value{}
 		}
@@ -587,7 +629,7 @@ func (s *Session) subassign2(c *callInfo) Value {
 					}
 				}
 			}
-			res := &List{V: out, Attr: attrsOf(l)}
+			res := &List{V: out, Attr: attrsOf(l), Expr: l.Expr}
 			if out == nil {
 				res.V = []Value{}
 			}
@@ -673,7 +715,7 @@ func (s *Session) subassignDollar(c *callInfo) Value {
 			return Null
 		}
 		x = &List{V: []Value{}}
-	case *Logical, *Integer, *Double, *String:
+	case *Logical, *Integer, *Double, *String, *Complex, *Raw:
 		s.warningf(c.call, "Coercing LHS to a list")
 		var keep []Attr
 		for _, a := range attrsOf(x) {
@@ -683,6 +725,9 @@ func (s *Session) subassignDollar(c *callInfo) Value {
 		}
 		x = withAttr(coerceTo(x, kList), keep)
 	case *List:
+		if v.Expr {
+			x = &List{V: v.V, Attr: v.Attr}
+		}
 	default:
 		s.errorf(c.call, "object of type '%s' is not subsettable", typeName(x))
 	}

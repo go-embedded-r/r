@@ -23,6 +23,10 @@ const (
 	Double
 	Complex
 	String
+	// Raw is never produced by the parser: it is a byte (Int) that deparse
+	// writes as 0x01, inside the as.raw(...) call an evaluator raw vector
+	// deparses to.
+	Raw
 )
 
 // Sym is a symbol (a name, possibly backquoted in the source).

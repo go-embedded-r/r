@@ -252,6 +252,10 @@ func element(x Value, i int) Value {
 		return &String{V: []Str{v.V[i]}}
 	case *List:
 		return v.V[i]
+	case *Complex:
+		return &Complex{V: []complex128{v.V[i]}}
+	case *Raw:
+		return &Raw{V: []byte{v.V[i]}}
 	}
 	return Null
 }

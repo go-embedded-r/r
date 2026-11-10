@@ -454,6 +454,17 @@ func init() {
 		switch x := a[0].(type) {
 		case *Lang, *Symbol:
 			return s.underEval(c.call, func() Value { return s.eval(x, env) })
+		case *List:
+			if x.Expr {
+				return s.underEval(c.call, func() Value {
+					var v Value = Null
+					for _, e := range x.V {
+						s.visible = true
+						v = s.eval(e, env)
+					}
+					return v
+				})
+			}
 		}
 		s.visible = true
 		return a[0]

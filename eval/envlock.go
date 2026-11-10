@@ -304,6 +304,9 @@ func init() {
 		a := s.matchLoose(c, "x")
 		switch x := a[0].(type) {
 		case *List:
+			if x.Expr {
+				return &List{V: x.V, Attr: x.Attr}
+			}
 			return x
 		case *Lang:
 			return callAsList(x)

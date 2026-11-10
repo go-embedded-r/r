@@ -27,8 +27,8 @@ func init() {
 		case "any":
 			switch v := x.(type) {
 			case *List:
-				return withAttr(&List{V: v.V}, keepNamesOnly(v))
-			case *Logical, *Integer, *Double, *String:
+				return withAttr(&List{V: v.V, Expr: v.Expr}, keepNamesOnly(v))
+			case *Logical, *Integer, *Double, *String, *Complex, *Raw:
 				return withAttr(x, nil)
 			case *Closure, *Builtin:
 				s.errorf(&Lang{Fun: Intern("as.vector"), Args: []Arg{{Value: Intern("x")}, {Value: Intern("mode")}}}, "cannot coerce type '%s' to vector of type 'any'", typeName(x))
@@ -36,9 +36,20 @@ func init() {
 			return x
 		case "list":
 			if l, ok := x.(*List); ok {
+				if l.Expr {
+					return &List{V: l.V, Attr: l.Attr}
+				}
 				return l
 			}
 			return &List{V: s.asListElems(c, x), Attr: keepNamesOnly(x)}
+		case "complex":
+			cc := &callInfo{call: c.call, env: c.env, args: []Value{withAttr(x, nil)}, names: []string{""}}
+			return s.asComplexFn(cc)
+		case "raw":
+			cc := &callInfo{call: c.call, env: c.env, args: []Value{withAttr(x, nil)}, names: []string{""}}
+			return s.asRaw(cc)
+		case "expression":
+			return s.asExpression(c, x)
 		case "logical", "integer", "numeric", "double", "character":
 			if l, ok := x.(*List); ok {
 				for _, e := range l.V {
@@ -122,7 +133,7 @@ func init() {
 				s.errorf(c.call, "argument lengths differ")
 			}
 			switch k.(type) {
-			case *Logical, *Integer, *Double, *String:
+			case *Logical, *Integer, *Double, *String, *Complex:
 			case nullT:
 				s.errorf(c.call, "argument %d is not a vector", ki+1)
 			default:
@@ -143,6 +154,8 @@ func init() {
 				return math.IsNaN(v.V[i])
 			case *String:
 				return v.V[i].NA
+			case *Complex:
+				return math.IsNaN(real(v.V[i])) || math.IsNaN(imag(v.V[i]))
 			}
 			return false
 		}
@@ -162,6 +175,14 @@ func init() {
 				return 0
 			case *String:
 				return collate(v.V[i].S, v.V[j].S)
+			case *Complex:
+				switch {
+				case cless(v.V[i], v.V[j]):
+					return -1
+				case cless(v.V[j], v.V[i]):
+					return 1
+				}
+				return 0
 			}
 			return 0
 		}
@@ -628,8 +649,30 @@ func init() {
 			s.errorf(c.call, "argument \"x\" is missing, with no default")
 		}
 		narm := a[2] != nil && s.truthy(c, a[2], "na.rm")
-		switch x.(type) {
+		switch xv := x.(type) {
 		case *Logical, *Integer, *Double:
+		case *Complex:
+			var zs []complex128
+			for _, z := range xv.V {
+				if narm && (math.IsNaN(real(z)) || math.IsNaN(imag(z))) {
+					continue
+				}
+				zs = append(zs, z)
+			}
+			var sum complex128
+			for _, z := range zs {
+				sum += z
+			}
+			n := complex(float64(len(zs)), 0)
+			m := complex(real(sum)/real(n), imag(sum)/real(n))
+			if len(zs) > 0 && !math.IsInf(real(m), 0) && !math.IsNaN(real(m)) && !math.IsInf(imag(m), 0) && !math.IsNaN(imag(m)) {
+				var t complex128
+				for _, z := range zs {
+					t += z - m
+				}
+				m += complex(real(t)/real(n), imag(t)/real(n))
+			}
+			return &Complex{V: []complex128{m}}
 		default:
 			s.warningf(c.call, "argument is not numeric or logical: returning NA")
 			return &Double{V: []float64{naReal}}
@@ -774,7 +817,7 @@ func init() {
 			s.errorf(c.call, "'arg' should be one of %s", "‘average’, ‘first’, ‘last’, ‘random’, ‘max’, ‘min’")
 		}
 		switch x.(type) {
-		case *Logical, *Integer, *Double, *String:
+		case *Logical, *Integer, *Double, *String, *Complex:
 		default:
 			s.errorf(c.call, "argument is not a vector")
 		}
