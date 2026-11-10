@@ -88,7 +88,7 @@ func init() {
 		seq := s.eval(c.raw[1].Value, c.env)
 		n := Length(seq)
 		switch seq.(type) {
-		case nullT, *Logical, *Integer, *Double, *String, *List:
+		case nullT, *Logical, *Integer, *Double, *String, *List, *Complex, *Raw:
 		default:
 			s.errorf(c.call, "invalid for() loop sequence")
 		}

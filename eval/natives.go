@@ -351,7 +351,11 @@ func init() {
 				}
 			}
 		}
-		return s.makeVector(c, s.modeKind(c, mode), n)
+		res := s.makeVector(c, s.modeKind(c, mode), n)
+		if l, ok := res.(*List); ok && mode == "expression" {
+			l.Expr = true
+		}
+		return res
 	})
 	regBuiltin("identical", func(s *Session, c *callInfo) Value {
 		if len(c.args) < 2 {

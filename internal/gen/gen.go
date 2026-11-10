@@ -423,6 +423,20 @@ func NormalizeNaN(v rds.Value) rds.Value {
 			}
 		}
 		normAttrs(x.Meta)
+	case *rds.Complex:
+		norm := func(f float64) float64 {
+			if f != f {
+				if math.Float64bits(f)&0xFFFFFFFF == 1954 {
+					return math.Float64frombits(rds.NAReal)
+				}
+				return math.Float64frombits(0x7FF8000000000000)
+			}
+			return f
+		}
+		for i, z := range x.V {
+			x.V[i] = complex(norm(real(z)), norm(imag(z)))
+		}
+		normAttrs(x.Meta)
 	case *rds.List:
 		for _, e := range x.V {
 			NormalizeNaN(e)

@@ -69,7 +69,11 @@ type Call struct {
 	Pos  Span
 	Fun  Node
 	Args []Arg
-	h    int // height of the subtree, checked against Limits.MaxDepth
+	// Elems marks the call an evaluator expression vector deparses to,
+	// expression(...): its arguments are elements, so an `=` call among them
+	// is not parenthesized as an argument would be.
+	Elems bool
+	h     int // height of the subtree, checked against Limits.MaxDepth
 }
 
 // Param is one formal argument of a function definition.

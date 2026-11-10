@@ -18,7 +18,7 @@ func init() {
 		case nullT:
 			return Null
 		case *Raw:
-			s.errorf(c.call, "raw vectors cannot be sorted")
+			s.errorf(callOf("sort.int(x, na.last = na.last, decreasing = decreasing, ...)"), "raw vectors cannot be sorted")
 		default:
 			s.errorf(c.call, "'x' must be atomic")
 		}

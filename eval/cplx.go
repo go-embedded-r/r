@@ -77,6 +77,9 @@ func parseComplex(s Str) (complex128, bool) {
 	if f, ok := parseNumber(Str{S: t}); ok {
 		return complex(f, 0), true
 	}
+	if t == "i" {
+		return complex(0, naReal), false // R reads the real part 0 and finds no number before the i
+	}
 	if !strings.HasSuffix(t, "i") {
 		return 0, false
 	}
@@ -219,7 +222,7 @@ func (s *Session) arithComplex(op string, c *callInfo, x, y Value, n int, attrs 
 	switch op {
 	case "+", "-", "*", "/", "^":
 	default:
-		s.errorf(c.call, "unimplemented complex operation")
+		s.errorf(nil, "unimplemented complex operation")
 	}
 	a, b := asComplex(x), asComplex(y)
 	out := make([]complex128, n)
@@ -333,6 +336,9 @@ func ctanh(z complex128) complex128 {
 // oracle shows: beyond +-i the real part is +-pi/2, at +-i it is +-pi/4.
 func catan(z complex128) complex128 {
 	x, y := real(z), imag(z)
+	if x == 0 {
+		x = 0 // -0 and +0 are one point here
+	}
 	var re float64
 	switch {
 	case x == 0 && math.Abs(y) > 1:
@@ -621,7 +627,7 @@ func (s *Session) asComplexFn(c *callInfo) Value {
 	case *List:
 		for _, e := range v.V {
 			if Length(e) != 1 || !isVector(e) || kindOf(e) == kList {
-				s.errorf(c.call, "'list' object cannot be coerced to type 'complex'")
+				s.errorf(nil, "'list' object cannot be coerced to type 'complex'")
 			}
 		}
 		comb := s.combine(&callInfo{call: c.call, env: c.env, args: v.V, names: make([]string, len(v.V))})
@@ -632,7 +638,10 @@ func (s *Session) asComplexFn(c *callInfo) Value {
 		for i, e := range v.V {
 			z, ok := parseComplex(e)
 			if !ok {
-				z, warn = naComplex, true
+				warn = true
+				if z == 0 {
+					z = naComplex
+				}
 			}
 			out[i] = z
 		}

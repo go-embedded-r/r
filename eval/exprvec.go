@@ -70,13 +70,13 @@ func (s *Session) asExpression(c *callInfo, x Value) Value {
 		}
 		return &List{V: v.V, Attr: keepNamesOnly(v), Expr: true}
 	case nullT:
-		return &List{V: []Value{}, Expr: true}
+		return &List{V: []Value{Null}, Expr: true}
 	case *Lang, *Symbol:
 		return &List{V: []Value{x}, Expr: true}
 	case *Logical, *Integer, *Double, *String, *Complex, *Raw:
 		n := Length(v)
 		s.checkLen(c.call, n)
-		out := &List{V: make([]Value, n), Expr: true, Attr: keepNamesOnly(v)}
+		out := &List{V: make([]Value, n), Expr: true}
 		for i := range out.V {
 			out.V[i] = element(v, i)
 		}
@@ -148,7 +148,7 @@ func init() {
 		}
 		r := s.parseText(c, joinLines(st.V), -1, "<text>")
 		if len(r.V) != 1 {
-			s.errorf(c.call, "parsing result not of length one, but %d", len(r.V))
+			s.errorf(callOf("str2lang(s)"), "parsing result not of length one, but %d", len(r.V))
 		}
 		return r.V[0]
 	})

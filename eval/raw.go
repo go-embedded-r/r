@@ -71,6 +71,14 @@ func (s *Session) asRaw(c *callInfo) Value {
 		return &Raw{V: []byte{}}
 	case *Raw:
 		return &Raw{V: v.V}
+	case *List:
+		for _, e := range v.V {
+			if Length(e) != 1 || !isVector(e) || kindOf(e) == kList {
+				s.errorf(nil, "'list' object cannot be coerced to type 'raw'")
+			}
+		}
+		comb := s.combine(&callInfo{call: c.call, env: c.env, args: v.V, names: make([]string, len(v.V))})
+		return s.asRaw(&callInfo{call: c.call, env: c.env, args: []Value{withAttr(comb, nil)}, names: []string{""}})
 	case *Logical, *Integer, *Double, *Complex, *String:
 		var d []float64
 		warnCoerce := false
@@ -414,6 +422,6 @@ func (s *Session) bitwInts(c *callInfo, name string, x Value) []int32 {
 	case *Double:
 		return s.asInteger(&callInfo{call: c.call, env: c.env, args: []Value{x}, names: []string{""}}).(*Integer).V
 	}
-	s.errorf(c.call, "unimplemented type '%s' in '%s'", typeName(x), name)
+	s.errorf(c.call, "unimplemented type '%s' in '%s'\n", typeName(x), name)
 	return nil
 }

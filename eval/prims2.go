@@ -289,7 +289,7 @@ func init() {
 				names = append(names, "na.rm")
 			}
 		}
-		sub := &callInfo{call: c.call, env: c.env, args: args, names: names}
+		sub := &callInfo{call: callOf("min(x, na.rm = na.rm)"), env: c.env, args: args, names: names}
 		lo := builtins["min"].fn(s, sub)
 		hi := builtins["max"].fn(s, sub)
 		return s.combine(&callInfo{call: c.call, env: c.env, args: []Value{lo, hi}, names: []string{"", ""}})
@@ -322,11 +322,6 @@ func init() {
 				}
 			case *Raw:
 				out = make([]int32, len(v.V))
-				if name == "is.finite" {
-					for i := range out {
-						out[i] = 1
-					}
-				}
 			case *Integer, *Logical:
 				in := asInts(v)
 				out = make([]int32, len(in))
@@ -486,8 +481,19 @@ func init() {
 			k = kDouble
 		case "character":
 			k = kString
+		case "complex":
+			k = kComplex
 		case "list":
 			k = kList
+		case "raw":
+			if !isVector(c.args[0]) {
+				s.errorf(c.call, "invalid value")
+			}
+			if _, isRaw := c.args[0].(*Raw); isRaw {
+				return c.args[0]
+			}
+			r := s.asRaw(&callInfo{call: c.call, env: c.env, args: []Value{withAttr(c.args[0], nil)}, names: []string{""}})
+			return withAttr(r, attrsOf(c.args[0]))
 		default:
 			s.errorf(c.call, "invalid value")
 		}

@@ -113,7 +113,7 @@ func (s *Session) asDouble(c *callInfo, name string) Value {
 		return &Double{V: out}
 	}
 	if l, ok := x.(*List); ok && l.Expr {
-		s.errorf(c.call, "'list' object cannot be coerced to type 'double'")
+		s.errorf(nil, "'list' object cannot be coerced to type 'double'")
 	}
 	s.errorf(c.call, "cannot coerce type '%s' to vector of type 'double'", typeName(x))
 	return nil

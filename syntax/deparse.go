@@ -143,6 +143,7 @@ type deparser struct {
 	startline bool
 	left      int
 	fnarg     bool
+	elems     bool // the next args() are the elements of an expression vector
 }
 
 func (d *deparser) writeline() {
@@ -550,6 +551,8 @@ func (d *deparser) formals(ps []Param) {
 }
 
 func (d *deparser) args(args []Arg) {
+	elems := d.elems
+	d.elems = false
 	lbreak := false
 	for i, a := range args {
 		if a.HasName {
@@ -562,11 +565,11 @@ func (d *deparser) args(args []Arg) {
 			}
 			d.print(" = ")
 			if a.Value != nil {
-				d.fnarg = true
+				d.fnarg = !elems
 				d.node(a.Value)
 			}
 		} else {
-			d.fnarg = true
+			d.fnarg = !elems
 			d.node(a.Value)
 		}
 		if i < len(args)-1 {
@@ -730,6 +733,7 @@ func (d *deparser) call(c *Call, fnarg bool, prevLeft int) {
 			}
 		}
 		d.print("(")
+		d.elems = c.Elems
 		d.args(c.Args)
 		d.print(")")
 		return
@@ -861,6 +865,7 @@ func (d *deparser) call(c *Call, fnarg bool, prevLeft int) {
 		}
 		d.print("(")
 		d.inlist++
+		d.elems = c.Elems
 		d.args(c.Args)
 		d.inlist--
 		d.print(")")

@@ -506,7 +506,7 @@ func toSyntax(v Value) syntax.Node {
 // or integer(0) and the like.
 func vecToSyntax(head string, elems []Value, v Value) syntax.Node {
 	nm := namesOf(v)
-	call := &syntax.Call{Fun: &syntax.Sym{Name: head}}
+	call := &syntax.Call{Fun: &syntax.Sym{Name: head}, Elems: head == "expression"}
 	for i, e := range elems {
 		a := syntax.Arg{Value: toSyntax(e)}
 		if nm != nil && !nm.V[i].NA && nm.V[i].S != "" {

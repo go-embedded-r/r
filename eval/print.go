@@ -303,6 +303,18 @@ func (s *Session) printNamedVector(v Value, items []string, nm *String, quote bo
 		}
 		s.out.WriteString("\n")
 		for k := start; k < end; k++ {
+			if _, isC := v.(*Complex); isC {
+				// a complex element keeps its own width, and the line has no trailing gap
+				if k > start {
+					s.out.WriteString(" ")
+				}
+				if strings.TrimSpace(items[k]) == "NA" {
+					s.out.WriteString(padLeft("NA", w)) // an NA fills the column, as the names do
+				} else {
+					s.out.WriteString(items[k])
+				}
+				continue
+			}
 			s.out.WriteString(padLeft(items[k], w) + " ")
 		}
 		s.out.WriteString("\n")
