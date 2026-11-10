@@ -63,22 +63,9 @@ sequence.default <- function(nvec, from = 1L, by = 1L, ...) {
   as.integer(unlist(out))
 }
 
-rle <- function(x) {
-  if (!(is.vector(x) || is.list(x))) stop("'x' must be a vector of an atomic type")
-  n <- length(x)
-  differs <- x[-1L] != x[-n]
-  differs[is.na(differs)] <- TRUE
-  starts <- seq_len(n) == 1L | c(FALSE, differs)
-  lens <- tabulate(cumsum(starts), sum(starts))
-  if (!is.null(names(x))) names(lens) <- c(names(x)[-1L][differs], "")
-  structure(list(lengths = lens, values = x[cumsum(lens)]), class = "rle")
-}
 
-inverse.rle <- function(x, ...) {
-  if (is.null(x$lengths) || is.null(x$values) || length(x$lengths) != length(x$values))
-    stop("invalid 'rle' structure")
-  rep.int(x$values, x$lengths)
-}
+
+
 
 split <- function(x, f, drop = FALSE, ...) UseMethod("split")
 

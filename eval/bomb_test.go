@@ -211,3 +211,13 @@ func TestArrayBombs(t *testing.T) {
 	refused(t, s, "rle(numeric(1e12))", "vector", "too large", "limit", "allocate")
 	refused(t, s, "mat.or.vec(1e12, 1)", "vector", "too large", "limit", "allocate")
 }
+
+// inverse.rle is bounded by the vector limit before it allocates (2^28 is
+// MaxVector, so one more is refused), and rle of a refused input never runs.
+func TestRleBombs(t *testing.T) {
+	underMemoryLimit(t)
+	s := eval.NewSession(eval.Options{MaxAlloc: 256 << 20})
+	refused(t, s, "inverse.rle(list(lengths = 2^28 + 1, values = 1))", "vector", "too large", "limit", "allocate")
+	refused(t, s, "inverse.rle(list(lengths = c(2^27 + 1, 2^27 + 1), values = 1:2))", "vector", "too large", "limit", "allocate")
+	refused(t, s, "rle(numeric(2^28 + 1))", "vector", "too large", "limit", "allocate")
+}
