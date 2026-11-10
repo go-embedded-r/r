@@ -197,3 +197,5 @@ con <- textConnection("abc", "w"); writeBin(1L, con)
 con <- stdin(); readBin(con, "raw", 1)
 #---
 f <- tempfile(); con <- file(f, "wb"); writeBin(1L, con); close(con); con <- file(f, "rb"); r <- readChar(con, 2); close(con); unlink(f); r
+#---
+con <- rawConnection(as.raw(1:4)); r <- seek.connection(con); close(con); r

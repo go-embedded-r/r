@@ -144,6 +144,7 @@ type deparser struct {
 	left      int
 	fnarg     bool
 	elems     bool // the next args() are the elements of an expression vector
+	vec       bool // the next args() are the elements of an atomic vector
 }
 
 func (d *deparser) writeline() {
@@ -551,8 +552,8 @@ func (d *deparser) formals(ps []Param) {
 }
 
 func (d *deparser) args(args []Arg) {
-	elems := d.elems
-	d.elems = false
+	elems, vec := d.elems, d.vec
+	d.elems, d.vec = false, false
 	lbreak := false
 	for i, a := range args {
 		if a.HasName {
@@ -574,8 +575,17 @@ func (d *deparser) args(args []Arg) {
 		}
 		if i < len(args)-1 {
 			d.print(", ")
-			d.linebreak(&lbreak)
+			if vec {
+				if len(d.buf) > d.cutoff {
+					d.writeline()
+				}
+			} else {
+				d.linebreak(&lbreak)
+			}
 		}
+	}
+	if vec && len(d.buf) > d.cutoff {
+		d.writeline()
 	}
 	if lbreak {
 		d.indent--
@@ -733,7 +743,7 @@ func (d *deparser) call(c *Call, fnarg bool, prevLeft int) {
 			}
 		}
 		d.print("(")
-		d.elems = c.Elems
+		d.elems, d.vec = c.Elems, c.Vec
 		d.args(c.Args)
 		d.print(")")
 		return
@@ -865,7 +875,7 @@ func (d *deparser) call(c *Call, fnarg bool, prevLeft int) {
 		}
 		d.print("(")
 		d.inlist++
-		d.elems = c.Elems
+		d.elems, d.vec = c.Elems, c.Vec
 		d.args(c.Args)
 		d.inlist--
 		d.print(")")

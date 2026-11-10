@@ -179,3 +179,9 @@ structure(1i, class="foo"); unclass(structure(1i, a=1)); attributes(structure(1i
 rowSums(matrix(1i, 2, 2)); colSums(matrix(1:4 * 1i, 2))
 #---
 1:3 + 1i + 1:2
+#---
+deparse(c(1+1i, 2+2i, 3+3i, 4+4i, 5+5i, 6+6i, 7+7i, 8+8i, 9+9i, 10+10i, 11+11i)); deparse(c(1.5+1.5i, 2.5+2.5i, 3.5+3.5i, 4.5+4.5i, 5.5+5.5i, 6.5+6.5i, 7.5+7.5i)); deparse(c(11111111111.5+1.5i, 2.5+2.5i, 3.5+3.5i, 4.5+4.5i, 5.5+5.5i))
+#---
+deparse(c(NA_complex_, 1i)); deparse(c(1i, NA)); deparse(c(NA_complex_, NA_complex_)); deparse(c(NA_real_, 1)); deparse(c(NA_integer_, 1L)); deparse(c(NA_character_, "a")); deparse(c(NA, 1L, NA)); deparse(c(NA_integer_, NA_integer_))
+#---
+deparse(c(1.11111111111111, 2.22222222222222, 3.33333333333333, 4.4444444444444)); deparse(c(1.11111111111111, 2.22222222222222, 3.33333333333333, 4.44444444444444, 5.5)); deparse(c("aaaaaaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbbbbbbbbbb", "cccccccccccccccccccccc", "ddd"))

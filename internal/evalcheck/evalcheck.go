@@ -161,6 +161,17 @@ func ulpEqual(a, b rds.Value, maxULP int64, worst *int64) bool {
 			}
 		}
 		return true
+	case *rds.Complex:
+		y, ok := b.(*rds.Complex)
+		if !ok || len(x.V) != len(y.V) || !ulpMeta(x.Meta, y.Meta, maxULP, worst) {
+			return false
+		}
+		for i := range x.V {
+			if !ulpEqual(&rds.Real{V: []float64{real(x.V[i]), imag(x.V[i])}}, &rds.Real{V: []float64{real(y.V[i]), imag(y.V[i])}}, maxULP, worst) {
+				return false
+			}
+		}
+		return true
 	case *rds.List:
 		y, ok := b.(*rds.List)
 		if !ok || x.Expr != y.Expr || len(x.V) != len(y.V) || !ulpMeta(x.Meta, y.Meta, maxULP, worst) {

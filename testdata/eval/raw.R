@@ -119,3 +119,5 @@ as.raw(c(1,2))[3]; as.raw(1:3)[c(TRUE, NA)]; match(as.raw(2), as.raw(1:3)); as.r
 sapply(as.raw(1:3), as.integer); lapply(as.raw(1:2), function(b) b); vapply(as.raw(1:3), function(b) as.integer(b) * 2L, 0); for (b in as.raw(1:2)) print(b)
 #---
 structure(as.raw(1), class="foo"); unclass(structure(as.raw(1), a=1)); attributes(structure(as.raw(1:2), names=c("a","b")))
+#---
+deparse(as.raw(1:40)); deparse(as.raw(c(1:25, 1:25)))

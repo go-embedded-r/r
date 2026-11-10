@@ -461,7 +461,7 @@ func toSyntax(v Value) syntax.Node {
 		if len(x.V) == 1 && namesOf(x) == nil {
 			inner = rawConst(x.V[0])
 		} else {
-			call := &syntax.Call{Fun: &syntax.Sym{Name: "c"}}
+			call := &syntax.Call{Fun: &syntax.Sym{Name: "c"}, Vec: true}
 			nm := namesOf(x)
 			for i, b := range x.V {
 				a := syntax.Arg{Value: rawConst(b)}
@@ -506,7 +506,7 @@ func toSyntax(v Value) syntax.Node {
 // or integer(0) and the like.
 func vecToSyntax(head string, elems []Value, v Value) syntax.Node {
 	nm := namesOf(v)
-	call := &syntax.Call{Fun: &syntax.Sym{Name: head}, Elems: head == "expression"}
+	call := &syntax.Call{Fun: &syntax.Sym{Name: head}, Elems: head == "expression", Vec: head == "c"}
 	for i, e := range elems {
 		a := syntax.Arg{Value: toSyntax(e)}
 		if nm != nil && !nm.V[i].NA && nm.V[i].S != "" {
@@ -539,8 +539,29 @@ func atomicToSyntax(v Value) syntax.Node {
 		}
 	}
 	elems := make([]Value, n)
+	isNA := func(i int) bool {
+		switch x := v.(type) {
+		case *Integer:
+			return x.V[i] == naInt
+		case *Double:
+			return isNAReal(x.V[i])
+		case *String:
+			return x.V[i].NA
+		case *Complex:
+			return isNAReal(real(x.V[i])) && isNAReal(imag(x.V[i]))
+		}
+		return false
+	}
+	allNA := true
+	for i := 0; i < n && allNA; i++ {
+		allNA = isNA(i)
+	}
 	for i := range elems {
 		elems[i] = element(v, i)
+		if !allNA && isNA(i) {
+			// among other values an NA is written NA, whatever its type
+			elems[i] = &Logical{V: []int32{naInt}}
+		}
 	}
 	if n == 1 && namesOf(v) == nil {
 		return toSyntax(v)

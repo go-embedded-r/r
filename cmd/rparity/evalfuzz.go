@@ -107,6 +107,11 @@ func evalfuzzCmd() *cobra.Command {
 						srcs[i] = fuzzIO(r)
 					} else if mode == "arrays" {
 						srcs[i] = fuzzArrays(r)
+					} else if mode == "rawcplx" {
+						srcs[i] = fuzzRawComplex(r)
+						if strings.HasSuffix(srcs[i], "# libm") {
+							libm++
+						}
 					} else if mode == "strings2" {
 						srcs[i] = fuzzStrings2(r)
 					} else if mode == "vec" {
@@ -143,13 +148,13 @@ func evalfuzzCmd() *cobra.Command {
 				}
 				for _, rec := range recs {
 					fn := rec.Src
-					if mode == "env" || mode == "datetime" || mode == "io" || mode == "arrays" {
+					if mode == "env" || mode == "datetime" || mode == "io" || mode == "arrays" || mode == "rawcplx" {
 						// the first line names the family
 						fn = strings.TrimPrefix(fn[:strings.IndexByte(fn, '\n')], "# ")
 					} else if i := strings.IndexByte(fn, '('); i > 0 {
 						fn = fn[:i]
 					}
-					if cls, isExcl := strings.CutPrefix(fn, "excl:"); isExcl && (mode == "env" || mode == "datetime" || mode == "io") {
+					if cls, isExcl := strings.CutPrefix(fn, "excl:"); isExcl && (mode == "env" || mode == "datetime" || mode == "io" || mode == "rawcplx") {
 						// a counted exclusion: compared as weakly as its class needs
 						var why string
 						switch cls {
@@ -212,7 +217,7 @@ func evalfuzzCmd() *cobra.Command {
 			if libm > 0 {
 				fmt.Fprintf(c.OutOrStdout(), "  of which %d libm cases compared within %d ulp (C-library last-bit noise); every other case is compared exactly\n", libm, maxULP)
 			}
-			if mode == "env" || mode == "datetime" || mode == "io" {
+			if mode == "env" || mode == "datetime" || mode == "io" || mode == "rawcplx" {
 				total := 0
 				for _, e := range excl {
 					total += e[0]
@@ -259,7 +264,7 @@ func evalfuzzCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().Int64Var(&maxULP, "ulp", 4, "math mode: units in the last place allowed to libm cases")
-	cmd.Flags().StringVar(&mode, "mode", "arith", "arith, subset, regex, strings, apply, math, vec, strings2, env, datetime, io or arrays")
+	cmd.Flags().StringVar(&mode, "mode", "arith", "arith, subset, regex, strings, apply, math, vec, strings2, env, datetime, io, arrays or rawcplx")
 	cmd.Flags().IntVar(&n, "n", 2000, "expressions")
 	cmd.Flags().Int64Var(&seed, "seed", 1, "random seed")
 	cmd.Flags().IntVar(&maxFail, "max-diff", 15, "differences to print")

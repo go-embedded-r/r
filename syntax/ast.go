@@ -73,7 +73,11 @@ type Call struct {
 	// expression(...): its arguments are elements, so an `=` call among them
 	// is not parenthesized as an argument would be.
 	Elems bool
-	h     int // height of the subtree, checked against Limits.MaxDepth
+	// Vec marks the c(...) call an atomic vector deparses to: its elements
+	// break lines without indenting, and a line is also broken before the
+	// closing parenthesis when it is too long.
+	Vec bool
+	h   int // height of the subtree, checked against Limits.MaxDepth
 }
 
 // Param is one formal argument of a function definition.

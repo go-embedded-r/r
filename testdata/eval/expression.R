@@ -95,3 +95,5 @@ eval(expression(stop("boom")))
 tryCatch(eval(parse(text = "1 +")), error = function(e) "parse error"); tryCatch(eval(expression(stop("boom"))), error = function(e) conditionMessage(e))
 #---
 e <- expression(a * b); a <- 3; b <- 4; eval(e[[1]]); eval(e); evalq(a + b)
+#---
+deparse(expression(aaaaaaaaaaaaaaaaaaaa + bbbbbbbbbbbbbbbbbbbbbbbb, cccccccccccccccccccccc + ddd, eeeeeeeeeeeeeeeeeeeee)); parse(text="y = 2"); expression(a = (y = 2))
