@@ -221,3 +221,25 @@ func TestRleBombs(t *testing.T) {
 	refused(t, s, "inverse.rle(list(lengths = c(2^27 + 1, 2^27 + 1), values = 1:2))", "vector", "too large", "limit", "allocate")
 	refused(t, s, "rle(numeric(2^28 + 1))", "vector", "too large", "limit", "allocate")
 }
+
+// scale on a matrix that is not numeric must be an R error, never a Go panic
+// (found by FuzzEval in CI on the first merge of eval/scale.go).
+func TestScaleNonNumericMatrix(t *testing.T) {
+	for _, src := range []string{
+		`scale(matrix(list(1, 2), 1))`,
+		`scale(matrix(c("a", "b"), 1))`,
+		`scale(matrix(character(0), 0, 2))`,
+		`scale(matrix(list(), 0, 2))`,
+		`scale(matrix(TRUE, 2, 2))`,
+	} {
+		s := eval.NewSession(eval.Options{})
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					t.Errorf("%s: panic %v", src, r)
+				}
+			}()
+			_, _ = s.Eval(src)
+		}()
+	}
+}

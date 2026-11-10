@@ -51,3 +51,11 @@ inverse.rle(list(lengths = NA_integer_, values = 1))
 inverse.rle(list(lengths = 1:2, values = list(1, 2)))
 #---
 inverse.rle(structure(list(lengths = 2L, values = factor("u")), class = "rle"))
+#---
+scale(matrix(list(1, 2), 1))
+#---
+scale(matrix(c("a", "b"), 1))
+#---
+scale(matrix(c("a", "b"), 1), FALSE, FALSE)
+#---
+scale(matrix(c("1", "2"), 1), c(1, 2), FALSE)
