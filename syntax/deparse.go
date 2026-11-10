@@ -484,8 +484,26 @@ func formatComplex15(c *Const) string {
 		return "NA_complex_"
 	}
 	re, im := c.Double, c.Im
+	isNA := func(x float64) bool { return math.IsNaN(x) && math.Float64bits(x)&0xFFFFFFFF == 1954 }
+	// beside an NA part R writes the other one rounded to a whole number
+	reWhole, imWhole := false, false
+	if isNA(re) && !math.IsNaN(im) && !math.IsInf(im, 0) {
+		im, imWhole = math.RoundToEven(im), true
+	}
+	if isNA(im) && !math.IsNaN(re) && !math.IsInf(re, 0) {
+		re, reWhole = math.RoundToEven(re), true
+	}
 	if math.IsNaN(re) || math.IsInf(im, 0) || math.IsNaN(im) {
-		return "complex(real=" + formatReal15(re) + ", imaginary=" + formatReal15(im) + ")"
+		part := func(x float64, whole bool) string {
+			if !whole {
+				return formatReal15(x)
+			}
+			if x == 0 && math.Signbit(x) {
+				return "-0"
+			}
+			return strconv.FormatFloat(x, 'f', 0, 64)
+		}
+		return "complex(real=" + part(re, reWhole) + ", imaginary=" + part(im, imWhole) + ")"
 	}
 	sign := "+"
 	if im < 0 {

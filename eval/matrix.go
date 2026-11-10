@@ -80,7 +80,10 @@ func recycleData(data Value, n int) Value {
 	pos := make([]int, n)
 	if l == 0 {
 		k := kindOf(data)
-		if k != kInteger && k != kDouble && k != kString && k != kList {
+		if k == kRaw {
+			return &Raw{V: make([]byte, n)}
+		}
+		if k != kInteger && k != kDouble && k != kString && k != kList && k != kComplex {
 			k = kLogical
 		}
 		na := coerceTo(&Logical{V: []int32{naInt}}, k)
@@ -139,6 +142,18 @@ func init() {
 		}
 		n := nr * nc
 		s.checkLen(c.call, n)
+		if l > 1 && n%l != 0 {
+			switch {
+			case (l > nr && l/nr*nr != l) || (l < nr && nr/l*l != nr):
+				s.warningf(c.call, "data length [%d] is not a sub-multiple or multiple of the number of rows [%d]", l, nr)
+			case (l > nc && l/nc*nc != l) || (l < nc && nc/l*l != nc):
+				s.warningf(c.call, "data length [%d] is not a sub-multiple or multiple of the number of columns [%d]", l, nc)
+			default:
+				s.warningf(c.call, "data length differs from size of matrix: [%d != %d x %d]", l, nr, nc)
+			}
+		} else if l > 1 && n == 0 {
+			s.warningf(c.call, "data length exceeds size of matrix")
+		}
 		var res Value
 		if byrow && l > 0 {
 			pos := make([]int, n)

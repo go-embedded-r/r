@@ -695,6 +695,9 @@ func init() {
 			// the initial bytes are kept, whatever the mode
 			cn.canWrite = true
 			cn.buf = append([]byte(nil), r.V...)
+			if strings.HasPrefix(open, "a") {
+				cn.wpos = len(cn.buf)
+			}
 		}
 		return connValue(s.newConn(cn))
 	})
@@ -803,6 +806,9 @@ func (s *Session) binSink(c *callInfo, target Value, buf []byte, fname string) V
 		s.errorf(c.call, "can only write to a binary connection")
 	case !cn.canWrite:
 		s.errorf(c.call, "cannot write to this connection")
+	}
+	if len(buf) == 0 && cn.kind == kRawConn {
+		s.warningf(c.call, "problem writing to connection")
 	}
 	s.connWriteBytes(c.call, cn, buf)
 	return s.invisible(Null)

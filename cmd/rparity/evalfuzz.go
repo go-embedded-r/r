@@ -164,6 +164,9 @@ func evalfuzzCmd() *cobra.Command {
 							why = evalcheck.CheckNormalized(rec, normBuiltin)
 						case exclEncoding:
 							why = evalcheck.CheckIgnoringEncodingMarks(rec)
+						case exclCplxInv:
+							var w int64
+							why = evalcheck.CheckULPNormalized(rec, 1<<36, &w, func(string) string { return "" })
 						case exclPre1902:
 							rec.Warnings = nil // R warns once per session, so only the first case would carry it
 							why = evalcheck.Check(rec)
@@ -223,7 +226,7 @@ func evalfuzzCmd() *cobra.Command {
 					total += e[0]
 				}
 				fmt.Fprintf(c.OutOrStdout(), "  exclusions, counted (%d cases, not in the figures above):\n", total)
-				for _, cls := range []string{exclAddr, exclBuiltin, exclInstalled, exclHash, exclPre1902, exclTzAbbrev, exclDstGap, exclPost2037, exclEncoding} {
+				for _, cls := range []string{exclAddr, exclBuiltin, exclInstalled, exclHash, exclPre1902, exclTzAbbrev, exclDstGap, exclPost2037, exclEncoding, exclCplxInv} {
 					e, used := excl[cls]
 					if !used {
 						continue
@@ -237,6 +240,7 @@ func evalfuzzCmd() *cobra.Command {
 						exclTzAbbrev:  "the tzone attribute of a time zone with unusual daylight abbreviations; compared exactly, differences are known divergences",
 						exclDstGap:    "local times that a daylight-saving change skips or repeats; compared exactly, differences are known divergences",
 						exclEncoding:  "non-ASCII text that goes through a connection: R leaves it unmarked, ours is marked UTF-8 (no mark is tracked); compared exactly except for the mark",
+						exclCplxInv:   "asin, acos, atan, acosh of a complex number: R's algorithms lose digits that ours keep; compared within 2^36 units in the last place (about 1e-5 relative), anything else fails",
 						exclPost2037:  "years after 2037 in zones with daylight-saving time (%s, %Z, %z there); compared exactly, differences are known divergences",
 					}[cls]
 					fmt.Fprintf(c.OutOrStdout(), "    %-10s %5d cases, %d differ (%s)\n", cls, e[0], e[1], how)

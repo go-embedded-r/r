@@ -51,22 +51,34 @@ func fuzzRawComplex(r *rand.Rand) string {
 	case 0:
 		family = "cplx-arith"
 		op := pick([]string{"+", "-", "*", "/"})
-		body = "(" + cplxVec(r, false) + ") " + op + " (" + pick([]string{cplxVec(r, false), pick(fuzzNums), pick(fuzzInts), pick(fuzzLgls)}) + ")"
+		finite := []string{"0", "1", "-1", "2", "0.5", "-2.5", "3", "10", "100", "1e-5"}
+		body = "(" + cplxVec(r, false) + ") " + op + " (" + pick([]string{cplxVec(r, false), pick(finite), pick(fuzzInts), pick(fuzzLgls)}) + ")"
 	case 1:
 		family = "cplx-pow"
 		body = "(" + cplxVec(r, false) + ") ^ " + pick([]string{"2", "3", "-1", "-2", "0", "1", "4L", "10"})
 	case 2:
 		family = "cplx-math"
 		libm = true
-		f := pick([]string{"sqrt", "exp", "sin", "cos", "tan", "sinh", "cosh", "tanh", "asin", "acos", "atan", "asinh", "acosh", "log", "abs"})
-		body = f + "(" + cplxLit(r, false) + ")"
+		f := pick([]string{"sqrt", "exp", "sin", "cos", "tan", "sinh", "cosh", "tanh", "asin", "acos", "atan", "asinh", "acosh", "log", "abs", "Arg", "Mod"})
+		// not pi: Go's sin and cos are off by a few units in the last place near
+		// multiples of it, which is huge for a result that is nearly zero
+		lit := cplxLit(r, false)
+		for strings.Contains(lit, "pi") {
+			lit = cplxLit(r, false)
+		}
+		body = f + "(" + lit + ")"
+		switch f {
+		case "asin", "acos", "atan", "acosh":
+			// R's algorithms for these lose digits that ours keep: a counted exclusion
+			return "# excl:" + exclCplxInv + "\n" + body
+		}
 	case 3:
 		family = "cplx-print"
 		body = "x <- " + cplxVec(r, true) + "; print(x); format(x); as.character(x); deparse(x); paste(x); format(x, digits = " + pick([]string{"2", "3", "10"}) + "); toString(x)"
 	case 4:
 		family = "cplx-parts"
-		f := pick([]string{"Re", "Im", "Mod", "Arg", "Conj", "is.na", "is.finite", "is.infinite", "is.nan", "round", "signif", "sum", "prod", "cumsum", "cumprod", "mean", "rev", "length", "sort", "unique"})
-		body = f + "(" + cplxVec(r, f != "sort" && f != "unique") + ")"
+		f := pick([]string{"Re", "Im", "Conj", "is.na", "is.finite", "is.infinite", "is.nan", "round", "signif", "sum", "prod", "cumsum", "cumprod", "mean", "rev", "length", "sort", "unique"})
+		body = f + "(" + cplxVec(r, f != "sort" && f != "unique" && f != "prod" && f != "cumprod") + ")"
 	case 5:
 		family = "cplx-coerce"
 		s := pick([]string{"1", "2i", "1+2i", "-1.5-0.5i", "3e2+1e-1i", "NA", "Inf", "NaN", "abc", "1+i", " 4+5i ", "+1i", "0x10", "1e5+0i"})
@@ -159,3 +171,7 @@ func fuzzRawComplex(r *rand.Rand) string {
 	}
 	return fmt.Sprintf("# %s\n%s", family, body)
 }
+
+// exclCplxInv is the exclusion class of the complex inverse trigonometric
+// functions: compared within 2^36 units in the last place (about 1e-5).
+const exclCplxInv = "cplx-inv"

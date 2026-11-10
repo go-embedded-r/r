@@ -922,7 +922,7 @@ func (s *Session) format(c *callInfo) Value {
 		items, _ = formatElements(v, false)
 	case *List:
 		if v.Expr {
-			return mkString(strings.Join(syntax.Deparse(toSyntax(withAttr(v, keepNamesOnly(v))), nil), "\n"))
+			return strVec(syntax.Deparse(toSyntax(withAttr(v, keepNamesOnly(v))), nil))
 		}
 		out := make([]Str, len(v.V))
 		for i, e := range v.V {

@@ -156,9 +156,9 @@ func init() {
 					}
 					for i, z := range xv.V {
 						if name == "cumsum" {
-							acc += z
+							acc = cumAdd(acc, z)
 						} else {
-							acc = cmul(acc, z)
+							acc = cmulCum(acc, z)
 						}
 						out[i] = acc
 					}

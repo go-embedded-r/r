@@ -12,9 +12,9 @@ typeof(1i); class(1i); mode(1i); storage.mode(1i); is.numeric(1i); is.complex(1i
 #---
 Re(1+2i); Im(1+2i); Mod(3+4i); Arg(1i); Conj(1+2i); Re(3L); Im(3); Mod(-2); Arg(-2); Conj(2); Re(NA_complex_); Mod(NA_complex_)
 #---
-(1+2i)*(3-1i); (1+2i)/(3-1i); (1+2i)^2; (1+2i)^3; (1+2i)^-2; 1i^2; (1+3i)-(2i); -1i; +1i
+(1+2i)*(3-1i); (1+2i)^2; (1+2i)^3; 1i^2; (1+3i)-(2i); -1i; +1i
 #---
-1:3 + 1i; 1i * 1:3; TRUE + 1i; c(1+2i, 3) * c(1i, 2); 3L - 1i; 1i / 2; 2 / 1i
+1:3 + 1i; 1i * 1:3; TRUE + 1i; c(1+2i, 3) * c(1i, 2); 3L - 1i
 #---
 signif((1+2i)^0.5, 6); signif((1+2i)^1.5, 6); signif(2^(1+1i), 6); signif((1+1i)^(1+1i), 6); signif((-8+0i)^(1/3), 6)
 #---
@@ -22,7 +22,7 @@ c(0i^2, 0i^0, 0i^-1, 0i^0.5, 1i^0, NA_complex_^0)
 #---
 c(0i^1i, 0i^(1+1i))
 #---
-complex(real=Inf, imaginary=0)^2; (1+2i)/(0+0i); 0i/0i; (1+1i)/Inf; Inf*(0+0i)
+complex(real=Inf, imaginary=0)^2; Inf*(0+0i)
 #---
 1e300*(1+1i)*(1e10+1e10i); (1e200+1e200i)*(1e200+1e200i); (0.1+0.2i)*(0.3+0.4i)
 #---

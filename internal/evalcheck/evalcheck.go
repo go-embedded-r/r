@@ -29,6 +29,15 @@ func CheckNormalized(rec gen.EvalRecord, norm func(string) string) string {
 	return check(rec, 0, nil)
 }
 
+// CheckULPNormalized is CheckULP with the printed output of both sides passed
+// through norm before it is compared, for a value whose printed digits go
+// with its last bits.
+func CheckULPNormalized(rec gen.EvalRecord, maxULP int64, worst *int64, norm func(string) string) string {
+	outNorm = norm
+	defer func() { outNorm = nil }()
+	return check(rec, maxULP, worst)
+}
+
 // outNorm, when set, is applied to the outputs compared by check.
 var outNorm func(string) string
 

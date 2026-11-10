@@ -554,7 +554,11 @@ func atomicToSyntax(v Value) syntax.Node {
 	}
 	allNA := true
 	for i := 0; i < n && allNA; i++ {
-		allNA = isNA(i)
+		if z, ok := v.(*Complex); ok {
+			allNA = isNAComplex(z.V[i]) // a half-NA element counts, and is written as complex(...)
+		} else {
+			allNA = isNA(i)
+		}
 	}
 	for i := range elems {
 		elems[i] = element(v, i)

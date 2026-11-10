@@ -148,19 +148,46 @@ func (f complexFormat) encode(z complex128) string {
 // ---- arithmetic -----------------------------------------------------------------
 
 func cdiv(a, b complex128) complex128 {
-	ar, ai, br, bi := real(a), imag(a), real(b), imag(b)
-	if math.IsNaN(ar) || math.IsNaN(ai) || math.IsNaN(br) || math.IsNaN(bi) || math.IsInf(br, 0) || math.IsInf(bi, 0) || math.IsInf(ar, 0) || math.IsInf(ai, 0) || (br == 0 && bi == 0) {
-		return a / b
+	// The C99 algorithm of Annex G (the divisor is scaled by a power of two
+	// first), with the first product of each sum fused as the oracle's build
+	// does; math.FMA makes that the same on every platform. Found by comparing
+	// candidate algorithms with the oracle on 600 random quotients.
+	ar, ai, c, d := real(a), imag(a), real(b), imag(b)
+	logbw := math.Logb(math.Max(math.Abs(c), math.Abs(d)))
+	ilogbw := 0
+	if !math.IsInf(logbw, 0) && !math.IsNaN(logbw) {
+		ilogbw = int(logbw)
+		c = math.Ldexp(c, -ilogbw)
+		d = math.Ldexp(d, -ilogbw)
 	}
-	// Smith's algorithm
-	if math.Abs(br) >= math.Abs(bi) {
-		ratio := bi / br
-		den := br + bi*ratio
-		return complex((ar+ai*ratio)/den, (ai-ar*ratio)/den)
+	denom := math.FMA(c, c, d*d)
+	nx := math.FMA(ar, c, ai*d)
+	ny := math.FMA(ai, c, -(ar * d))
+	x, y := math.Ldexp(nx/denom, -ilogbw), math.Ldexp(ny/denom, -ilogbw)
+	if math.IsNaN(x) && math.IsNaN(y) {
+		a0, b0, c0, d0 := real(a), imag(a), real(b), imag(b)
+		fin := func(v float64) bool { return !math.IsInf(v, 0) && !math.IsNaN(v) }
+		ind := func(v float64) float64 {
+			if math.IsInf(v, 0) {
+				return 1
+			}
+			return 0
+		}
+		switch {
+		case denom == 0 && (!math.IsNaN(a0) || !math.IsNaN(b0)):
+			x = math.Copysign(math.Inf(1), c0) * a0
+			y = math.Copysign(math.Inf(1), c0) * b0
+		case (math.IsInf(a0, 0) || math.IsInf(b0, 0)) && fin(c0) && fin(d0):
+			a1, b1 := math.Copysign(ind(a0), a0), math.Copysign(ind(b0), b0)
+			x = math.Inf(1) * (a1*c0 + b1*d0)
+			y = math.Inf(1) * (b1*c0 - a1*d0)
+		case math.IsInf(logbw, 1) && fin(a0) && fin(b0):
+			c1, d1 := math.Copysign(ind(c0), c0), math.Copysign(ind(d0), d0)
+			x = 0 * (a0*c1 + b0*d1)
+			y = 0 * (b0*c1 - a0*d1)
+		}
 	}
-	ratio := br / bi
-	den := br*ratio + bi
-	return complex((ar*ratio+ai)/den, (ai*ratio-ar)/den)
+	return complex(x, y)
 }
 
 func cmul(a, b complex128) complex128 {
@@ -188,22 +215,29 @@ func cpow(x, y complex128) complex128 {
 				return complex(math.Inf(1), 0)
 			}
 		}
+		if k > 0 && k == math.Trunc(k) && imag(x) == 0 && !math.IsNaN(real(x)) && !math.IsInf(real(x), 0) {
+			// a real base stays real
+			r := rpow(real(x), k)
+			return complex(r, 0)
+		}
 		if k == math.Trunc(k) && math.Abs(k) <= 65536 {
+			// square and multiply from the low bit, starting from 1 (found by
+			// comparison with the oracle, which also squares a number directly)
 			n := int(math.Abs(k))
-			var res complex128
-			have := false
+			var res complex128 = 1
 			base := x
-			for n > 0 {
-				if n&1 == 1 {
-					if !have {
-						res, have = base, true
-					} else {
+			switch n {
+			case 1:
+				res = x
+			case 2:
+				res = cmul(x, x)
+			default:
+				for n > 0 {
+					if n&1 == 1 {
 						res = cmul(res, base)
 					}
-				}
-				n >>= 1
-				if n > 0 {
 					base = cmul(base, base)
+					n >>= 1
 				}
 			}
 			if k < 0 {
@@ -214,7 +248,7 @@ func cpow(x, y complex128) complex128 {
 	} else if x == 0 {
 		return complex(rNaN, rNaN)
 	}
-	return cmplx.Exp(cmul(y, cmplx.Log(x)))
+	return cmplx.Exp(cmul(y, clog(x)))
 }
 
 func (s *Session) arithComplex(op string, c *callInfo, x, y Value, n int, attrs []Attr) Value {
@@ -230,9 +264,9 @@ func (s *Session) arithComplex(op string, c *callInfo, x, y Value, n int, attrs 
 		p, q := a[i%nx], b[i%ny]
 		switch op {
 		case "+":
-			out[i] = p + q
+			out[i] = cadd(p, q)
 		case "-":
-			out[i] = p - q
+			out[i] = csub(p, q)
 		case "*":
 			out[i] = cmul(p, q)
 		case "/":
@@ -311,16 +345,17 @@ func cexp(z complex128) complex128 {
 
 // ctan is tan(z); where the library's answer overflows the limit is returned.
 func ctan(z complex128) complex128 {
+	x, y := real(z), imag(z)
+	if !math.IsNaN(x) && !math.IsNaN(y) && !math.IsInf(x, 0) && math.Abs(y) >= 20 {
+		// the oracle answers +-i, with a zero real part, from |Im z| = 20 on
+		return complex(math.Copysign(0, math.Sin(2*x)), math.Copysign(1, y))
+	}
 	r := cmplx.Tan(z)
 	if !math.IsNaN(real(r)) && !math.IsInf(real(r), 0) && !math.IsNaN(imag(r)) && !math.IsInf(imag(r), 0) {
 		return r
 	}
-	x, y := real(z), imag(z)
 	if math.IsNaN(x) || math.IsNaN(y) || math.IsInf(x, 0) {
 		return r
-	}
-	if math.Abs(y) > 350 {
-		return complex(math.Copysign(0, math.Sin(2*x)), math.Copysign(1, y))
 	}
 	d := math.Cos(2*x) + math.Cosh(2*y)
 	return complex(math.Sin(2*x)/d, math.Sinh(2*y)/d)
@@ -332,38 +367,109 @@ func ctanh(z complex128) complex128 {
 	return complex(imag(w), -real(w))
 }
 
-// catan is the arctangent with the branch cuts on the imaginary axis the
-// oracle shows: beyond +-i the real part is +-pi/2, at +-i it is +-pi/4.
+// catan is the arctangent as the oracle computes it: half the arctangent of
+// (2x, 1-x^2-y^2), whose sign follows the sign of x (a signed zero too), and a
+// quarter of the logarithm of a ratio of distances (the oracle's own last
+// digits are less accurate than these: see the cplx-inv exclusion of the
+// rawcplx fuzz mode). On +-i the real part is +-pi/4.
 func catan(z complex128) complex128 {
-	x, y := real(z), imag(z)
-	if x == 0 {
-		x = 0 // -0 and +0 are one point here
-	}
+	return catanXY(real(z), imag(z))
+}
+
+func catanXY(x, y float64) complex128 {
 	var re float64
-	switch {
-	case x == 0 && math.Abs(y) > 1:
-		re = math.Copysign(math.Pi/2, y)
-	case x == 0 && math.Abs(y) == 1:
-		re = math.Copysign(math.Pi/4, y)
-	default:
+	if x == 0 && math.Abs(y) > 1 {
+		re = math.Copysign(math.Pi/2, y) // beyond +-i the sign follows y
+	} else if x == 0 && math.Abs(y) == 1 {
+		re = math.Copysign(math.Pi/4, x) // on +-i it follows the sign of the zero x
+	} else {
+		if x == 0 {
+			x = 0 // inside the unit disk -0 acts as +0 (atanh(0.5+0i) has a -0 imaginary part)
+		}
 		re = 0.5 * math.Atan2(2*x, 1-x*x-y*y)
 	}
-	im := 0.25 * math.Log((x*x+(y+1)*(y+1))/(x*x+(y-1)*(y-1)))
+	den := x*x + (y-1)*(y-1)
+	var im float64
+	switch t := 4 * y / den; {
+	case den == 0:
+		im = math.Copysign(math.Inf(1), y)
+	case t > -0.5:
+		im = 0.25 * math.Log1p(t)
+	default:
+		im = 0.25 * math.Log((x*x+(y+1)*(y+1))/den)
+	}
 	return complex(re, im)
+}
+
+// hullAsin is the real and imaginary parts of asin and acos for x, y >= 0,
+// by the algorithm of Hull, Fairgrieve and Tang ("Implementing the complex
+// arcsine and arccosine functions using exception handling", 1997), which
+// avoids the cancellation of the textbook formulas: it returns asin's real
+// part, acos's real part and the common imaginary part (before signs).
+func hullAsin(x, y float64) (asinRe, acosRe, im float64) {
+	const aCross, bCross = 1.5, 0.6417
+	r := chypot(x+1, y)
+	s := chypot(x-1, y)
+	a := 0.5 * (r + s)
+	b := x / a
+	// am1 is A-1 and amx is A-x, each computed without cancellation
+	var am1, amx float64
+	if x <= 1 {
+		t := 0.0
+		if y != 0 {
+			t = y * y / (s + (1 - x))
+		}
+		am1 = 0.5 * (y*y/(r+x+1) + t)
+		amx = 0.5 * (y*y/(r+x+1) + (s + (1 - x)))
+	} else {
+		am1 = 0.5 * (y*y/(r+x+1) + (s + (x - 1)))
+		amx = 0.5 * (y*y/(r+x+1) + y*y/(s+(x-1)))
+	}
+	if b <= bCross {
+		asinRe = math.Asin(b)
+		acosRe = math.Acos(b)
+	} else {
+		t := math.Sqrt(amx * (a + x))
+		asinRe = math.Atan(x / t)
+		acosRe = math.Atan(t / x)
+	}
+	if a <= aCross {
+		im = math.Log1p(am1 + math.Sqrt(am1*(a+1)))
+	} else {
+		im = math.Log(a + math.Sqrt(a*a-1))
+	}
+	return
 }
 
 // casin: on the real axis beyond +-1 the imaginary part is -sign(x) acosh|x|.
 func casin(z complex128) complex128 {
-	x := real(z)
-	if imag(z) == 0 && math.Abs(x) > 1 {
+	x, y := real(z), imag(z)
+	if y == 0 && math.Abs(x) > 1 {
 		return complex(math.Copysign(math.Pi/2, x), -math.Copysign(math.Acosh(math.Abs(x)), x))
 	}
-	return cmplx.Asin(z)
+	if math.IsNaN(x) || math.IsNaN(y) || math.IsInf(x, 0) || math.IsInf(y, 0) {
+		return cmplx.Asin(z)
+	}
+	re, _, im := hullAsin(math.Abs(x), math.Abs(y))
+	return complex(math.Copysign(re, x), math.Copysign(im, y))
 }
 
+func cabs2(z complex128) float64 { return real(z)*real(z) + imag(z)*imag(z) }
+
 func cacos(z complex128) complex128 {
-	a := casin(z)
-	return complex(math.Pi/2-real(a), -imag(a))
+	x, y := real(z), imag(z)
+	if y == 0 && math.Abs(x) > 1 {
+		a := casin(z)
+		return complex(math.Pi/2-real(a), -imag(a))
+	}
+	if math.IsNaN(x) || math.IsNaN(y) || math.IsInf(x, 0) || math.IsInf(y, 0) {
+		return cmplx.Acos(z)
+	}
+	_, re, im := hullAsin(math.Abs(x), math.Abs(y))
+	if x < 0 {
+		re = math.Pi - re
+	}
+	return complex(re, -math.Copysign(im, y))
 }
 
 // cacosh is i acos(z), the sign convention the oracle shows.
@@ -378,7 +484,7 @@ func catanh(z complex128) (r complex128, nan bool) {
 	if imag(z) == 0 && math.Abs(real(z)) == 1 {
 		return complex(math.Copysign(math.Inf(1), real(z)), rNaN), true
 	}
-	w := catan(complex(-imag(z), real(z)))
+	w := catanXY(-imag(z), real(z))
 	return complex(imag(w), -real(w)), false
 }
 
@@ -387,7 +493,7 @@ var complexMath = map[string]func(complex128) complex128{
 	"sin": csin, "cos": ccos, "tan": ctan,
 	"asin": casin, "acos": cacos, "atan": catan,
 	"sinh": csinh, "cosh": ccosh, "tanh": ctanh,
-	"asinh": cmplx.Asinh, "acosh": cacosh,
+	"asinh": casinh, "acosh": cacosh,
 }
 
 // complexUnary is the math group on a complex vector.
@@ -429,7 +535,7 @@ func cabs(z complex128) float64 {
 	if isNAComplex(z) {
 		return naReal
 	}
-	return math.Hypot(real(z), imag(z))
+	return chypot(real(z), imag(z))
 }
 
 func carg(z complex128) float64 {
@@ -444,9 +550,9 @@ func complexLog(z complex128, base *complex128) complex128 {
 	if isNAComplex(z) {
 		return naComplex
 	}
-	l := cmplx.Log(z)
+	l := clog(z)
 	if base != nil {
-		return cdiv(l, cmplx.Log(*base))
+		return cdiv(l, clog(*base))
 	}
 	return l
 }
@@ -454,14 +560,20 @@ func complexLog(z complex128, base *complex128) complex128 {
 // roundComplex is round(z, digits) (each part rounded alike) or signif(z,
 // digits) (both parts rounded to the decimal place the larger one needs).
 func roundComplex(z complex128, digits int, signif bool, round func(float64, int) float64) complex128 {
-	if isNAComplex(z) {
+	if isNAReal(real(z)) && isNAReal(imag(z)) {
 		return naComplex
 	}
 	if !signif {
 		return complex(round(real(z), digits), round(imag(z), digits))
 	}
-	m := math.Max(math.Abs(real(z)), math.Abs(imag(z)))
-	if m == 0 || math.IsInf(m, 0) || math.IsNaN(m) {
+	m := 0.0
+	if !math.IsNaN(real(z)) && !math.IsInf(real(z), 0) {
+		m = math.Abs(real(z))
+	}
+	if !math.IsNaN(imag(z)) && !math.IsInf(imag(z), 0) && math.Abs(imag(z)) > m {
+		m = math.Abs(imag(z))
+	}
+	if m == 0 {
 		return z
 	}
 	if digits < 1 {
@@ -483,9 +595,9 @@ func complexSum(data []Value, prod bool, rm bool) complex128 {
 				continue
 			}
 			if prod {
-				acc = cmul(acc, z)
+				acc = cmulFused(acc, z)
 			} else {
-				acc += z
+				acc = cadd(acc, z)
 			}
 		}
 	}
@@ -719,4 +831,122 @@ func (s *Session) formatComplexItems(x []complex128, digits, scipen, nsmall, wid
 		items[i] = part(fr, real(z)) + sign + part(fi, math.Abs(imag(z))) + "i"
 	}
 	return items
+}
+
+// chypot is sqrt(x*x + y*y) rounded as the C library rounds it (correctly in
+// all but the rarest cases): the sum of squares is carried as a double-double
+// and the square root is corrected once. Infinities win over NaN.
+func chypot(x, y float64) float64 {
+	x, y = math.Abs(x), math.Abs(y)
+	switch {
+	case math.IsInf(x, 0) || math.IsInf(y, 0):
+		return math.Inf(1)
+	case math.IsNaN(x) || math.IsNaN(y):
+		return x + y
+	}
+	if x < y {
+		x, y = y, x
+	}
+	if x == 0 {
+		return 0
+	}
+	// scale so the squares neither overflow nor underflow
+	_, e := math.Frexp(x)
+	sx, sy := math.Ldexp(x, -e), math.Ldexp(y, -e)
+	p1 := sx * sx
+	e1 := math.FMA(sx, sx, -p1)
+	p2 := sy * sy
+	e2 := math.FMA(sy, sy, -p2)
+	hi := p1 + p2
+	bb := hi - p1
+	lo := (p1 - (hi - bb)) + (p2 - bb) + e1 + e2
+	h := math.Sqrt(hi)
+	r := math.FMA(-h, h, hi) + lo
+	h += r / (2 * h)
+	return math.Ldexp(h, e)
+}
+
+// cmulFused is the product prod() and cumprod() compute: the oracle's build
+// fuses the first product of each part (the operator * does not), which
+// math.FMA reproduces on every platform.
+func cmulFused(a, b complex128) complex128 {
+	ar, ai, br, bi := real(a), imag(a), real(b), imag(b)
+	return complex(math.FMA(ar, br, -(ai*bi)), math.FMA(ar, bi, ai*br))
+}
+
+// cmulCum is the product cumprod() computes: fused like prod's, but with the
+// two terms of the imaginary part the other way round (found by comparison).
+func cmulCum(a, b complex128) complex128 {
+	ar, ai, br, bi := real(a), imag(a), real(b), imag(b)
+	return complex(math.FMA(ar, br, -(ai*bi)), math.FMA(ai, br, ar*bi))
+}
+
+// casinh is -i asin(iz).
+func casinh(z complex128) complex128 {
+	a := casin(complex(-imag(z), real(z)))
+	return complex(imag(a), -real(a))
+}
+
+// clog is log z with the modulus as the C library rounds it.
+func clog(z complex128) complex128 {
+	x, y := real(z), imag(z)
+	a, b := math.Abs(x), math.Abs(y)
+	if a < b {
+		a, b = b, a
+	}
+	var re float64
+	switch {
+	case math.IsInf(a, 0):
+		re = math.Inf(1)
+	case math.IsNaN(a) || math.IsNaN(b):
+		re = math.NaN()
+	case a == 0:
+		re = math.Inf(-1)
+	default:
+		// log of the larger part plus half of log1p of the squared ratio: the
+		// form that matches the oracle digit for digit
+		t := b / a
+		re = math.Log(a) + 0.5*math.Log1p(t*t)
+	}
+	return complex(re, math.Atan2(y, x))
+}
+
+// fadd and fsub are + and - with the NaN of the first operand winning, which
+// keeps NA (a NaN with a payload) as R does whatever order the hardware takes.
+func fadd(a, b float64) float64 {
+	if a != a {
+		return a
+	}
+	if b != b {
+		return b
+	}
+	return a + b
+}
+
+func fsub(a, b float64) float64 {
+	if a != a {
+		return a
+	}
+	if b != b {
+		return b
+	}
+	return a - b
+}
+
+func cadd(a, b complex128) complex128 { return complex(fadd(real(a), real(b)), fadd(imag(a), imag(b))) }
+func csub(a, b complex128) complex128 { return complex(fsub(real(a), real(b)), fsub(imag(a), imag(b))) }
+
+// cumAdd is the step of cumsum: the parts are added each on its own, and an NA
+// in either operand of a part gives NA, a NaN gives NaN.
+func cumAdd(acc, z complex128) complex128 {
+	part := func(a, b float64) float64 {
+		switch {
+		case isNAReal(a) || isNAReal(b):
+			return naReal
+		case math.IsNaN(a) || math.IsNaN(b):
+			return rNaN
+		}
+		return a + b
+	}
+	return complex(part(real(acc), real(z)), part(imag(acc), imag(z)))
 }

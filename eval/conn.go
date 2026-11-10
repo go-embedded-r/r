@@ -37,6 +37,7 @@ type conn struct {
 	data []byte // what an open-for-reading connection has left to read
 	pos  int
 	buf  []byte // the bytes an output raw connection holds
+	wpos int    // where its next write goes (it overwrites what is there)
 
 	// output text connections
 	lines   []Str
@@ -301,10 +302,15 @@ func (s *Session) rawWrite(cn *conn, text string) error {
 			s.syncTextVar(cn)
 		}
 	case kRawConn:
-		if max := int64(s.opts.MaxFileBytes); max > 0 && int64(len(cn.buf))+int64(len(text)) > max {
+		end := cn.wpos + len(text)
+		if max := int64(s.opts.MaxFileBytes); max > 0 && int64(end) > max {
 			return errTooBig
 		}
-		cn.buf = append(cn.buf, text...)
+		if end > len(cn.buf) {
+			cn.buf = append(cn.buf, make([]byte, end-len(cn.buf))...)
+		}
+		copy(cn.buf[cn.wpos:], text)
+		cn.wpos = end
 	case kFile:
 		if cn.path == "/dev/null" {
 			return nil
