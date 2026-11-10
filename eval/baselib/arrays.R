@@ -203,26 +203,9 @@ sweep <- function(x, MARGIN, STATS, FUN = "-", check.margin = TRUE, ...) {
   FUN(x, aperm(array(STATS, d[perm]), order(perm)), ...)
 }
 
-scale <- function(x, center = TRUE, scale = TRUE) UseMethod("scale")
 
-scale.default <- function(x, center = TRUE, scale = TRUE) {
-  x <- as.matrix(x)
-  if (!is.logical(center) && length(center) != ncol(x))
-    stop("length of 'center' must equal the number of columns of 'x'")
-  shift <- if (!is.logical(center)) center else if (isTRUE(center)) colMeans(x, na.rm = TRUE)
-  if (!is.null(shift)) x <- x - rep(unname(shift), each = nrow(x))
-  if (!is.logical(scale) && length(scale) != ncol(x))
-    stop("length of 'scale' must equal the number of columns of 'x'")
-  divisor <- if (!is.logical(scale)) scale else if (isTRUE(scale))
-    apply(x, 2L, function(column) {
-      column <- column[!is.na(column)]
-      sqrt(sum(column^2) / max(1, length(column) - 1L))
-    })
-  if (!is.null(divisor)) x <- x / rep(unname(divisor), each = nrow(x))
-  if (!is.null(shift)) attr(x, "scaled:center") <- shift
-  if (!is.null(divisor)) attr(x, "scaled:scale") <- divisor
-  x
-}
+
+
 
 marginSums <- function(x, margin = NULL) {
   if (!length(margin)) return(sum(x))

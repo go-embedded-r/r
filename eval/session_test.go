@@ -204,6 +204,10 @@ func TestPrimitiveCoverage(t *testing.T) {
 		if refuse[n] {
 			continue
 		}
+		if strings.HasPrefix(n, "..") && !strings.HasPrefix(n, "...") {
+			// a helper of ours, not a function of R: its callers are what the goldens exercise
+			continue
+		}
 		implemented++
 		if !prims[n] {
 			natives++
