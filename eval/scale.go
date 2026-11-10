@@ -16,9 +16,29 @@ func init() {
 			s.errorf(c.call, "'x' must be a matrix")
 		}
 		nr, nc := int(dim.V[0]), int(dim.V[1])
+		// a dim attribute that disagrees with the data (R refuses to set one, but
+		// a value can reach us that way) is not a matrix
+		if nr < 0 || nc < 0 || (nr > 0 && nc > Length(m)/nr+1) || nr*nc != Length(m) {
+			s.errorf(c.call, "'x' must be a matrix")
+		}
 		var colnames Value = Null
 		if dn, ok := getAttr(m, "dimnames").(*List); ok && len(dn.V) == 2 {
 			colnames = dn.V[1]
+		}
+		switch m.(type) {
+		case *Logical, *Integer, *Double:
+		default:
+			isFlag := func(v Value, want bool) bool {
+				l, ok := v.(*Logical)
+				return ok && len(l.V) == 1 && l.V[0] != naInt && (l.V[0] != 0) == want
+			}
+			switch {
+			case isFlag(a[1], true):
+				s.errorf(callOf("colMeans(x, na.rm = TRUE)"), "'x' must be numeric or complex")
+			case isFlag(a[1], false) && isFlag(a[2], false):
+				return m
+			}
+			s.errorf(callOf("FUN(x, aperm(array(STATS, dims[perm]), order(perm)), ...)"), "non-numeric argument to binary operator")
 		}
 		x := append([]float64(nil), asDoubles(coerceTo(m, kDouble))...)
 		s.checkLen(c.call, len(x))
