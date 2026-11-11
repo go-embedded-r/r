@@ -66,6 +66,37 @@ closures not yet implemented** at the time of writing). The slices:
 A slice is tagged when its goldens, fuzz, `FuzzEval` and bomb tests are green and
 `rparity basecov` has moved.
 
+### Shared engines (decided 2026-11-10 and 2026-11-11)
+
+go-embedded-r does not write its own copy of an engine that several languages
+of the fleet need (go-embedded-ruby/ruby#918). It binds the shared library and
+keeps only a thin layer that is faithful to GNU R: call shapes, argument
+defaults, the result lists, the messages.
+
+- **Numerics** (M4, stats): `optim`, `optimize`, `uniroot`, `nlm`, `nlminb`,
+  `nls`, `integrate`, ODE solvers, and the special functions (`gamma`, `beta`,
+  `besselJ` and the rest) bind
+  [go-numerics](https://github.com/go-numerics). Where GNU R's algorithm differs
+  from go-numerics' default, the R layer selects R's (for example `optim`'s
+  Nelder–Mead constants, `uniroot`'s tolerance rule, `integrate`'s QUADPACK
+  routine) and records in its divergences when a result is not bit-identical to
+  GNU R's.
+- **What R does better goes upstream.** When R's reference has an algorithm, a
+  default or a test problem that go-numerics lacks, it is added to go-numerics
+  for the whole fleet, not to the R layer. This applies only to what is
+  available outside R's own GPL text: published papers and netlib's public
+  domain or BSD code (QUADPACK, MINPACK, PORT). R's own C and R sources, nmath
+  included, stay unread here and are never ported into a shared library.
+- **Linear algebra**: slice 13, on go-ndarray's linear algebra once it is a
+  shared library.
+- **Regex `perl = TRUE`**: go-regexp/pcre2. **Compression** (`gzfile`,
+  `memCompress`): the shared zlib. **Random numbers** (M4): the shared bit
+  generators, as long as their state reads back as R's `.Random.seed`.
+- **Files, environment, clock**: go-embedded-r has the no-host mode (the
+  default in-memory tree) and the confined-root mode (`Options.FileRoot`) since
+  v0.13.0. It adopts the shared host and sandbox layer
+  (go-embedded-julia/julia#32) when that layer has both modes.
+
 ## 3. Gates, per slice
 
 The gates of M2 apply unchanged:
