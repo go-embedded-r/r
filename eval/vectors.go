@@ -634,7 +634,7 @@ func init() {
 		default:
 			s.errorf(c.call, "invalid 'nrow' value (too large or NA)")
 		}
-		if zx, isC := x.(*Complex); isC && len(dimsOf(x)) != 2 && a[1] == nil && a[2] == nil && Length(x) > 1 {
+		if zx, isC := x.(*Complex); isC && len(dimsOf(x)) != 2 && a[1] == nil && a[2] == nil && Length(x) >= 1 {
 			n := len(zx.V)
 			s.checkLen(c.call, n*n)
 			out := make([]complex128, n*n)

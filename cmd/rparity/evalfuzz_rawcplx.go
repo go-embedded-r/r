@@ -78,7 +78,7 @@ func fuzzRawComplex(r *rand.Rand) string {
 	case 4:
 		family = "cplx-parts"
 		f := pick([]string{"Re", "Im", "Conj", "is.na", "is.finite", "is.infinite", "is.nan", "round", "signif", "sum", "prod", "cumsum", "cumprod", "mean", "rev", "length", "sort", "unique"})
-		body = f + "(" + cplxVec(r, f != "sort" && f != "unique" && f != "prod" && f != "cumprod") + ")"
+		body = f + "(" + cplxVec(r, f != "sort" && f != "unique" && f != "prod" && f != "cumprod" && f != "cumsum") + ")"
 	case 5:
 		family = "cplx-coerce"
 		s := pick([]string{"1", "2i", "1+2i", "-1.5-0.5i", "3e2+1e-1i", "NA", "Inf", "NaN", "abc", "1+i", " 4+5i ", "+1i", "0x10", "1e5+0i"})

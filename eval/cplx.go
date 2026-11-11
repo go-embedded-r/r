@@ -597,7 +597,7 @@ func complexSum(data []Value, prod bool, rm bool) complex128 {
 			if prod {
 				acc = cmulFused(acc, z)
 			} else {
-				acc = cadd(acc, z)
+				acc = cumAdd(acc, z)
 			}
 		}
 	}

@@ -1063,7 +1063,10 @@ func s3Switch(s *Session, c *callInfo) Value {
 		return s.switchDefault(c, alts, key)
 	}
 	d := asDoubles(sel)
-	if math.IsNaN(d[0]) {
+	if cx, ok := sel.(*Complex); ok {
+		d, _ = complexReals(cx)
+	}
+	if len(d) == 0 || math.IsNaN(d[0]) {
 		s.visible = false
 		return Null
 	}

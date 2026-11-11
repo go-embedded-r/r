@@ -1,0 +1,2 @@
+go test fuzz v1
+string("matrix(1:4&00,2)%*%matrix(matrix(00,2));outer(0,00)&diag(c(0i))")

@@ -376,12 +376,12 @@ func init() {
 		}
 		big := s.endianArg(c, a[3])
 		bo := order(big)
-		size, _ := s.binSize(c, a[2], 0)
+		size, sizeSet := s.binSize(c, a[2], 0)
 		var buf []byte
 		le := func(n int) []byte { buf = append(buf, make([]byte, n)...); return buf[len(buf)-n:] }
 		switch x := obj.(type) {
 		case *Logical, *Integer:
-			if size == 0 && a[2] != nil && !math.IsNaN(asDoubles(a[2])[0]) {
+			if size == 0 && sizeSet {
 				s.unknownSize(c, size)
 			}
 			if size == 0 {
@@ -409,7 +409,7 @@ func init() {
 				}
 			}
 		case *Double:
-			if size == 0 && a[2] != nil && !math.IsNaN(asDoubles(a[2])[0]) {
+			if size == 0 && sizeSet {
 				s.unknownSize(c, size)
 			}
 			if size == 0 {
