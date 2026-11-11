@@ -4,6 +4,12 @@
 # checked against the oracle (docs/m3-plan.md). BSD licence.
 
 ..mkdf <- function(cols, nms, rn, rnsecond = FALSE) {
+  if (is.na(rnsecond)) {
+    attr(cols, "row.names") <- rn
+    names(cols) <- nms
+    attr(cols, "class") <- "data.frame"
+    return(cols)
+  }
   names(cols) <- nms
   if (rnsecond) {
     attr(cols, "row.names") <- rn
@@ -24,6 +30,12 @@
 }
 
 is.data.frame <- function(x) inherits(x, "data.frame")
+
+# the store step of `[<-.data.frame` (a Go native, eval/dfassign.go)
+..dfsetcol <- function(col, ii, v, has.i, newn) {
+  if (has.i) col[ii] <- v else col[seq_len(newn)] <- v
+  col
+}
 
 dim.data.frame <- function(x) c(.row_names_info(x, 2L), length(x))
 
@@ -46,7 +58,9 @@ row.names.default <- function(x) if (!is.null(dim(x))) rownames(x)
   if (!is.null(dim(x))) dimnames(x)[[1L]] <- value else attr(x, "row.names") <- value
   x
 }
-`row.names<-.data.frame` <- function(x, value) {
+`row.names<-.data.frame` <- function(x, value) `.rowNamesDF<-`(x, value = value)
+
+`.rowNamesDF<-` <- function(x, make.names = FALSE, value) {
   n <- .row_names_info(x, 2L)
   if (is.null(value)) {
     attr(x, "row.names") <- .set_row_names(n)
@@ -110,7 +124,11 @@ droplevels.data.frame <- function(x, except = NULL, exclude, ...) {
   if (is.matrix(xi)) {
     nc <- ncol(xi)
     cn <- colnames(xi)
-    cl <- lapply(seq_len(nc), function(k) xi[, k])
+    cl <- lapply(seq_len(nc), function(k) {
+      v <- xi[, k]
+      names(v) <- NULL
+      v
+    })
     nm <- if (!is.null(cn)) cn else if (named) as.character(seq_len(nc)) else
       paste0("X", seq_len(nc))
     if (named && (!is.null(cn) || nc > 1L)) nm <- paste(lab, nm, sep = ".")
@@ -217,6 +235,7 @@ as.data.frame.matrix <- function(x, row.names = NULL, optional = FALSE, make.nam
 }
 
 as.data.frame.vector <- function(x, row.names = NULL, optional = FALSE, ..., nm = deparse1(substitute(x))) {
+  force(nm)
   n <- length(x)
   if (is.null(row.names)) {
     row.names <- names(x)
@@ -277,5 +296,5 @@ as.data.frame.default <- function(x, ...)
     if (length(cols) == 1L) return(cols[[1L]])
     if (nr == 1L && !missing(drop)) return(cols)
   }
-  ..mkdf(unname(cols), names(cols), rn, TRUE)
+  ..mkdf(unname(cols), names(cols), rn, if (missing(i)) FALSE else TRUE)
 }

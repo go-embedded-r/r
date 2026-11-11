@@ -281,7 +281,7 @@ func (s *Session) printFactor(v Value) {
 	cum := make([]int, n)
 	total := 0
 	for i, l := range lev.V {
-		total += utf8.RuneCountInString(l.S) + 1
+		total += utf8.RuneCountInString(labelOrNA(l)) + 1
 		cum[i] = total
 	}
 	maxl := n
@@ -314,7 +314,7 @@ func (s *Session) printFactor(v Value) {
 		}
 	} else {
 		for _, l := range lev.V {
-			parts = append(parts, l.S)
+			parts = append(parts, labelOrNA(l))
 		}
 	}
 	prefix := ""

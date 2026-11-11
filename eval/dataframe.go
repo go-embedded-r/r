@@ -14,6 +14,9 @@ import (
 
 // compactRowNames is what R stores when row.names is set to the integers 1..n.
 func compactRowNames(v Value) Value {
+	if dv, ok := v.(*Double); ok && len(dv.V) == 2 && isNAReal(dv.V[0]) && dv.V[1] == math.Trunc(dv.V[1]) && math.Abs(dv.V[1]) < 2147483647 {
+		return &Integer{V: []int32{naInt, int32(dv.V[1])}}
+	}
 	iv, ok := v.(*Integer)
 	if !ok || len(iv.V) == 0 {
 		return v
@@ -59,11 +62,12 @@ var reservedWords = map[string]bool{"if": true, "else": true, "repeat": true, "w
 
 // validName is one element of make.names(allow_ = TRUE).
 func validName(x Str) string {
+	s := x.S
 	if x.NA {
-		return "NA"
+		s = "NA"
 	}
 	var b strings.Builder
-	for _, r := range x.S {
+	for _, r := range s {
 		if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '.' || r == '_' {
 			b.WriteRune(r)
 		} else {
@@ -250,6 +254,9 @@ func init() {
 		}
 		if d[0] > 2147483647 {
 			s.errorf(c.call, "invalid 'n' argument")
+		}
+		if _, isInt := a[0].(*Integer); !isInt {
+			return &Double{V: []float64{naReal, -d[0]}} // -n of a double is a double, as in R
 		}
 		return &Integer{V: []int32{naInt, -int32(d[0])}}
 	})
