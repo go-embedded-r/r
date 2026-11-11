@@ -111,7 +111,7 @@ var (
 		"gamma": true, "lgamma": true, "sinpi": true, "cospi": true, "tanpi": true, "trunc": true, "sign": true, "round": true, "signif": true,
 		"cumsum": true, "cumprod": true, "cummax": true, "cummin": true}
 	summaryGroup = map[string]bool{"sum": true, "prod": true, "min": true, "max": true, "any": true, "all": true, "range": true}
-	internalGen  = []string{"length", "names", "names<-", "as.character", "as.integer", "as.double", "as.numeric", "as.logical", "c", "is.na", "dim", "dim<-", "unlist", "rep", "seq_along", "mean", "t", "as.vector", "format", "seq", "is.numeric", "unique", "xtfrm", "sort", "rev", "rank"}
+	internalGen  = []string{"length", "names", "names<-", "dimnames", "dimnames<-", "levels<-", "as.character", "as.integer", "as.double", "as.numeric", "as.logical", "c", "is.na", "dim", "dim<-", "unlist", "rep", "seq_along", "mean", "t", "as.vector", "format", "seq", "is.numeric", "unique", "xtfrm", "sort", "rev", "rank"}
 )
 
 // methodFor finds the method of generic (or of its group) for one class vector.

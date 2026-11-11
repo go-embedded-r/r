@@ -250,6 +250,14 @@ func init() {
 				u = u2
 			}
 			levels = u
+			if _, keep := a[3].(nullT); keep {
+				for _, e := range xs {
+					if e.NA {
+						levels = append(levels, Str{NA: true})
+						break
+					}
+				}
+			}
 		}
 		// exclude: NA by default
 		if a[3] != nil {
@@ -268,14 +276,22 @@ func init() {
 			}
 		}
 		var cleaned []Str
+		_, keepNA := a[3].(nullT)
 		for _, l := range levels {
-			if !l.NA {
+			if !l.NA || keepNA {
 				cleaned = append(cleaned, l)
 			}
 		}
 		levels = cleaned
 		index := map[string]int32{}
+		naIdx := int32(0)
 		for i, l := range levels {
+			if l.NA {
+				if naIdx == 0 {
+					naIdx = int32(i + 1)
+				}
+				continue
+			}
 			if _, dup := index[l.S]; !dup {
 				index[l.S] = int32(i + 1)
 			}
@@ -284,6 +300,9 @@ func init() {
 		for i, e := range xs {
 			if e.NA {
 				codes[i] = naInt
+				if naIdx > 0 {
+					codes[i] = naIdx
+				}
 			} else if k, ok := index[e.S]; ok {
 				codes[i] = k
 			} else {
