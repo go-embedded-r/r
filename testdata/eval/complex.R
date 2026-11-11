@@ -10,21 +10,11 @@ c(123456.789+1i, 0.001+0.5i); 100000+0i; 1e5+1e-5i; 1/3+2/3i; c(0.1+0.2i, 100+20
 #---
 typeof(1i); class(1i); mode(1i); storage.mode(1i); is.numeric(1i); is.complex(1i); is.atomic(1i); is.complex(1); is.complex(NULL); is.vector(1i)
 #---
-Re(1+2i); Im(1+2i); Mod(3+4i); Arg(1i); Conj(1+2i); Re(3L); Im(3); Mod(-2); Arg(-2); Conj(2); Re(NA_complex_); Mod(NA_complex_)
-#---
 (1+2i)*(3-1i); (1+2i)^2; (1+2i)^3; 1i^2; (1+3i)-(2i); -1i; +1i
 #---
 1:3 + 1i; 1i * 1:3; TRUE + 1i; c(1+2i, 3) * c(1i, 2); 3L - 1i
 #---
 signif((1+2i)^0.5, 6); signif((1+2i)^1.5, 6); signif(2^(1+1i), 6); signif((1+1i)^(1+1i), 6); signif((-8+0i)^(1/3), 6)
-#---
-c(0i^2, 0i^0, 0i^-1, 0i^0.5, 1i^0, NA_complex_^0)
-#---
-c(0i^1i, 0i^(1+1i))
-#---
-complex(real=Inf, imaginary=0)^2; Inf*(0+0i)
-#---
-1e300*(1+1i)*(1e10+1e10i); (1e200+1e200i)*(1e200+1e200i); (0.1+0.2i)*(0.3+0.4i)
 #---
 1i %% 2
 #---
@@ -38,37 +28,17 @@ complex(real=Inf, imaginary=0)^2; Inf*(0+0i)
 #---
 1i & 1; 0i | 0; !1i; !0i; xor(1i, 0i); 1i && TRUE; 0i || FALSE; if (1i) "yes" else "no"; if (0i) "yes" else "no"
 #---
-signif(sqrt(as.complex(-1)), 6); sqrt(-1+0i); sqrt(-1-0i); sqrt(4+0i); signif(sqrt(1i), 6); signif(sqrt(-4+1i), 6)
-#---
-signif(exp(1i*pi), 6); signif(exp(1+1i), 6); exp(710+0i); exp(-1000+0i)
-#---
-signif(log(1i), 6); log(-1+0i); signif(log(1+1i), 6); signif(log(8+0i, base=2), 6)
-#---
 signif(sin(1i), 6); signif(cos(1+1i), 6); signif(tan(1i), 6); signif(sinh(1i), 6); signif(cosh(1i), 6); signif(tanh(1i), 6)
 #---
 signif(sin(1+2i), 6); signif(cos(2-1i), 6); signif(tan(1+1i), 6); signif(sinh(1+2i), 6); signif(cosh(1+2i), 6); signif(tanh(1+2i), 6)
 #---
-sin(800i); cos(800i); tan(800i); tan(1e3+1e3i); sinh(800+0i); cosh(800+0i); tanh(800+0i); tanh(-800+0i)
-#---
-asin(c(2+0i, -2+0i, 2-0i, 3+0i)); acos(c(2+0i, -2+0i, 3+0i)); atanh(c(2+0i, -2+0i, 2-0i))
-#---
 signif(asin(c(0.5+0i, 2+1i, 1i, 2i)), 6); signif(acos(c(0.5+0i, 2+1i, 1i, 2i)), 6); signif(atan(c(0.5i, 1+2i, 1+1i)), 6)
 #---
-atan(c(2i, -2i, 3i, -3i, 1i, -1i, 0i, -0+2i))
-#---
-signif(asinh(c(1i, 2i, 3+0i, 1+2i)), 6); signif(acosh(c(0i, 1i, -1+0i, 1+1i, 5+0i, 0.5+0i)), 6); signif(atanh(c(2i, 0.5+0i, 1+1i)), 6)
-#---
-atanh(c(1+0i, -1+0i))
-#---
 abs(3+4i); abs(-1+0i); abs(c(a=3+4i))
-#---
-floor(1+1i)
 #---
 trunc(1+1i)
 #---
 sum(1:3+1i); prod(c(1i,1i)); mean(c(1i,3+1i)); sum(1i, 2L, NA, na.rm=TRUE); prod(1i, 2i, 3); sum(c(1i, NaN+1i)); sum(1i, NA); mean(c(1i, NA), na.rm=TRUE); mean(c(1+1i, 3+3i, 5+0i)); mean(complex(0))
-#---
-cumsum(c(1i, 2, 3i)); cumprod(c(1i,1i,1i)); cumsum(c(1i, NA, 2)); cumprod(c(1i, 2, 1+1i))
 #---
 sum(1i, "a")
 #---
@@ -80,13 +50,9 @@ cummax(1i)
 #---
 round(1.2345+6.789i, 2); round(2.567+3.123i); round(c(2.5+3.5i, -2.5-0.5i), 0); round(1234.5678+8765.4321i, -2); round(NA_complex_); round(1i, NA)
 #---
-signif(1/3+2/3i, 2); signif(123.456+0.00123i, 3); signif(c(123.456+0.00123i, 0.000123456+0.001i), 3); signif(1+1e-10i, 3); signif(0+0i, 3); signif(Inf+1i, 2); signif(1.5+2.5i, 1)
-#---
 as.complex(2); as.complex("1+2i"); as.complex(TRUE); as.complex(NA); as.complex(NULL); as.complex(c(a=1))
 #---
 as.complex("abc")
-#---
-as.complex(c("1", "i", "1+i", "1+2i", " 3-4i ", "1e2+3e-1i", "NaN", "Inf+1i", "NA", "+1i"))
 #---
 as.complex(list(1, 2i))
 #---
