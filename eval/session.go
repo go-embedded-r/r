@@ -170,6 +170,7 @@ type Session struct {
 	io ioState // connections, sinks, files and the environment variables
 
 	noQuote    bool // print(quote = FALSE) is running
+	printRight bool // print(right = TRUE) is running: strings are right-justified
 	noDispatch bool // the next primitive runs its default, not a method
 
 	// flow is set by break, next and return in statement position, and read

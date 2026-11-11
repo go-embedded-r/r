@@ -68,7 +68,7 @@ func (s *Session) printMatrix(v Value, base, nr, nc int, rowNames, colNames *Str
 		col := takeElems(v, pos)
 		items, left := formatElements(col, quote)
 		if _, isStr := v.(*String); isStr {
-			left = true
+			left = !s.printRight
 		}
 		label := "[," + strconv.Itoa(j+1) + "]"
 		if colNames != nil {

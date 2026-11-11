@@ -278,6 +278,9 @@ func (s *Session) setAttrByName(c *callInfo, x Value, which string, value Value)
 		return s.setDim(c, x, value)
 	case "class":
 		return s.setClass(c, x, value)
+	case "row.names":
+		s.needVector(c, x, "an attribute")
+		return setAttr(x, which, compactRowNames(value))
 	}
 	s.needVector(c, x, "an attribute")
 	return setAttr(x, which, value)
@@ -312,6 +315,9 @@ func init() {
 		hits := 0
 		for _, a := range attrsOf(x) {
 			if a.Name == which {
+				if which == "row.names" {
+					return expandRowNames(a.Value)
+				}
 				return a.Value
 			}
 			if !exact && strings.HasPrefix(a.Name, which) {
@@ -347,6 +353,11 @@ func init() {
 		}
 		for _, a := range at {
 			if a.Name != "names" {
+				if a.Name == "row.names" {
+					out.V = append(out.V, expandRowNames(a.Value))
+					names = append(names, Str{S: a.Name})
+					continue
+				}
 				out.V = append(out.V, a.Value)
 				names = append(names, Str{S: a.Name})
 			}
