@@ -36,7 +36,7 @@ func hasAttrs(v Value) bool { return len(attrsOf(v)) > 0 }
 
 func isVector(v Value) bool {
 	switch v.(type) {
-	case *Logical, *Integer, *Double, *String, *List:
+	case *Logical, *Integer, *Double, *String, *List, *Complex, *Raw:
 		return true
 	}
 	return false
@@ -92,7 +92,14 @@ func implicitClass(v Value) []string {
 	case *String:
 		return []string{"character"}
 	case *List:
+		if x.Expr {
+			return []string{"expression"}
+		}
 		return []string{"list"}
+	case *Complex:
+		return []string{"complex"}
+	case *Raw:
+		return []string{"raw"}
 	case *Closure, *Builtin:
 		return []string{"function"}
 	case *Symbol:

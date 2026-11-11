@@ -23,6 +23,10 @@ const (
 	Double
 	Complex
 	String
+	// Raw is never produced by the parser: it is a byte (Int) that deparse
+	// writes as 0x01, inside the as.raw(...) call an evaluator raw vector
+	// deparses to.
+	Raw
 )
 
 // Sym is a symbol (a name, possibly backquoted in the source).
@@ -65,7 +69,15 @@ type Call struct {
 	Pos  Span
 	Fun  Node
 	Args []Arg
-	h    int // height of the subtree, checked against Limits.MaxDepth
+	// Elems marks the call an evaluator expression vector deparses to,
+	// expression(...): its arguments are elements, so an `=` call among them
+	// is not parenthesized as an argument would be.
+	Elems bool
+	// Vec marks the c(...) call an atomic vector deparses to: its elements
+	// break lines without indenting, and a line is also broken before the
+	// closing parenthesis when it is too long.
+	Vec bool
+	h   int // height of the subtree, checked against Limits.MaxDepth
 }
 
 // Param is one formal argument of a function definition.

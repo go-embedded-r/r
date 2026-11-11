@@ -18,6 +18,7 @@ const (
 	kStd = iota
 	kFile
 	kText
+	kRawConn
 )
 
 // conn is one entry of the session's table of connections.
@@ -35,6 +36,8 @@ type conn struct {
 
 	data []byte // what an open-for-reading connection has left to read
 	pos  int
+	buf  []byte // the bytes an output raw connection holds
+	wpos int    // where its next write goes (it overwrites what is there)
 
 	// output text connections
 	lines   []Str
@@ -298,6 +301,16 @@ func (s *Session) rawWrite(cn *conn, text string) error {
 		if changed {
 			s.syncTextVar(cn)
 		}
+	case kRawConn:
+		end := cn.wpos + len(text)
+		if max := int64(s.opts.MaxFileBytes); max > 0 && int64(end) > max {
+			return errTooBig
+		}
+		if end > len(cn.buf) {
+			cn.buf = append(cn.buf, make([]byte, end-len(cn.buf))...)
+		}
+		copy(cn.buf[cn.wpos:], text)
+		cn.wpos = end
 	case kFile:
 		if cn.path == "/dev/null" {
 			return nil

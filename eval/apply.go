@@ -116,7 +116,7 @@ func (s *Session) asListElems(c *callInfo, x Value) []Value {
 			out = append(out, val)
 		}
 		return out
-	case *Logical, *Integer, *Double, *String:
+	case *Logical, *Integer, *Double, *String, *Complex, *Raw:
 		n := Length(v)
 		out := make([]Value, n)
 		for i := range out {
@@ -707,7 +707,7 @@ func init() {
 		rec := a[1] == nil || s.truthy(c, a[1], "recursive")
 		use := a[2] == nil || s.truthy(c, a[2], "use.names")
 		l, ok := a[0].(*List)
-		if !ok {
+		if !ok || l.Expr {
 			return a[0]
 		}
 		var leaves []Value
@@ -1046,7 +1046,7 @@ func (s *Session) subsetPositions(x Value, pos []int) Value {
 				out[i] = l.V[p]
 			}
 		}
-		res := &List{V: out}
+		res := &List{V: out, Expr: l.Expr}
 		if nm := namesOf(l); nm != nil {
 			names := make([]Str, len(pos))
 			for i, p := range pos {

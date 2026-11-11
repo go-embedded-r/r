@@ -410,6 +410,24 @@ func keyOfElem(v Value, i int) any {
 			return nil
 		}
 		return x.V[i].S
+	case *Complex:
+		z := x.V[i]
+		if isNAComplex(z) {
+			return "NA_complex_"
+		}
+		re, im := real(z), imag(z)
+		if re == 0 {
+			re = 0
+		}
+		if im == 0 {
+			im = 0
+		}
+		if math.IsNaN(re) || math.IsNaN(im) {
+			return "NaN_complex_"
+		}
+		return complex(re, im)
+	case *Raw:
+		return int64(x.V[i])
 	}
 	return nil
 }
@@ -466,7 +484,7 @@ func (s *Session) duplicatedFlags(c *callInfo, x Value, fromLast bool) []bool {
 func (s *Session) matchValues(c *callInfo, x, table Value, nomatch int32) []int32 {
 	for _, v := range []Value{x, table} {
 		switch v.(type) {
-		case nullT, *Logical, *Integer, *Double, *String:
+		case nullT, *Logical, *Integer, *Double, *String, *Complex, *Raw:
 		case *List:
 		default:
 			s.errorf(c.call, "'match' requires vector arguments")
@@ -494,6 +512,12 @@ func (s *Session) matchValues(c *callInfo, x, table Value, nomatch int32) []int3
 			}
 		}
 		return out
+	}
+	if r, ok := x.(*Raw); ok {
+		x = rawOperand(r, table)
+	}
+	if r, ok := table.(*Raw); ok {
+		table = rawOperand(r, x)
 	}
 	kx, kt := kindOf(x), kindOf(table)
 	k := max(kx, kt)
@@ -527,7 +551,7 @@ func bucketKey(v Value) string {
 	n := Length(v)
 	key := typeName(v) + ":" + strconv.Itoa(n)
 	switch x := v.(type) {
-	case *Logical, *Integer, *Double, *String:
+	case *Logical, *Integer, *Double, *String, *Complex, *Raw:
 		for i := 0; i < n && i < 4; i++ {
 			key += fmt.Sprintf("|%v", keyOfElem(x, i))
 		}

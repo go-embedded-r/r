@@ -143,6 +143,8 @@ type deparser struct {
 	startline bool
 	left      int
 	fnarg     bool
+	elems     bool // the next args() are the elements of an expression vector
+	vec       bool // the next args() are the elements of an atomic vector
 }
 
 func (d *deparser) writeline() {
@@ -466,6 +468,8 @@ func (d *deparser) constant(c *Const) {
 		}
 	case Complex:
 		d.print(formatComplex15(c))
+	case Raw:
+		d.print("0x" + strconv.FormatInt(int64(c.Int)|0x100, 16)[1:])
 	case String:
 		if c.NA {
 			d.print("NA_character_")
@@ -480,11 +484,29 @@ func formatComplex15(c *Const) string {
 		return "NA_complex_"
 	}
 	re, im := c.Double, c.Im
-	if math.IsNaN(re) || math.IsInf(im, 0) || math.IsNaN(im) || math.IsInf(re, 0) {
-		return "complex(real=" + formatReal15(re) + ", imaginary=" + formatReal15(im) + ")"
+	isNA := func(x float64) bool { return math.IsNaN(x) && math.Float64bits(x)&0xFFFFFFFF == 1954 }
+	// beside an NA part R writes the other one rounded to a whole number
+	reWhole, imWhole := false, false
+	if isNA(re) && !math.IsNaN(im) && !math.IsInf(im, 0) {
+		im, imWhole = math.RoundToEven(im), true
+	}
+	if isNA(im) && !math.IsNaN(re) && !math.IsInf(re, 0) {
+		re, reWhole = math.RoundToEven(re), true
+	}
+	if math.IsNaN(re) || math.IsInf(im, 0) || math.IsNaN(im) {
+		part := func(x float64, whole bool) string {
+			if !whole {
+				return formatReal15(x)
+			}
+			if x == 0 && math.Signbit(x) {
+				return "-0"
+			}
+			return strconv.FormatFloat(x, 'f', 0, 64)
+		}
+		return "complex(real=" + part(re, reWhole) + ", imaginary=" + part(im, imWhole) + ")"
 	}
 	sign := "+"
-	if im < 0 || (im == 0 && math.Signbit(im)) {
+	if im < 0 {
 		sign = "-"
 		im = -im
 	}
@@ -548,6 +570,8 @@ func (d *deparser) formals(ps []Param) {
 }
 
 func (d *deparser) args(args []Arg) {
+	elems, vec := d.elems, d.vec
+	d.elems, d.vec = false, false
 	lbreak := false
 	for i, a := range args {
 		if a.HasName {
@@ -560,17 +584,26 @@ func (d *deparser) args(args []Arg) {
 			}
 			d.print(" = ")
 			if a.Value != nil {
-				d.fnarg = true
+				d.fnarg = !elems
 				d.node(a.Value)
 			}
 		} else {
-			d.fnarg = true
+			d.fnarg = !elems
 			d.node(a.Value)
 		}
 		if i < len(args)-1 {
 			d.print(", ")
-			d.linebreak(&lbreak)
+			if vec {
+				if len(d.buf) > d.cutoff {
+					d.writeline()
+				}
+			} else {
+				d.linebreak(&lbreak)
+			}
 		}
+	}
+	if vec && len(d.buf) > d.cutoff {
+		d.writeline()
 	}
 	if lbreak {
 		d.indent--
@@ -728,6 +761,7 @@ func (d *deparser) call(c *Call, fnarg bool, prevLeft int) {
 			}
 		}
 		d.print("(")
+		d.elems, d.vec = c.Elems, c.Vec
 		d.args(c.Args)
 		d.print(")")
 		return
@@ -859,6 +893,7 @@ func (d *deparser) call(c *Call, fnarg bool, prevLeft int) {
 		}
 		d.print("(")
 		d.inlist++
+		d.elems, d.vec = c.Elems, c.Vec
 		d.args(c.Args)
 		d.inlist--
 		d.print(")")

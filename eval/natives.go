@@ -18,7 +18,11 @@ func (s *Session) modeKind(c *callInfo, mode string) int {
 		return kDouble
 	case "character":
 		return kString
-	case "list":
+	case "complex":
+		return kComplex
+	case "raw":
+		return kRaw
+	case "list", "expression":
 		return kList
 	}
 	s.errorf(c.call, "vector: cannot make a vector of mode '%s'.", mode)
@@ -47,6 +51,10 @@ func (s *Session) makeVector(c *callInfo, kind int, n Value) Value {
 		return &Double{V: make([]float64, length)}
 	case kString:
 		return &String{V: make([]Str, length)}
+	case kComplex:
+		return &Complex{V: make([]complex128, length)}
+	case kRaw:
+		return &Raw{V: make([]byte, length)}
 	}
 	out := &List{V: make([]Value, length)}
 	for i := range out.V {
@@ -91,8 +99,36 @@ func identical(a, b Value) bool {
 		return true
 	case *List:
 		y := b.(*List).V
+		if x.Expr != b.(*List).Expr {
+			return false
+		}
 		for i, e := range x.V {
 			if !identical(e, y[i]) {
+				return false
+			}
+		}
+		return true
+	case *Complex:
+		y := b.(*Complex).V
+		for i, e := range x.V {
+			p, q := e, y[i]
+			if isNAReal(real(p)) != isNAReal(real(q)) || isNAReal(imag(p)) != isNAReal(imag(q)) {
+				return false
+			}
+			if (real(p) != real(p) && real(q) != real(q)) || real(p) == real(q) {
+			} else {
+				return false
+			}
+			if (imag(p) != imag(p) && imag(q) != imag(q)) || imag(p) == imag(q) {
+			} else {
+				return false
+			}
+		}
+		return true
+	case *Raw:
+		y := b.(*Raw).V
+		for i, e := range x.V {
+			if e != y[i] {
 				return false
 			}
 		}
@@ -159,6 +195,10 @@ func (s *Session) paste(c *callInfo, defSep string) Value {
 		case *Symbol:
 			strs = []Str{{S: x.Name}}
 		case *List:
+			if x.Expr {
+				strs = s.asCharacter(&callInfo{call: c.call, args: []Value{x}}).(*String).V
+				break
+			}
 			for _, e := range x.V {
 				if Length(e) == 1 && isVector(e) && kindOf(e) != kList {
 					strs = append(strs, asStrings(e)...)
@@ -212,8 +252,11 @@ func (s *Session) paste(c *callInfo, defSep string) Value {
 }
 
 func callText2(v Value) string {
-	if l, ok := v.(*Lang); ok {
-		return callText(l)
+	switch x := v.(type) {
+	case *Lang:
+		return callText(x)
+	case *Symbol:
+		return x.Name
 	}
 	return typeName(v)
 }
@@ -280,7 +323,7 @@ func init() {
 		}
 		return mkLogical(false)
 	})
-	for name, kind := range map[string]int{"numeric": kDouble, "double": kDouble, "integer": kInteger, "logical": kLogical, "character": kString} {
+	for name, kind := range map[string]int{"numeric": kDouble, "double": kDouble, "integer": kInteger, "logical": kLogical, "character": kString, "raw": kRaw} {
 		kind := kind
 		regBuiltin(name, func(s *Session, c *callInfo) Value {
 			if len(c.args) == 0 {
@@ -308,7 +351,11 @@ func init() {
 				}
 			}
 		}
-		return s.makeVector(c, s.modeKind(c, mode), n)
+		res := s.makeVector(c, s.modeKind(c, mode), n)
+		if l, ok := res.(*List); ok && mode == "expression" {
+			l.Expr = true
+		}
+		return res
 	})
 	regBuiltin("identical", func(s *Session, c *callInfo) Value {
 		if len(c.args) < 2 {

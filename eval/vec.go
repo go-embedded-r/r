@@ -50,6 +50,18 @@ func asStrings(v Value) []Str {
 			out[i] = numToString(e)
 		}
 		return out
+	case *Complex:
+		out := make([]Str, len(x.V))
+		for i, e := range x.V {
+			out[i] = complexStr(e)
+		}
+		return out
+	case *Raw:
+		out := make([]Str, len(x.V))
+		for i, e := range x.V {
+			out[i] = Str{S: rawHex(e)}
+		}
+		return out
 	}
 	return nil
 }
@@ -61,6 +73,22 @@ func (s *Session) compare(op string, c *callInfo) Value {
 		s.errorf(c.call, "operator needs two arguments")
 	}
 	x, y := c.args[0], c.args[1]
+	// a name or a call compares as its text
+	for _, p := range []*Value{&x, &y} {
+		switch v := (*p).(type) {
+		case *Symbol:
+			*p = mkString(v.Name)
+		case *Lang:
+			*p = mkString(strings.Join(syntaxDeparse(v), ""))
+		}
+	}
+	// a raw operand compares as its bytes, or as its hex text against a string
+	if rx, ok := x.(*Raw); ok {
+		x = rawOperand(rx, y)
+	}
+	if ry, ok := y.(*Raw); ok {
+		y = rawOperand(ry, x)
+	}
 	kx, ky := kindOf(x), kindOf(y)
 	if kx > kString || ky > kString {
 		s.errorf(c.call, "comparison (%s) is possible only for atomic and list types", op)
@@ -71,6 +99,9 @@ func (s *Session) compare(op string, c *callInfo) Value {
 	s.checkLen(c.call, n)
 	if n > 0 && (n%nx != 0 || n%ny != 0) {
 		s.warningf(c.call, "longer object length is not a multiple of shorter object length")
+	}
+	if (kx == kComplex || ky == kComplex) && kx != kString && ky != kString {
+		return s.compareComplex(op, c, x, y, n)
 	}
 	out := make([]int32, n)
 	test := func(c int) int32 { // c is -1, 0, 1
@@ -166,6 +197,17 @@ func logicalOf(s *Session, c *callInfo, v Value, what string) []int32 {
 			}
 		}
 		return out
+	case *Complex:
+		out := make([]int32, len(x.V))
+		for i, e := range x.V {
+			switch {
+			case math.IsNaN(real(e)) || math.IsNaN(imag(e)):
+				out[i] = naInt
+			case e != 0:
+				out[i] = 1
+			}
+		}
+		return out
 	}
 	s.errorf(c.call, "%s", what)
 	return nil
@@ -177,6 +219,11 @@ func (s *Session) logic(op string, c *callInfo) Value {
 	}
 	x, y := c.args[0], c.args[1]
 	const msg = "operations are possible only for numeric, logical or complex types"
+	if rx, ok := x.(*Raw); ok {
+		if ry, ok := y.(*Raw); ok {
+			return s.rawLogic(op, c, rx, ry)
+		}
+	}
 	a, b := logicalOf(s, c, x, msg), logicalOf(s, c, y, msg)
 	s.conform(c, x, y)
 	nx, ny := len(a), len(b)
@@ -219,6 +266,13 @@ func (s *Session) not(c *callInfo) Value {
 	if _, isNull := x.(nullT); isNull {
 		s.errorf(c.call, "invalid argument type")
 	}
+	if r, ok := x.(*Raw); ok {
+		out := make([]byte, len(r.V))
+		for i, e := range r.V {
+			out[i] = ^e
+		}
+		return &Raw{V: out, Attr: r.Attr}
+	}
 	a := logicalOf(s, c, x, "invalid argument type")
 	out := make([]int32, len(a))
 	for i, e := range a {
@@ -236,7 +290,7 @@ func (s *Session) not(c *callInfo) Value {
 // NA allowed; a zero-length operand is NA.
 func (s *Session) scalarLogical(c *callInfo, v Value, which string) int32 {
 	switch v.(type) {
-	case *Logical, *Integer, *Double:
+	case *Logical, *Integer, *Double, *Complex:
 	default:
 		s.errorf(c.call, "invalid '%s' type in 'x %s y'", which, c.call.Fun.(*Symbol).Name)
 	}
@@ -327,13 +381,21 @@ func (s *Session) colon(c *callInfo) Value {
 func (s *Session) combine(c *callInfo) Value {
 	kind := kNull
 	total := 0
+	anyRaw, anyExpr := false, false
 	for _, a := range c.args {
 		k := kindOf(a)
+		if l, ok := a.(*List); ok && l.Expr {
+			anyExpr = true
+		}
 		switch k {
 		case kNull:
 			continue
 		case kOther:
 			k = kList
+		case kRaw:
+			anyRaw = true
+			total += Length(a)
+			continue
 		}
 		if k > kind {
 			kind = k
@@ -389,6 +451,16 @@ func (s *Session) combine(c *callInfo) Value {
 	}
 	switch kind {
 	case kNull:
+		if anyRaw {
+			out := make([]byte, 0, total)
+			for i, a := range c.args {
+				if r, ok := a.(*Raw); ok {
+					out = append(out, r.V...)
+					addNames(i, a, len(r.V))
+				}
+			}
+			return finish(&Raw{V: out})
+		}
 		return Null
 	case kLogical:
 		out := make([]int32, 0, total)
@@ -396,10 +468,26 @@ func (s *Session) combine(c *callInfo) Value {
 			if kindOf(a) == kNull {
 				continue
 			}
-			out = append(out, asInts(a)...)
+			if r, ok := a.(*Raw); ok {
+				for _, e := range r.V {
+					out = append(out, b2i(e != 0))
+				}
+			} else {
+				out = append(out, asInts(a)...)
+			}
 			addNames(i, a, Length(a))
 		}
 		return finish(&Logical{V: out})
+	case kComplex:
+		out := make([]complex128, 0, total)
+		for i, a := range c.args {
+			if kindOf(a) == kNull {
+				continue
+			}
+			out = append(out, asComplex(a)...)
+			addNames(i, a, Length(a))
+		}
+		return finish(&Complex{V: out})
 	case kInteger:
 		out := make([]int32, 0, total)
 		for i, a := range c.args {
@@ -438,7 +526,7 @@ func (s *Session) combine(c *callInfo) Value {
 		case *List:
 			out = append(out, x.V...)
 			addNames(i, a, len(x.V))
-		case *Logical, *Integer, *Double, *String:
+		case *Logical, *Integer, *Double, *String, *Complex, *Raw:
 			for j := 0; j < Length(a); j++ {
 				out = append(out, element(a, j))
 			}
@@ -448,7 +536,11 @@ func (s *Session) combine(c *callInfo) Value {
 			addNames(i, a, 1)
 		}
 	}
-	return finish(&List{V: out})
+	res := finish(&List{V: out})
+	if anyExpr {
+		res.(*List).Expr = true
+	}
+	return res
 }
 
 func (s *Session) list(c *callInfo) Value {
@@ -495,12 +587,23 @@ func (s *Session) isNA(c *callInfo) Value {
 		for _, e := range v.V {
 			out = append(out, b(e.NA))
 		}
+	case *Complex:
+		for _, e := range v.V {
+			out = append(out, b(math.IsNaN(real(e)) || math.IsNaN(imag(e))))
+		}
+	case *Raw:
+		out = make([]int32, len(v.V))
 	case *List:
+		if v.Expr {
+			s.warningf(c.call, "is.na() applied to non-(list or vector) of type 'expression'")
+			out = make([]int32, len(v.V))
+			break
+		}
 		for _, e := range v.V {
 			r := int32(0)
 			if Length(e) == 1 {
 				switch e.(type) {
-				case *Logical, *Integer, *Double, *String:
+				case *Logical, *Integer, *Double, *String, *Complex:
 					r = s.isNA(&callInfo{call: c.call, args: []Value{e}}).(*Logical).V[0]
 				}
 			}
@@ -536,7 +639,14 @@ func typeName(v Value) string {
 	case *String:
 		return "character"
 	case *List:
+		if v.(*List).Expr {
+			return "expression"
+		}
 		return "list"
+	case *Complex:
+		return "complex"
+	case *Raw:
+		return "raw"
 	case *Lang:
 		return "language"
 	case *Closure:

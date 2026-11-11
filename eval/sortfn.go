@@ -14,9 +14,11 @@ func init() {
 		}
 		dec := a[1] != nil && s.truthy(c, a[1], "decreasing")
 		switch x.(type) {
-		case *Logical, *Integer, *Double, *String:
+		case *Logical, *Integer, *Double, *String, *Complex:
 		case nullT:
 			return Null
+		case *Raw:
+			s.errorf(callOf("sort.int(x, na.last = na.last, decreasing = decreasing, ...)"), "raw vectors cannot be sorted")
 		default:
 			s.errorf(c.call, "'x' must be atomic")
 		}
@@ -32,6 +34,8 @@ func init() {
 				return math.IsNaN(v.V[i])
 			case *String:
 				return v.V[i].NA
+			case *Complex:
+				return math.IsNaN(real(v.V[i])) || math.IsNaN(imag(v.V[i]))
 			}
 			return false
 		}
@@ -50,6 +54,8 @@ func init() {
 				return v.V[i] < v.V[j]
 			case *String:
 				return collate(v.V[i].S, v.V[j].S) < 0
+			case *Complex:
+				return cless(v.V[i], v.V[j])
 			}
 			return false
 		}

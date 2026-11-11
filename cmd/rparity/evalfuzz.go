@@ -107,6 +107,11 @@ func evalfuzzCmd() *cobra.Command {
 						srcs[i] = fuzzIO(r)
 					} else if mode == "arrays" {
 						srcs[i] = fuzzArrays(r)
+					} else if mode == "rawcplx" {
+						srcs[i] = fuzzRawComplex(r)
+						if strings.HasSuffix(srcs[i], "# libm") {
+							libm++
+						}
 					} else if mode == "strings2" {
 						srcs[i] = fuzzStrings2(r)
 					} else if mode == "vec" {
@@ -143,13 +148,13 @@ func evalfuzzCmd() *cobra.Command {
 				}
 				for _, rec := range recs {
 					fn := rec.Src
-					if mode == "env" || mode == "datetime" || mode == "io" || mode == "arrays" {
+					if mode == "env" || mode == "datetime" || mode == "io" || mode == "arrays" || mode == "rawcplx" {
 						// the first line names the family
 						fn = strings.TrimPrefix(fn[:strings.IndexByte(fn, '\n')], "# ")
 					} else if i := strings.IndexByte(fn, '('); i > 0 {
 						fn = fn[:i]
 					}
-					if cls, isExcl := strings.CutPrefix(fn, "excl:"); isExcl && (mode == "env" || mode == "datetime" || mode == "io") {
+					if cls, isExcl := strings.CutPrefix(fn, "excl:"); isExcl && (mode == "env" || mode == "datetime" || mode == "io" || mode == "rawcplx") {
 						// a counted exclusion: compared as weakly as its class needs
 						var why string
 						switch cls {
@@ -159,6 +164,9 @@ func evalfuzzCmd() *cobra.Command {
 							why = evalcheck.CheckNormalized(rec, normBuiltin)
 						case exclEncoding:
 							why = evalcheck.CheckIgnoringEncodingMarks(rec)
+						case exclCplxInv:
+							var w int64
+							why = evalcheck.CheckULPNormalized(rec, 1<<36, &w, func(string) string { return "" })
 						case exclPre1902:
 							rec.Warnings = nil // R warns once per session, so only the first case would carry it
 							why = evalcheck.Check(rec)
@@ -212,13 +220,13 @@ func evalfuzzCmd() *cobra.Command {
 			if libm > 0 {
 				fmt.Fprintf(c.OutOrStdout(), "  of which %d libm cases compared within %d ulp (C-library last-bit noise); every other case is compared exactly\n", libm, maxULP)
 			}
-			if mode == "env" || mode == "datetime" || mode == "io" {
+			if mode == "env" || mode == "datetime" || mode == "io" || mode == "rawcplx" {
 				total := 0
 				for _, e := range excl {
 					total += e[0]
 				}
 				fmt.Fprintf(c.OutOrStdout(), "  exclusions, counted (%d cases, not in the figures above):\n", total)
-				for _, cls := range []string{exclAddr, exclBuiltin, exclInstalled, exclHash, exclPre1902, exclTzAbbrev, exclDstGap, exclPost2037, exclEncoding} {
+				for _, cls := range []string{exclAddr, exclBuiltin, exclInstalled, exclHash, exclPre1902, exclTzAbbrev, exclDstGap, exclPost2037, exclEncoding, exclCplxInv} {
 					e, used := excl[cls]
 					if !used {
 						continue
@@ -232,6 +240,7 @@ func evalfuzzCmd() *cobra.Command {
 						exclTzAbbrev:  "the tzone attribute of a time zone with unusual daylight abbreviations; compared exactly, differences are known divergences",
 						exclDstGap:    "local times that a daylight-saving change skips or repeats; compared exactly, differences are known divergences",
 						exclEncoding:  "non-ASCII text that goes through a connection: R leaves it unmarked, ours is marked UTF-8 (no mark is tracked); compared exactly except for the mark",
+						exclCplxInv:   "asin, acos, atan, acosh of a complex number: R's algorithms lose digits that ours keep; compared within 2^36 units in the last place (about 1e-5 relative), anything else fails",
 						exclPost2037:  "years after 2037 in zones with daylight-saving time (%s, %Z, %z there); compared exactly, differences are known divergences",
 					}[cls]
 					fmt.Fprintf(c.OutOrStdout(), "    %-10s %5d cases, %d differ (%s)\n", cls, e[0], e[1], how)
@@ -259,7 +268,7 @@ func evalfuzzCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().Int64Var(&maxULP, "ulp", 4, "math mode: units in the last place allowed to libm cases")
-	cmd.Flags().StringVar(&mode, "mode", "arith", "arith, subset, regex, strings, apply, math, vec, strings2, env, datetime, io or arrays")
+	cmd.Flags().StringVar(&mode, "mode", "arith", "arith, subset, regex, strings, apply, math, vec, strings2, env, datetime, io, arrays or rawcplx")
 	cmd.Flags().IntVar(&n, "n", 2000, "expressions")
 	cmd.Flags().Int64Var(&seed, "seed", 1, "random seed")
 	cmd.Flags().IntVar(&maxFail, "max-diff", 15, "differences to print")

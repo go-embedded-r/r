@@ -187,7 +187,25 @@ func takeElems(x Value, pos []int) Value {
 				out[i] = v.V[p]
 			}
 		}
-		return &List{V: out}
+		return &List{V: out, Expr: v.Expr}
+	case *Complex:
+		out := make([]complex128, len(pos))
+		for i, p := range pos {
+			if p < 0 || p >= len(v.V) {
+				out[i] = naComplex
+			} else {
+				out[i] = v.V[p]
+			}
+		}
+		return &Complex{V: out}
+	case *Raw:
+		out := make([]byte, len(pos))
+		for i, p := range pos {
+			if p >= 0 && p < len(v.V) {
+				out[i] = v.V[p]
+			}
+		}
+		return &Raw{V: out}
 	}
 	return Null
 }

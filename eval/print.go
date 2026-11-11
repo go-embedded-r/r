@@ -179,6 +179,15 @@ func formatElements(v Value, quote bool) (items []string, left bool) {
 		for _, e := range x.V {
 			items = append(items, f.encode(e))
 		}
+	case *Complex:
+		f := formatComplexVec(x.V, printDigits)
+		for _, e := range x.V {
+			items = append(items, f.encode(e))
+		}
+	case *Raw:
+		for _, e := range x.V {
+			items = append(items, rawHex(e))
+		}
 	case *String:
 		left = true
 		for _, e := range x.V {
@@ -258,6 +267,10 @@ func emptyVectorText(v Value) string {
 		return named + "numeric(0)"
 	case *String:
 		return named + "character(0)"
+	case *Complex:
+		return named + "complex(0)"
+	case *Raw:
+		return named + "raw(0)"
 	}
 	return named + "list()"
 }
@@ -290,6 +303,18 @@ func (s *Session) printNamedVector(v Value, items []string, nm *String, quote bo
 		}
 		s.out.WriteString("\n")
 		for k := start; k < end; k++ {
+			if _, isC := v.(*Complex); isC {
+				// a complex element keeps its own width, and the line has no trailing gap
+				if k > start {
+					s.out.WriteString(" ")
+				}
+				if strings.TrimSpace(items[k]) == "NA" {
+					s.out.WriteString(padLeft("NA", w)) // an NA fills the column, as the names do
+				} else {
+					s.out.WriteString(items[k])
+				}
+				continue
+			}
 			s.out.WriteString(padLeft(items[k], w) + " ")
 		}
 		s.out.WriteString("\n")
@@ -310,7 +335,7 @@ func (s *Session) printValueTagged(v Value, prefix string, env *Env) {
 	switch x := v.(type) {
 	case nullT:
 		s.out.WriteString("NULL\n")
-	case *Logical, *Integer, *Double, *String:
+	case *Logical, *Integer, *Double, *String, *Complex, *Raw:
 		if d := dimsOf(v); len(d) >= 2 {
 			s.printArray(v, d, !s.noQuote)
 		} else if len(d) == 1 {
@@ -324,6 +349,11 @@ func (s *Session) printValueTagged(v Value, prefix string, env *Env) {
 		}
 		s.printAttributes(v, prefix, env)
 	case *List:
+		if x.Expr {
+			s.out.WriteString(strings.Join(syntax.Deparse(toSyntax(withAttr(x, keepNamesOnly(x))), nil), "\n") + "\n")
+			s.printAttributes(v, prefix, env)
+			return
+		}
 		if d := dimsOf(x); len(d) >= 2 && len(x.V) > 0 {
 			// a list matrix is a grid of one-line summaries of its cells
 			cells := make([]Str, len(x.V))
@@ -475,7 +505,7 @@ func catStrings(v Value) []string {
 	switch x := v.(type) {
 	case nullT:
 		return nil
-	case *Logical, *Integer, *String:
+	case *Logical, *Integer, *String, *Raw:
 		items, _ := formatElements(x, false)
 		if st, ok := x.(*String); ok {
 			for i := range items {
@@ -485,6 +515,13 @@ func catStrings(v Value) []string {
 			}
 		}
 		return items
+	case *Complex:
+		out := make([]string, len(x.V))
+		for i, e := range x.V {
+			f := formatComplexVec([]complex128{e}, printDigits)
+			out[i] = strings.TrimLeft(f.encode(e), " ")
+		}
+		return out
 	case *Double:
 		out := make([]string, len(x.V))
 		for i, e := range x.V {
@@ -498,7 +535,7 @@ func catStrings(v Value) []string {
 		var out []string
 		for _, e := range x.V {
 			switch e.(type) {
-			case *Logical, *Integer, *Double, *String:
+			case *Logical, *Integer, *Double, *String, *Complex, *Raw:
 				if Length(e) == 1 {
 					out = append(out, catStrings(e)...)
 					continue

@@ -88,7 +88,7 @@ func init() {
 		seq := s.eval(c.raw[1].Value, c.env)
 		n := Length(seq)
 		switch seq.(type) {
-		case nullT, *Logical, *Integer, *Double, *String, *List:
+		case nullT, *Logical, *Integer, *Double, *String, *List, *Complex, *Raw:
 		default:
 			s.errorf(c.call, "invalid for() loop sequence")
 		}
@@ -252,6 +252,10 @@ func element(x Value, i int) Value {
 		return &String{V: []Str{v.V[i]}}
 	case *List:
 		return v.V[i]
+	case *Complex:
+		return &Complex{V: []complex128{v.V[i]}}
+	case *Raw:
+		return &Raw{V: []byte{v.V[i]}}
 	}
 	return Null
 }
