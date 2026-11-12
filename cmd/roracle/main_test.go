@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/go-embedded-r/r/internal/gen"
 	"github.com/go-embedded-r/r/internal/oracle"
 	"github.com/go-embedded-r/r/rds"
 )
@@ -91,11 +92,30 @@ func repoCopy(t *testing.T) string {
 	}
 	// the committed eval goldens: records recorded for another platform are
 	// kept as they are when the goldens are regenerated
-	if b, err := os.ReadFile("../../testdata/golden/eval.jsonl"); err == nil {
-		os.MkdirAll(filepath.Join(dir, "testdata/golden"), 0o755)
-		os.WriteFile(filepath.Join(dir, "testdata/golden/eval.jsonl"), b, 0o644)
+	for _, f := range evalShards(t) {
+		if b, err := os.ReadFile(filepath.Join("../..", f)); err == nil {
+			os.MkdirAll(filepath.Join(dir, gen.EvalShardDir), 0o755)
+			os.WriteFile(filepath.Join(dir, f), b, 0o644)
+		}
 	}
 	return dir
+}
+
+// evalShards names the golden shards a regeneration writes: one per snippet
+// file of testdata/eval.
+func evalShards(t *testing.T) []string {
+	t.Helper()
+	entries, err := os.ReadDir("../../testdata/eval")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out []string
+	for _, e := range entries {
+		if n, ok := strings.CutSuffix(e.Name(), ".R"); ok {
+			out = append(out, gen.EvalShardDir+"/"+n+".jsonl")
+		}
+	}
+	return out
 }
 
 func TestVersionAndEval(t *testing.T) {
@@ -137,7 +157,7 @@ func TestRegenWritesGoldens(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, f := range []string{"testdata/golden/deparse.jsonl", "testdata/golden/rds.jsonl", "testdata/golden/parse.jsonl", "testdata/golden/eval.jsonl"} {
+	for _, f := range append([]string{"testdata/golden/deparse.jsonl", "testdata/golden/rds.jsonl", "testdata/golden/parse.jsonl"}, evalShards(t)...) {
 		if !strings.Contains(out, "wrote "+f) {
 			t.Errorf("no report for %s in %q", f, out)
 		}
@@ -218,7 +238,7 @@ func TestLiveRegen(t *testing.T) {
 	if _, _, err := run(t, "regen", "-C", dir); err != nil {
 		t.Fatal(err)
 	}
-	for _, f := range []string{"testdata/golden/deparse.jsonl", "testdata/golden/rds.jsonl", "testdata/golden/parse.jsonl", "testdata/golden/eval.jsonl"} {
+	for _, f := range append([]string{"testdata/golden/deparse.jsonl", "testdata/golden/rds.jsonl", "testdata/golden/parse.jsonl"}, evalShards(t)...) {
 		got, _ := os.ReadFile(filepath.Join(dir, f))
 		want, _ := os.ReadFile(filepath.Join("../..", f))
 		if !bytes.Equal(got, want) {
