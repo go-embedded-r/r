@@ -259,7 +259,7 @@ split.data.frame <- function(x, f, drop = FALSE, ...) {
 subset <- function(x, ...) UseMethod("subset")
 subset.default <- function(x, subset, ...) x[subset & !is.na(subset)]
 subset.data.frame <- function(x, subset, select, drop = FALSE, ...)
-  .subsetDF(x, if (missing(subset)) NULL else eval(substitute(subset), x, parent.frame()),
+  ..subsetDF(x, if (missing(subset)) NULL else eval(substitute(subset), x, parent.frame()),
             if (missing(select)) NULL else
               eval(substitute(select), as.list(structure(seq_along(x), names = names(x))), parent.frame()),
             drop)
@@ -267,6 +267,6 @@ subset.data.frame <- function(x, subset, select, drop = FALSE, ...)
 transform <- function(`_data`, ...) UseMethod("transform")
 transform.data.frame <- function(`_data`, ...) {
   e <- eval(substitute(list(...)), `_data`, parent.frame())
-  r <- .transformDF(`_data`, e)
+  r <- ..transformDF(`_data`, e)
   if (length(r[[2L]])) do.call("data.frame", c(list(r[[1L]]), r[[2L]])) else r[[1L]]
 }

@@ -466,8 +466,23 @@ func init() {
 			if len(dims) == 0 {
 				s.errorf(c.call, "'dimnames' applied to non-array")
 			}
-			if len(v.V) != len(dims) {
+			if len(v.V) > len(dims) {
 				s.errorf(c.call, "length of 'dimnames' [%d] must match that of 'dims' [%d]", len(v.V), len(dims))
+			}
+			if len(v.V) < len(dims) {
+				// a shorter list is padded with NULL, as R does
+				padded := &List{V: append([]Value(nil), v.V...), Attr: attrsOf(v)}
+				for len(padded.V) < len(dims) {
+					padded.V = append(padded.V, Null)
+				}
+				if nm := namesOf(v); nm != nil {
+					names := append([]Str(nil), nm.V...)
+					for len(names) < len(dims) {
+						names = append(names, Str{})
+					}
+					padded.Attr = namesAttr(names)
+				}
+				v = padded
 			}
 			out := &List{V: make([]Value, len(v.V)), Attr: attrsOf(v)}
 			for i, e := range v.V {

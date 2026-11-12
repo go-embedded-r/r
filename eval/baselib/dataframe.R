@@ -248,14 +248,25 @@ as.data.frame.vector <- function(x, row.names = NULL, optional = FALSE, ..., nm 
   class(value) <- "data.frame"
   value
 }
-as.data.frame.integer <- as.data.frame.vector
-as.data.frame.numeric <- as.data.frame.vector
+..dfvec <- function(cls) {
+  cls
+  function(x, row.names = NULL, optional = FALSE, ..., nm = deparse1(substitute(x))) {
+    force(nm)
+    if (!exists(".Generic", inherits = FALSE))
+      warning(gettextf("Direct call of '%s()' is deprecated.  Use '%s()' or '%s()' instead",
+                       paste0("as.data.frame.", cls), "as.data.frame.vector", "as.data.frame"),
+              call. = FALSE, domain = NA)
+    as.data.frame.vector(x, row.names, optional, ..., nm = nm)
+  }
+}
+as.data.frame.integer <- ..dfvec("integer")
+as.data.frame.numeric <- ..dfvec("numeric")
 as.data.frame.character <- as.data.frame.vector
-as.data.frame.logical <- as.data.frame.vector
-as.data.frame.factor <- as.data.frame.vector
-as.data.frame.complex <- as.data.frame.vector
-as.data.frame.Date <- as.data.frame.vector
-as.data.frame.POSIXct <- as.data.frame.vector
+as.data.frame.logical <- ..dfvec("logical")
+as.data.frame.factor <- ..dfvec("factor")
+as.data.frame.complex <- ..dfvec("complex")
+as.data.frame.Date <- ..dfvec("Date")
+as.data.frame.POSIXct <- ..dfvec("POSIXct")
 as.data.frame.default <- function(x, ...)
   stop(gettextf("cannot coerce class %s to a data.frame", sQuote(deparse(class(x))[1L])),
        domain = NA)
@@ -273,7 +284,7 @@ as.data.frame.default <- function(x, ...)
     cols <- cols[i]
     if (anyNA(names(cols))) stop("undefined columns selected")
     if (anyDuplicated(names(cols))) names(cols) <- make.unique(names(cols))
-    return(..mkdf(unname(cols), names(cols), rnx, TRUE))
+    return(..mkdf(unname(cols), names(cols), .row_names_info(x, 0L), TRUE))
   }
   if (!missing(j)) {
     cols <- cols[j]
@@ -291,7 +302,7 @@ as.data.frame.default <- function(x, ...)
       rn <- make.unique(rn)
     }
     nr <- length(ix)
-  } else rn <- rnx
+  } else rn <- .row_names_info(x, 0L)
   if (drop) {
     if (length(cols) == 1L) return(cols[[1L]])
     if (nr == 1L && !missing(drop)) return(cols)

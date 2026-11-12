@@ -245,10 +245,10 @@ func init() {
 		return &List{V: vals, Attr: attrs(cn, rn, len(cn) > ncol0)}
 	})
 
-	// .subsetDF(x, rows, cols, drop): the selection step of subset() for a
+	// ..subsetDF(x, rows, cols, drop): the selection step of subset() for a
 	// data frame: rows is NULL or a logical vector (NA counts as FALSE), cols
 	// NULL or a subscript already evaluated.
-	regBuiltin(".subsetDF", func(s *Session, c *callInfo) Value {
+	regBuiltin("..subsetDF", func(s *Session, c *callInfo) Value {
 		a := s.matchFormals(c, "x", "rows", "cols", "drop")
 		var rows, cols Value = missingT{}, missingT{}
 		if _, isNull := a[1].(nullT); !isNull {
@@ -271,9 +271,9 @@ func init() {
 		return builtins["["].fn(s, &callInfo{call: c.call, env: c.env, args: args, names: []string{"", "", "", "drop"}})
 	})
 
-	// .transformDF(data, e): the columns of data named in the list e are
+	// ..transformDF(data, e): the columns of data named in the list e are
 	// replaced, the others are returned in the second element.
-	regBuiltin(".transformDF", func(s *Session, c *callInfo) Value {
+	regBuiltin("..transformDF", func(s *Session, c *callInfo) Value {
 		a := s.matchFormals(c, "data", "e")
 		data, ok1 := a[0].(*List)
 		e, ok2 := a[1].(*List)

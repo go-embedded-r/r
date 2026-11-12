@@ -212,6 +212,7 @@ marginSums <- function(x, margin = NULL) {
   res <- apply(x, margin, sum)
   dim(res) <- dim(x)[margin]
   dimnames(res) <- dimnames(x)[margin]
+  class(res) <- oldClass(x)
   res
 }
 

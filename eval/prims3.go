@@ -234,7 +234,11 @@ func init() {
 				u = append(u, e)
 				pos = append(pos, i)
 			}
-			if _, isStr := x.(*String); isStr || (isObject(x) && inheritsClass(x, "factor")) {
+			if inheritsClass(x, "factor") && kindOf(x) == kInteger {
+				// the levels of a factor stay in the order of its own levels
+				codes := asInts(x)
+				sort.SliceStable(u, func(i, j int) bool { return codes[pos[i]] < codes[pos[j]] })
+			} else if _, isStr := x.(*String); isStr {
 				sort.SliceStable(u, func(i, j int) bool { return collate(u[i].S, u[j].S) < 0 })
 			} else {
 				d := asDoubles(x)

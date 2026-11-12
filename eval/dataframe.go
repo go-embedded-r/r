@@ -24,12 +24,7 @@ func compactRowNames(v Value) Value {
 	if len(iv.V) == 2 && iv.V[0] == naInt && iv.V[1] != naInt {
 		return v // already compact
 	}
-	for i, e := range iv.V {
-		if e != int32(i+1) {
-			return v
-		}
-	}
-	return &Integer{V: []int32{naInt, -int32(len(iv.V))}}
+	return v // attr<- does not compact 1:n; .set_row_names makes the compact form
 }
 
 // rowNamesCount is the number of rows a row.names attribute describes.
