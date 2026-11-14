@@ -12,7 +12,7 @@ import (
 // FuzzEval: whatever source is given, evaluation ends with a value or an error
 // and never panics, hangs or allocates without bound.
 func FuzzEval(f *testing.F) {
-	recs, err := gen.ReadJSONL[gen.EvalRecord]("../testdata/golden/eval.jsonl")
+	recs, err := gen.ReadEvalGoldens("..")
 	if err != nil {
 		f.Fatal(err)
 	}

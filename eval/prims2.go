@@ -546,13 +546,8 @@ func init() {
 		if fr == nil {
 			return mkInt(0)
 		}
-		n := 0
-		for _, a := range fr.supplied {
-			if !isMissingValue(a.Value) {
-				n++
-			}
-		}
-		return mkInt(int32(n))
+		// blank arguments (x[i, ]) count, as the help page says
+		return mkInt(int32(len(fr.supplied)))
 	})
 	regBuiltin("...length", func(s *Session, c *callInfo) Value {
 		d := s.dotsOf(c.env)

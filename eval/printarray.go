@@ -68,7 +68,7 @@ func (s *Session) printMatrix(v Value, base, nr, nc int, rowNames, colNames *Str
 		col := takeElems(v, pos)
 		items, left := formatElements(col, quote)
 		if _, isStr := v.(*String); isStr {
-			left = true
+			left = !s.printRight
 		}
 		label := "[," + strconv.Itoa(j+1) + "]"
 		if colNames != nil {
@@ -281,7 +281,7 @@ func (s *Session) printFactor(v Value) {
 	cum := make([]int, n)
 	total := 0
 	for i, l := range lev.V {
-		total += utf8.RuneCountInString(l.S) + 1
+		total += utf8.RuneCountInString(labelOrNA(l)) + 1
 		cum[i] = total
 	}
 	maxl := n
@@ -314,7 +314,7 @@ func (s *Session) printFactor(v Value) {
 		}
 	} else {
 		for _, l := range lev.V {
-			parts = append(parts, l.S)
+			parts = append(parts, labelOrNA(l))
 		}
 	}
 	prefix := ""

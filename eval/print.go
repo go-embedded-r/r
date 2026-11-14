@@ -448,6 +448,9 @@ func (s *Session) printAttributes(v Value, prefix string, env *Env) {
 			continue
 		}
 		s.out.WriteString("attr(,\"" + a.Name + "\")\n")
+		if a.Name == "row.names" {
+			a.Value = expandRowNames(a.Value)
+		}
 		if isObject(a.Value) {
 			s.printObject(a.Value, "attr(,\""+a.Name+"\")", s.Global)
 		} else {
@@ -557,6 +560,10 @@ func init() {
 			if n == "quote" && s.truthy(c, c.args[i], "quote") == false {
 				s.noQuote = true
 				defer func() { s.noQuote = false }()
+			}
+			if n == "right" && s.truthy(c, c.args[i], "right") {
+				s.printRight = true
+				defer func() { s.printRight = false }()
 			}
 		}
 		if isObject(x) {

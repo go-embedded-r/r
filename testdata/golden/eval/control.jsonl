@@ -1,0 +1,148 @@
+{"src":"f <- function(x) x + 1; f(2)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014008000000000000","typeof":"double","visible":true,"output":"[1] 3\n"}
+{"src":"f <- function(x, y = 2) x * y; f(3); f(3, 4); f(y = 5, x = 2)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014024000000000000","typeof":"double","visible":true,"output":"[1] 6\n[1] 12\n[1] 10\n"}
+{"src":"f <- function(x, y) x - y; f(y = 1, 10); f(10, y = 1); f(x = 1, 10)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e00000001c022000000000000","typeof":"double","visible":true,"output":"[1] 9\n[1] 9\n[1] -9\n"}
+{"src":"f <- function(alpha, beta) alpha - beta; f(al = 10, be = 1)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014022000000000000","typeof":"double","visible":true,"output":"[1] 9\n"}
+{"src":"f <- function(value, verbose) c(value, verbose); f(v = 1, 2)","ok":false,"error":"argument 1 matches multiple formal arguments","call":"f(v = 1, 2)"}
+{"src":"f <- function(value, verbose) 1; f(v = 1, v = 2)","ok":false,"error":"formal argument \"value\" matched by multiple actual arguments","call":"f(v = 1, v = 2)"}
+{"src":"f <- function(value, vector) 1; f(v = 1)","ok":false,"error":"argument 1 matches multiple formal arguments","call":"f(v = 1)"}
+{"src":"f <- function(x) 1; f(1, 2)","ok":false,"error":"unused argument (2)","call":"f(1, 2)"}
+{"src":"f <- function(x) 1; f(1, y = 2)","ok":false,"error":"unused argument (y = 2)","call":"f(1, y = 2)"}
+{"src":"f <- function(x) 1; f(1, 2, z = 3)","ok":false,"error":"unused arguments (2, z = 3)","call":"f(1, 2, z = 3)"}
+{"src":"f <- function(x, x2) 1; f(x = 1, x = 2)","ok":false,"error":"formal argument \"x\" matched by multiple actual arguments","call":"f(x = 1, x = 2)"}
+{"src":"f <- function(x) x; f()","ok":false,"error":"argument \"x\" is missing, with no default","call":"f()"}
+{"src":"f <- function(x) 1; f()","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000013ff0000000000000","typeof":"double","visible":true,"output":"[1] 1\n"}
+{"src":"f <- function(x, y) { if (missing(y)) \"no y\" else y }; f(1); f(1, 2)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014000000000000000","typeof":"double","visible":true,"output":"[1] \"no y\"\n[1] 2\n"}
+{"src":"f <- function(x, y = 2) missing(y); f(1); f(1, 3)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000a0000000100000000","typeof":"logical","visible":true,"output":"[1] TRUE\n[1] FALSE\n"}
+{"src":"f <- function(x) missing(x); f(); f(1)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000a0000000100000000","typeof":"logical","visible":true,"output":"[1] TRUE\n[1] FALSE\n"}
+{"src":"f <- function(x) g(x); g <- function(y) missing(y); f()","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000a0000000100000001","typeof":"logical","visible":true,"output":"[1] TRUE\n"}
+{"src":"f <- function(x) { x <- 5; missing(x) }; f()","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000a0000000100000000","typeof":"logical","visible":true,"output":"[1] FALSE\n"}
+{"src":"f <- function(...) length(list(...)); f(); f(1); f(1, 2, 3)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d0000000100000003","typeof":"integer","visible":true,"output":"[1] 0\n[1] 1\n[1] 3\n"}
+{"src":"f <- function(...) c(...); f(1, 2, 3)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000033ff000000000000040000000000000004008000000000000","typeof":"double","visible":true,"output":"[1] 1 2 3\n"}
+{"src":"f <- function(...) list(...); f(a = 1, 2)","ok":true,"hex":"580a000000030004060200030500000000055554462d3800000213000000020000000e000000013ff00000000000000000000e000000014000000000000000000004020000000100040009000000056e616d657300000010000000020004000900000001610004000900000000000000fe","typeof":"list","visible":true,"output":"$a\n[1] 1\n\n[[2]]\n[1] 2\n\n"}
+{"src":"f <- function(x, ...) list(x, ...); f(1, 2, a = 3)","ok":true,"hex":"580a000000030004060200030500000000055554462d3800000213000000030000000e000000013ff00000000000000000000e0000000140000000000000000000000e000000014008000000000000000004020000000100040009000000056e616d6573000000100000000300040009000000000004000900000000000400090000000161000000fe","typeof":"list","visible":true,"output":"[[1]]\n[1] 1\n\n[[2]]\n[1] 2\n\n$a\n[1] 3\n\n"}
+{"src":"f <- function(..., last) c(..., last); f(1, 2, last = 3)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000033ff000000000000040000000000000004008000000000000","typeof":"double","visible":true,"output":"[1] 1 2 3\n"}
+{"src":"f <- function(..., x) x; f(1, 2)","ok":false,"error":"argument \"x\" is missing, with no default","call":"f(1, 2)"}
+{"src":"f <- function(a, ...) a; f(b = 1, 2)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014000000000000000","typeof":"double","visible":true,"output":"[1] 2\n"}
+{"src":"f <- function(x) { x; 1 }; f(1 + \"a\")","ok":false,"error":"non-numeric argument to binary operator","call":"1 + \"a\""}
+{"src":"f <- function(x) 1; f(1 + \"a\")","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000013ff0000000000000","typeof":"double","visible":true,"output":"[1] 1\n"}
+{"src":"f <- function(x, y = x * 2) y; f(4)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014020000000000000","typeof":"double","visible":true,"output":"[1] 8\n"}
+{"src":"f <- function(x, y = x * 2) { x <- 10; y }; f(4)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014034000000000000","typeof":"double","visible":true,"output":"[1] 20\n"}
+{"src":"f <- function(x = y, y = x) x; f()","ok":false,"error":"promise already under evaluation: recursive default argument reference or earlier problems?","call":"f()"}
+{"src":"f <- function(x) { x; function() x }; g <- f(2); g()","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014000000000000000","typeof":"double","visible":true,"output":"[1] 2\n"}
+{"src":"counter <- 0; f <- function() counter <<- counter + 1; f(); f(); counter","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014000000000000000","typeof":"double","visible":true,"output":"[1] 2\n"}
+{"src":"f <- function() { x <- 1; g <- function() x <<- x + 1; g(); x }; f()","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014000000000000000","typeof":"double","visible":true,"output":"[1] 2\n"}
+{"src":"x <- 10; f <- function() x; g <- function() { x <- 20; f() }; g()","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014024000000000000","typeof":"double","visible":true,"output":"[1] 10\n"}
+{"src":"f <- function() { x <- 1; g <- function() x; x <- 2; g() }; f()","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014000000000000000","typeof":"double","visible":true,"output":"[1] 2\n"}
+{"src":"add <- function(x) function(y) x + y; add(1)(2)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014008000000000000","typeof":"double","visible":true,"output":"[1] 3\n"}
+{"src":"f <- function(n) if (n <= 1) 1 else n * f(n - 1); f(10)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e00000001414baf8000000000","typeof":"double","visible":true,"output":"[1] 3628800\n"}
+{"src":"f <- function(n) if (n < 2) n else f(n - 1) + f(n - 2); f(15)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014083100000000000","typeof":"double","visible":true,"output":"[1] 610\n"}
+{"src":"f <- function() return(5); f()","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014014000000000000","typeof":"double","visible":true,"output":"[1] 5\n"}
+{"src":"f <- function() { return(1); 2 }; f()","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000013ff0000000000000","typeof":"double","visible":true,"output":"[1] 1\n"}
+{"src":"f <- function() { for (i in 1:10) if (i == 3) return(i); 0 }; f()","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d0000000100000003","typeof":"integer","visible":true,"output":"[1] 3\n"}
+{"src":"f <- function() invisible(7); f()","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e00000001401c000000000000","typeof":"double"}
+{"src":"f <- function() invisible(7); y <- f(); y","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e00000001401c000000000000","typeof":"double","visible":true,"output":"[1] 7\n"}
+{"src":"f <- function(x) { if (x) return(\"yes\"); \"no\" }; f(TRUE); f(FALSE)","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000100000000100040009000000026e6f","typeof":"character","visible":true,"output":"[1] \"yes\"\n[1] \"no\"\n"}
+{"src":"f <- function() return(); f()","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","visible":true,"output":"NULL\n"}
+{"src":"f <- function() { g <- function() return(1); g(); 2 }; f()","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014000000000000000","typeof":"double","visible":true,"output":"[1] 2\n"}
+{"src":"f <- function() { lapply_like <- function(g) g(); lapply_like(function() return(9)); 10 }; f()","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014024000000000000","typeof":"double","visible":true,"output":"[1] 10\n"}
+{"src":"(function(x, y) x + y)(1, 2)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014008000000000000","typeof":"double","visible":true,"output":"[1] 3\n"}
+{"src":"if (TRUE) 1 else 2","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000013ff0000000000000","typeof":"double","visible":true,"output":"[1] 1\n"}
+{"src":"if (FALSE) 1 else 2","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014000000000000000","typeof":"double","visible":true,"output":"[1] 2\n"}
+{"src":"if (FALSE) 1","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL"}
+{"src":"x <- if (FALSE) 1; x","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","visible":true,"output":"NULL\n"}
+{"src":"if (1) \"one\"; if (0) \"zero\" else \"else\"; if (\"TRUE\") \"str\"; if (\"T\") \"T\"","ok":true,"hex":"580a000000030004060200030500000000055554462d380000001000000001000400090000000154","typeof":"character","visible":true,"output":"[1] \"one\"\n[1] \"else\"\n[1] \"str\"\n[1] \"T\"\n"}
+{"src":"if (NA) 1","ok":false,"error":"missing value where TRUE/FALSE needed","call":"if (NA) 1"}
+{"src":"if (NULL) 1","ok":false,"error":"argument is of length zero","call":"if (NULL) 1"}
+{"src":"if (as.logical(NULL)) 1","ok":false,"error":"argument is of length zero","call":"if (as.logical(NULL)) 1"}
+{"src":"if (c(TRUE, FALSE)) 1","ok":false,"error":"the condition has length > 1","call":"if (c(TRUE, FALSE)) 1"}
+{"src":"if (\"maybe\") 1","ok":false,"error":"argument is not interpretable as logical","call":"if (\"maybe\") 1"}
+{"src":"if (NA_integer_) 1","ok":false,"error":"argument is not interpretable as logical","call":"if (NA_integer_) 1"}
+{"src":"if (NaN) 1","ok":false,"error":"argument is not interpretable as logical","call":"if (NaN) 1"}
+{"src":"if (list(TRUE)) 1","ok":false,"error":"argument is not interpretable as logical","call":"if (list(TRUE)) 1"}
+{"src":"x <- 5; if (x > 3) \"big\" else \"small\"","ok":true,"hex":"580a000000030004060200030500000000055554462d3800000010000000010004000900000003626967","typeof":"character","visible":true,"output":"[1] \"big\"\n"}
+{"src":"if (TRUE) if (FALSE) 1 else 2","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014000000000000000","typeof":"double","visible":true,"output":"[1] 2\n"}
+{"src":"for (i in 1:3) i","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL"}
+{"src":"x <- 0; for (i in 1:5) x <- x + i; x","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e00000001402e000000000000","typeof":"double","visible":true,"output":"[1] 15\n"}
+{"src":"x <- 0; for (i in 1:10) { if (i %% 2 == 0) next; x <- x + i }; x","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014039000000000000","typeof":"double","visible":true,"output":"[1] 25\n"}
+{"src":"x <- 0; for (i in 1:10) { if (i > 4) break; x <- x + i }; x","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014024000000000000","typeof":"double","visible":true,"output":"[1] 10\n"}
+{"src":"for (i in NULL) 1 + \"a\"; \"done\"","ok":true,"hex":"580a000000030004060200030500000000055554462d3800000010000000010004000900000004646f6e65","typeof":"character","visible":true,"output":"[1] \"done\"\n"}
+{"src":"for (i in as.integer(NULL)) 1 + \"a\"; i_unset <- 1","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000013ff0000000000000","typeof":"double"}
+{"src":"for (i in 1:3) NULL; i","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d0000000100000003","typeof":"integer","visible":true,"output":"[1] 3\n"}
+{"src":"for (x in c(1.5, 2.5)) y <- x * 2; y","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014014000000000000","typeof":"double","visible":true,"output":"[1] 5\n"}
+{"src":"for (s in c(\"a\", \"b\")) last <- s; last","ok":true,"hex":"580a000000030004060200030500000000055554462d380000001000000001000400090000000162","typeof":"character","visible":true,"output":"[1] \"b\"\n"}
+{"src":"for (e in list(1, \"a\", TRUE)) last <- e; last","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000a0000000100000001","typeof":"logical","visible":true,"output":"[1] TRUE\n"}
+{"src":"for (i in c(a = 1, b = 2)) last <- i; last","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014000000000000000","typeof":"double","visible":true,"output":"[1] 2\n"}
+{"src":"r <- for (i in 1:3) i; r","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","visible":true,"output":"NULL\n"}
+{"src":"i <- 100; for (i in 1:2) NULL; i","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d0000000100000002","typeof":"integer","visible":true,"output":"[1] 2\n"}
+{"src":"for (i in 1:2) for (j in 1:2) last <- i * 10 + j; last","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014036000000000000","typeof":"double","visible":true,"output":"[1] 22\n"}
+{"src":"for (i in 1:3) { for (j in 1:3) { if (j == 2) break }; last <- c(i, j) }; last","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d000000020000000300000002","typeof":"integer","visible":true,"output":"[1] 3 2\n"}
+{"src":"for (i in function() 1) 1","ok":false,"error":"invalid for() loop sequence","call":"for (i in function() 1) 1"}
+{"src":"i <- 0; while (i < 5) i <- i + 1; i","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014014000000000000","typeof":"double","visible":true,"output":"[1] 5\n"}
+{"src":"i <- 0; while (TRUE) { i <- i + 1; if (i >= 7) break }; i","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e00000001401c000000000000","typeof":"double","visible":true,"output":"[1] 7\n"}
+{"src":"i <- 0; n <- 0; while (i < 10) { i <- i + 1; if (i %% 2 == 1) next; n <- n + 1 }; n","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014014000000000000","typeof":"double","visible":true,"output":"[1] 5\n"}
+{"src":"while (FALSE) 1","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL"}
+{"src":"r <- while (FALSE) 1; r","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","visible":true,"output":"NULL\n"}
+{"src":"i <- 0; repeat { i <- i + 1; if (i == 4) break }; i","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014010000000000000","typeof":"double","visible":true,"output":"[1] 4\n"}
+{"src":"i <- 0; r <- repeat { i <- i + 1; if (i == 2) break }; r","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","visible":true,"output":"NULL\n"}
+{"src":"f <- function() { i <- 0; repeat { i <- i + 1; if (i > 2) return(i) } }; f()","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014008000000000000","typeof":"double","visible":true,"output":"[1] 3\n"}
+{"src":"while (NA) 1","ok":false,"error":"missing value where TRUE/FALSE needed","call":"while (NA) 1"}
+{"src":"while (c(TRUE, TRUE)) 1","ok":false,"error":"the condition has length > 1","call":"while (c(TRUE, TRUE)) 1"}
+{"src":"break","ok":false,"error":"no loop for break/next, jumping to top level"}
+{"src":"next","ok":false,"error":"no loop for break/next, jumping to top level"}
+{"src":"f <- function() break; f()","ok":false,"error":"no loop for break/next, jumping to top level","call":"f()"}
+{"src":"f <- function() { for (i in 1:3) g <- function() break; 1 }; f()","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000013ff0000000000000","typeof":"double","visible":true,"output":"[1] 1\n"}
+{"src":"{ 1; 2; 3 }","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014008000000000000","typeof":"double","visible":true,"output":"[1] 3\n"}
+{"src":"{}","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","visible":true,"output":"NULL\n"}
+{"src":"{ x <- 1 }","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000013ff0000000000000","typeof":"double"}
+{"src":"(x <- 1)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000013ff0000000000000","typeof":"double","visible":true,"output":"[1] 1\n"}
+{"src":"(invisible(2))","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014000000000000000","typeof":"double","visible":true,"output":"[1] 2\n"}
+{"src":"quote(x + y)","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000060000000100040009000000012b00000002000000010004000900000001780000000200000001000400090000000179000000fe","typeof":"language","visible":true,"output":"x + y\n"}
+{"src":"quote(f(x, y = 2))","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000600000001000400090000000166000000020000000100040009000000017800000402000000010004000900000001790000000e000000014000000000000000000000fe","typeof":"language","visible":true,"output":"f(x, y = 2)\n"}
+{"src":"quote(x)","ok":true,"hex":"580a000000030004060200030500000000055554462d3800000001000400090000000178","typeof":"symbol","visible":true,"output":"x\n"}
+{"src":"quote(1)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000013ff0000000000000","typeof":"double","visible":true,"output":"[1] 1\n"}
+{"src":"quote(if (a) b else c)","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000060000000100040009000000026966000000020000000100040009000000016100000002000000010004000900000001620000000200000001000400090000000163000000fe","typeof":"language","visible":true,"output":"if (a) b else c\n"}
+{"src":"quote(function(x, y = 1) x + y)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000600000001000400090000000866756e6374696f6e000000020000040200000001000400090000000178000000fb00000402000000010004000900000001790000000e000000013ff0000000000000000000fe00000002000000060000000100040009000000012b00000002000002ff00000002000003ff000000fe00000002000000fe000000fe","typeof":"language","visible":true,"output":"function(x, y = 1) x + y\n"}
+{"src":"quote(\"a\")","ok":true,"hex":"580a000000030004060200030500000000055554462d380000001000000001000400090000000161","typeof":"character","visible":true,"output":"[1] \"a\"\n"}
+{"src":"quote(x[1])","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000060000000100040009000000015b0000000200000001000400090000000178000000020000000e000000013ff0000000000000000000fe","typeof":"language","visible":true,"output":"x[1]\n"}
+{"src":"quote(-x)","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000060000000100040009000000012d0000000200000001000400090000000178000000fe","typeof":"language","visible":true,"output":"-x\n"}
+{"src":"quote(a <- b)","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000060000000100040009000000023c2d00000002000000010004000900000001610000000200000001000400090000000162000000fe","typeof":"language","visible":true,"output":"a <- b\n"}
+{"src":"quote()","ok":false,"error":"0 arguments passed to 'quote' which requires 1","call":"quote()"}
+{"src":"quote(a, b)","ok":false,"error":"2 arguments passed to 'quote' which requires 1","call":"quote(a, b)"}
+{"src":"class_of_quote <- is.call(quote(f(x))); class_of_quote","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000a0000000100000001","typeof":"logical","visible":true,"output":"[1] TRUE\n"}
+{"src":"identity_fn <- function(x) x; identity_fn(quote(a + b))","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000060000000100040009000000012b00000002000000010004000900000001610000000200000001000400090000000162000000fe","typeof":"language","visible":true,"output":"a + b\n"}
+{"src":"f <- function(x) quote(x); f(1)","ok":true,"hex":"580a000000030004060200030500000000055554462d3800000001000400090000000178","typeof":"symbol","visible":true,"output":"x\n"}
+{"src":"\"x\" <- 5; x","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014014000000000000","typeof":"double","visible":true,"output":"[1] 5\n"}
+{"src":"`my var` <- 3; `my var` + 1","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014010000000000000","typeof":"double","visible":true,"output":"[1] 4\n"}
+{"src":"x <- y <- 2; x + y","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014010000000000000","typeof":"double","visible":true,"output":"[1] 4\n"}
+{"src":"1 <- 2","ok":false,"error":"invalid (do_set) left-hand side to assignment","call":"1 <- 2"}
+{"src":"NULL <- 1","ok":false,"error":"invalid (do_set) left-hand side to assignment","call":"NULL <- 1"}
+{"src":"f <- function() { x <- 1; g <- function() { x <<- 2; x }; c(g(), x) }; f()","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e0000000240000000000000004000000000000000","typeof":"double","visible":true,"output":"[1] 2 2\n"}
+{"src":"x <- 1; f <- function() x <<- 5; f(); x","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014014000000000000","typeof":"double","visible":true,"output":"[1] 5\n"}
+{"src":"f <- function() newvar <<- 7; f(); newvar","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e00000001401c000000000000","typeof":"double","visible":true,"output":"[1] 7\n"}
+{"src":"a_variable_that_does_not_exist","ok":false,"error":"object 'a_variable_that_does_not_exist' not found"}
+{"src":"f <- function() undefined_var; f()","ok":false,"error":"object 'undefined_var' not found","call":"f()"}
+{"src":"undefined_function(1)","ok":false,"error":"could not find function \"undefined_function\"","call":"undefined_function(1)"}
+{"src":"f <- function() undefined_function(1); f()","ok":false,"error":"could not find function \"undefined_function\"","call":"undefined_function(1)"}
+{"src":"(1)(2)","ok":false,"error":"attempt to apply non-function"}
+{"src":"\"a\"(1)","ok":false,"error":"could not find function \"a\"","call":"a(1)"}
+{"src":"x <- 5; x(1)","ok":false,"error":"could not find function \"x\"","call":"x(1)"}
+{"src":"f <- 1; f(2)","ok":false,"error":"could not find function \"f\"","call":"f(2)"}
+{"src":"sum <- 3; sum(1, 2)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000014008000000000000","typeof":"double","visible":true,"output":"[1] 3\n"}
+{"src":"c <- function(...) \"mine\"; c(1, 2)","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000100000000100040009000000046d696e65","typeof":"character","visible":true,"output":"[1] \"mine\"\n"}
+{"src":"`+` <- function(a, b) \"plus\"; 1 + 2","ok":true,"hex":"580a000000030004060200030500000000055554462d3800000010000000010004000900000004706c7573","typeof":"character","visible":true,"output":"[1] \"plus\"\n"}
+{"src":"`if` <- function(...) \"no\"; if (TRUE) 1","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000100000000100040009000000026e6f","typeof":"character","visible":true,"output":"[1] \"no\"\n"}
+{"src":"f <- function(x) UseMethod(\"f\"); 1","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000013ff0000000000000","typeof":"double","visible":true,"output":"[1] 1\n"}
+{"src":"1 + \"a\"","ok":false,"error":"non-numeric argument to binary operator","call":"1 + \"a\""}
+{"src":"\"a\" + 1","ok":false,"error":"non-numeric argument to binary operator","call":"\"a\" + 1"}
+{"src":"-\"a\"","ok":false,"error":"invalid argument to unary operator","call":"-\"a\""}
+{"src":"-NULL","ok":false,"error":"invalid argument to unary operator","call":"-NULL"}
+{"src":"!\"a\"","ok":false,"error":"invalid argument type","call":"!\"a\""}
+{"src":"list(1) + 1","ok":false,"error":"non-numeric argument to binary operator","call":"list(1) + 1"}
+{"src":"sum(\"a\")","ok":false,"error":"invalid 'type' (character) of argument","call":"sum(\"a\")"}
+{"src":"f <- function(x) x + \"a\"; f(1)","ok":false,"error":"non-numeric argument to binary operator","call":"x + \"a\""}
+{"src":"f <- function(x) { y <- x + \"a\"; y }; f(1)","ok":false,"error":"non-numeric argument to binary operator","call":"x + \"a\""}
+{"src":"f <- function(n) f(n + 1); f(1)","ok":false,"error":"evaluation nested too deeply: infinite recursion / options(expressions=)?"}
+{"src":"sqrt(\"a\")","ok":false,"error":"non-numeric argument to mathematical function","call":"sqrt(\"a\")"}
+{"src":"TRUE & \"a\"","ok":false,"error":"operations are possible only for numeric, logical or complex types","call":"TRUE & \"a\""}
+{"src":"1:3 + 1:2","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d00000003000000020000000400000004","typeof":"integer","visible":true,"warnings":["longer object length is not a multiple of shorter object length"],"output":"[1] 2 4 4\n"}
+{"src":"identity <- function(x) x; identity(1:2) + 1:3","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000d00000003000000020000000400000004","typeof":"integer","visible":true,"warnings":["longer object length is not a multiple of shorter object length"],"output":"[1] 2 4 4\n"}
