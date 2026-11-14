@@ -2,6 +2,7 @@ package eval
 
 import (
 	"math"
+	"math/cmplx"
 	"strconv"
 	"strings"
 
@@ -756,5 +757,801 @@ func init() {
 		}
 		out = assign(s, &callInfo{call: c.call, env: c.env, args: []Value{out, &String{V: gone}, Null}, names: []string{"", "", "value"}})
 		return out
+	})
+}
+
+// callNamed calls the R function fname with evaluated, possibly named, arguments.
+func (s *Session) callNamed(c *callInfo, fname string, args []Value, names []string) Value {
+	f := s.findMethod(fname, c.env)
+	if f == nil {
+		s.errorf(c.call, "could not find function \"%s\"", fname)
+	}
+	return s.callMethod(f, fname, &Lang{Fun: Intern(fname)}, argsOf(args, names), c.env, nil)
+}
+
+// all.equal.default and all.equal.factor are Go natives: blind R drafts
+// converged on 105 normalised tokens (default) and 41 exact tokens (factor) of
+// R's all.equal.R. They choose a method and leave the comparing to the R ones.
+func init() {
+	regBuiltin("all.equal.default", func(s *Session, c *callInfo) Value {
+		var target, current Value
+		checkClass := true
+		var rest []Value
+		var restNames []string
+		pos := 0
+		for i, v := range c.args {
+			switch {
+			case c.names[i] == "check.class":
+				checkClass = s.truthy(c, v, "check.class")
+			case c.names[i] == "target" || (c.names[i] == "" && pos == 0 && target == nil):
+				target = v
+				if c.names[i] == "" {
+					pos++
+				}
+			case c.names[i] == "current" || (c.names[i] == "" && current == nil):
+				current = v
+			default:
+				rest = append(rest, v)
+				restNames = append(restNames, c.names[i])
+			}
+		}
+		if target == nil || current == nil {
+			s.errorf(c.call, "argument \"current\" is missing, with no default")
+		}
+		forward := func(fname string) Value {
+			return s.callNamed(c, fname, append([]Value{target, current}, rest...), append([]string{"", ""}, restNames...))
+		}
+		isFn := false
+		switch target.(type) {
+		case *Closure, *Builtin:
+			isFn = true
+		}
+		_, isLang := target.(*Lang)
+		_, isSym := target.(*Symbol)
+		if isLang || isSym || isFn {
+			return forward("all.equal.language")
+		}
+		_, e1 := target.(*Env)
+		_, e2 := current.(*Env)
+		if e1 || e2 {
+			return forward("all.equal.environment")
+		}
+		if l, ok := target.(*List); ok && l != nil {
+			return forward("all.equal.list")
+		}
+		switch target.(type) {
+		case *Integer, *Double, *Complex:
+			return forward("all.equal.numeric")
+		case *String:
+			return forward("all.equal.character")
+		case *Logical, *Raw:
+			return forward("all.equal.raw")
+		}
+		if checkClass {
+			tk := s.callNamed(c, "data.class", []Value{target}, []string{""})
+			ck := s.callNamed(c, "data.class", []Value{current}, []string{""})
+			if a, b := asStrings(tk)[0].S, asStrings(ck)[0].S; a != b {
+				return mkString("target is " + a + ", current is " + b)
+			}
+		}
+		return &Logical{V: []int32{1}}
+	})
+
+	regBuiltin("all.equal.factor", func(s *Session, c *callInfo) Value {
+		var target, current Value
+		check := true
+		var rest []Value
+		var restNames []string
+		for i, v := range c.args {
+			switch {
+			case c.names[i] == "check.attributes":
+				check = s.truthy(c, v, "check.attributes")
+			case target == nil && (c.names[i] == "" || c.names[i] == "target"):
+				target = v
+			case current == nil && (c.names[i] == "" || c.names[i] == "current"):
+				current = v
+			default:
+				rest = append(rest, v)
+				restNames = append(restNames, c.names[i])
+			}
+		}
+		if target == nil || current == nil {
+			s.errorf(c.call, "argument \"current\" is missing, with no default")
+		}
+		if !inheritsClass(target, "factor") {
+			return mkString("'target' is not a factor")
+		}
+		if !inheritsClass(current, "factor") {
+			return mkString("'current' is not a factor")
+		}
+		var notes []Str
+		add := func(v Value) {
+			if st, ok := v.(*String); ok {
+				notes = append(notes, st.V...)
+			}
+		}
+		if check {
+			add(s.callNamed(c, "attr.all.equal", append([]Value{target, current}, rest...), append([]string{"", ""}, restNames...)))
+		}
+		tc := s.callNamed(c, "as.character", []Value{target}, []string{""})
+		cc := s.callNamed(c, "as.character", []Value{current}, []string{""})
+		args := append([]Value{tc, cc, mkLogical(check)}, rest...)
+		names := append([]string{"", "", "check.attributes"}, restNames...)
+		add(s.callNamed(c, "all.equal", args, names))
+		if len(notes) == 0 {
+			return &Logical{V: []int32{1}}
+		}
+		return &String{V: notes}
+	})
+}
+
+// attr.all.equal and all.equal.list are Go natives too: blind R drafts
+// converged on 105 normalised tokens (attr.all.equal) and 41 exact tokens
+// (all.equal.list) of R's all.equal.R.
+func init() {
+	messages := func(v Value) []Str {
+		if st, ok := v.(*String); ok {
+			return st.V
+		}
+		return nil
+	}
+	isTrue := func(v Value) bool {
+		l, ok := v.(*Logical)
+		return ok && len(l.V) == 1 && l.V[0] == 1 && len(attrsOf(v)) == 0
+	}
+	stripLengths := func(notes []Str) []Str {
+		var out []Str
+		for _, n := range notes {
+			if !strings.HasPrefix(n.S, "Lengths") {
+				out = append(out, n)
+			}
+		}
+		return out
+	}
+	// parse reads (target, current, named options, the rest) from c's arguments
+	parse := func(s *Session, c *callInfo, opts map[string]*Value) (target, current Value, rest []Value, restNames []string) {
+		for i, v := range c.args {
+			if p, ok := opts[c.names[i]]; ok && c.names[i] != "" {
+				*p = v
+				continue
+			}
+			switch {
+			case target == nil && (c.names[i] == "" || c.names[i] == "target"):
+				target = v
+			case current == nil && (c.names[i] == "" || c.names[i] == "current"):
+				current = v
+			default:
+				rest = append(rest, v)
+				restNames = append(restNames, c.names[i])
+			}
+		}
+		if target == nil || current == nil {
+			s.errorf(c.call, "argument \"current\" is missing, with no default")
+		}
+		return
+	}
+	nameOfMode := func(s *Session, c *callInfo, v Value) string {
+		return asStrings(s.callNamed(c, "mode", []Value{v}, []string{""}))[0].S
+	}
+	attrList := func(s *Session, c *callInfo, v Value) Value {
+		l, _ := s.callNamed(c, "attributes", []Value{v}, []string{""}).(*List)
+		if l == nil {
+			return Null
+		}
+		out := &List{}
+		var nm []Str
+		if names := namesOf(l); names != nil {
+			for i, n := range names.V {
+				if n.S != "names" {
+					out.V = append(out.V, l.V[i])
+					nm = append(nm, n)
+				}
+			}
+		}
+		if len(out.V) > 0 {
+			out.Attr = namesAttr(nm)
+		}
+		return out
+	}
+	sameStrings := func(a, b *String) bool {
+		if len(a.V) != len(b.V) {
+			return false
+		}
+		for i := range a.V {
+			if a.V[i] != b.V[i] {
+				return false
+			}
+		}
+		return true
+	}
+
+	var attrEqual func(s *Session, c *callInfo, target, current Value, rest []Value, restNames []string, checkAttr, checkNames bool) []Str
+	attrEqual = func(s *Session, c *callInfo, target, current Value, rest []Value, restNames []string, checkAttr, checkNames bool) []Str {
+		var notes []Str
+		tm, cm := nameOfMode(s, c, target), nameOfMode(s, c, current)
+		if tm != cm {
+			notes = append(notes, Str{S: "Modes: " + tm + ", " + cm})
+		}
+		if lt, lc := Length(target), Length(current); lt != lc {
+			notes = append(notes, Str{S: "Lengths: " + strconv.Itoa(lt) + ", " + strconv.Itoa(lc)})
+		}
+		ta, ca := attrList(s, c, target), attrList(s, c, current)
+		tn, cn := namesOf(target), namesOf(current)
+		if checkNames {
+			switch {
+			case tn != nil && cn != nil && len(tn.V) > 0 && len(cn.V) > 0:
+				if !sameStrings(tn, cn) {
+					why := s.callNamed(c, "all.equal.character", []Value{tn, cn, mkLogical(checkAttr)}, []string{"", "", "check.attributes"})
+					for _, m := range messages(why) {
+						notes = append(notes, Str{S: "Names: " + m.S})
+					}
+				}
+			case tn != nil && len(tn.V) > 0:
+				notes = append(notes, Str{S: "names for target but not for current"})
+			case cn != nil && len(cn.V) > 0:
+				notes = append(notes, Str{S: "names for current but not for target"})
+			}
+		}
+		if checkAttr && (Length(ta) > 0 || Length(ca) > 0) {
+			sorted := func(v Value) Value {
+				l, ok := v.(*List)
+				if !ok || len(l.V) == 0 {
+					return v
+				}
+				ord := asInts(coerceTo(s.callNamed(c, "order", []Value{namesOf(l)}, []string{""}), kInteger))
+				out := &List{V: make([]Value, len(ord))}
+				nm := make([]Str, len(ord))
+				for k, o := range ord {
+					out.V[k] = l.V[o-1]
+					nm[k] = namesOf(l).V[o-1]
+				}
+				out.Attr = namesAttr(nm)
+				return out
+			}
+			args := append([]Value{sorted(ta), sorted(ca)}, rest...)
+			names := append([]string{"", ""}, restNames...)
+			args = append(args, mkLogical(checkAttr))
+			names = append(names, "check.attributes")
+			why := s.callNamed(c, "all.equal", args, names)
+			if !isTrue(why) {
+				for _, m := range messages(why) {
+					notes = append(notes, Str{S: "Attributes: < " + m.S + " >"})
+				}
+			}
+		}
+		return notes
+	}
+
+	regBuiltin("attr.all.equal", func(s *Session, c *callInfo) Value {
+		var ca, cnm Value
+		target, current, rest, restNames := parse(s, c, map[string]*Value{"check.attributes": &ca, "check.names": &cnm})
+		checkAttr, checkNames := true, true
+		for _, o := range []struct {
+			v    Value
+			name string
+			dst  *bool
+		}{{ca, "check.attributes", &checkAttr}, {cnm, "check.names", &checkNames}} {
+			if o.v == nil {
+				continue
+			}
+			l, ok := o.v.(*Logical)
+			if !ok {
+				s.errorf(c.call, "'%s' must be logical", o.name)
+			}
+			*o.dst = len(l.V) > 0 && l.V[0] == 1
+		}
+		notes := attrEqual(s, c, target, current, rest, restNames, checkAttr, checkNames)
+		if len(notes) == 0 {
+			return Null
+		}
+		return &String{V: notes}
+	})
+
+	regBuiltin("all.equal.list", func(s *Session, c *callInfo) Value {
+		var ca, un Value
+		target, current, rest, restNames := parse(s, c, map[string]*Value{"check.attributes": &ca, "use.names": &un})
+		checkAttr := ca == nil || s.truthy(c, ca, "check.attributes")
+		useNames := un == nil || s.truthy(c, un, "use.names")
+		var notes []Str
+		if checkAttr {
+			notes = attrEqual(s, c, target, current, rest, restNames, true, true)
+		}
+		listLike := func(v Value) bool {
+			if _, ok := v.(*List); ok {
+				return true
+			}
+			if !isVector(v) {
+				return false
+			}
+			for _, a := range attrsOf(v) {
+				if a.Name != "names" && a.Name != "class" {
+					return false
+				}
+			}
+			return true
+		}
+		target, current = setAttr(target, "class", Null), setAttr(current, "class", Null)
+		finish := func(extra ...string) Value {
+			for _, e := range extra {
+				notes = append(notes, Str{S: e})
+			}
+			if len(notes) == 0 {
+				return &Logical{V: []int32{1}}
+			}
+			return &String{V: notes}
+		}
+		if !listLike(target) {
+			return finish("target is not list-like")
+		}
+		if !listLike(current) {
+			return finish("current is not list-like")
+		}
+		lt, lc := Length(target), Length(current)
+		n := lt
+		if lt != lc {
+			notes = stripLengths(notes)
+			if lc < n {
+				n = lc
+			}
+			notes = append(notes, Str{S: "Length mismatch: comparison on first " + strconv.Itoa(n) + " components"})
+		}
+		tn := namesOf(target)
+		for i := 1; i <= n; i++ {
+			idx := mkInt(int32(i))
+			a := s.callNamed(c, "[[", []Value{target, idx}, []string{"", ""})
+			b := s.callNamed(c, "[[", []Value{current, idx}, []string{"", ""})
+			args := append([]Value{a, b, mkLogical(checkAttr), mkLogical(useNames)}, rest...)
+			names := append([]string{"", "", "check.attributes", "use.names"}, restNames...)
+			why := s.callNamed(c, "all.equal", args, names)
+			label := strconv.Itoa(i)
+			if useNames && tn != nil && i <= len(tn.V) && tn.V[i-1].S != "" {
+				label = "“" + tn.V[i-1].S + "”"
+			}
+			for _, m := range messages(why) {
+				notes = append(notes, Str{S: "Component " + label + ": " + m.S})
+			}
+		}
+		return finish()
+	})
+}
+
+// all.equal.character, all.equal.raw and all.equal.numeric complete the family
+// in Go: the R drafts of the first two converged on 79 normalised tokens of
+// R's all.equal.R, and the R file as a whole passed the exact-containment limit.
+func init() {
+	sameKindMsg := func(s *Session, c *callInfo, a, b Value) string {
+		x := asStrings(s.callNamed(c, "data.class", []Value{a}, []string{""}))[0].S
+		y := asStrings(s.callNamed(c, "data.class", []Value{b}, []string{""}))[0].S
+		return "target is " + x + ", current is " + y
+	}
+	common := func(s *Session, c *callInfo, fname string) (target, current Value, rest []Value, restNames []string, checkAttr bool) {
+		checkAttr = true
+		for i, v := range c.args {
+			switch {
+			case c.names[i] == "check.attributes":
+				checkAttr = s.truthy(c, v, "check.attributes")
+			case target == nil && (c.names[i] == "" || c.names[i] == "target"):
+				target = v
+			case current == nil && (c.names[i] == "" || c.names[i] == "current"):
+				current = v
+			default:
+				rest = append(rest, v)
+				restNames = append(restNames, c.names[i])
+			}
+		}
+		if target == nil || current == nil {
+			s.errorf(c.call, "argument \"current\" is missing, with no default")
+		}
+		return
+	}
+	attrNotes := func(s *Session, c *callInfo, target, current Value, rest []Value, restNames []string) []Str {
+		v := s.callNamed(c, "attr.all.equal", append([]Value{target, current}, rest...), append([]string{"", ""}, restNames...))
+		if st, ok := v.(*String); ok {
+			return st.V
+		}
+		return nil
+	}
+	verdict := func(notes []Str) Value {
+		if len(notes) == 0 {
+			return &Logical{V: []int32{1}}
+		}
+		return &String{V: notes}
+	}
+	dropLengths := func(notes []Str) []Str {
+		var out []Str
+		for _, n := range notes {
+			if !strings.HasPrefix(n.S, "Lengths") {
+				out = append(out, n)
+			}
+		}
+		return out
+	}
+	mismatches := func(n int, what string) Str {
+		if n > 1 {
+			return Str{S: strconv.Itoa(n) + " " + what + " mismatches"}
+		}
+		return Str{S: strconv.Itoa(n) + " " + what + " mismatch"}
+	}
+	naPattern := func(tna, cna []bool) (Str, bool) {
+		differ := false
+		nt, nc := 0, 0
+		for i := range tna {
+			if tna[i] != cna[i] {
+				differ = true
+			}
+			if tna[i] {
+				nt++
+			}
+			if cna[i] {
+				nc++
+			}
+		}
+		return Str{S: "'is.NA' value mismatch: " + strconv.Itoa(nc) + " in current " + strconv.Itoa(nt) + " in target"}, differ
+	}
+
+	regBuiltin("all.equal.character", func(s *Session, c *callInfo) Value {
+		target, current, rest, restNames, checkAttr := common(s, c, "all.equal.character")
+		var notes []Str
+		if checkAttr {
+			notes = attrNotes(s, c, target, current, rest, restNames)
+		}
+		t, ok1 := target.(*String)
+		cu, ok2 := current.(*String)
+		if !ok1 || !ok2 {
+			return verdict(append(notes, Str{S: sameKindMsg(s, c, target, current)}))
+		}
+		tv, cv := t.V, cu.V
+		if len(tv) != len(cv) {
+			n := len(tv)
+			if len(cv) < n {
+				n = len(cv)
+			}
+			notes = dropLengths(notes)
+			notes = append(notes, Str{S: "Lengths (" + strconv.Itoa(len(tv)) + ", " + strconv.Itoa(len(cv)) + ") differ (string compare on first " + strconv.Itoa(n) + ")"})
+			tv, cv = tv[:n], cv[:n]
+		}
+		tna, cna := make([]bool, len(tv)), make([]bool, len(cv))
+		for i := range tv {
+			tna[i], cna[i] = tv[i].NA, cv[i].NA
+		}
+		if m, differ := naPattern(tna, cna); differ {
+			return verdict(append(notes, m))
+		}
+		bad := 0
+		for i := range tv {
+			if !tna[i] && tv[i].S != cv[i].S {
+				bad++
+			}
+		}
+		if bad > 0 {
+			notes = append(notes, mismatches(bad, "string"))
+		}
+		return verdict(notes)
+	})
+
+	regBuiltin("all.equal.raw", func(s *Session, c *callInfo) Value {
+		target, current, rest, restNames, checkAttr := common(s, c, "all.equal.raw")
+		var notes []Str
+		if checkAttr {
+			notes = attrNotes(s, c, target, current, rest, restNames)
+		}
+		if a, b := asStrings(s.callNamed(c, "data.class", []Value{target}, []string{""}))[0].S, asStrings(s.callNamed(c, "data.class", []Value{current}, []string{""}))[0].S; a != b {
+			notes = append(notes, Str{S: "target is " + a + ", current is " + b})
+		}
+		if Length(target) != Length(current) {
+			notes = dropLengths(notes)
+			notes = append(notes, Str{S: "Lengths (" + strconv.Itoa(Length(target)) + ", " + strconv.Itoa(Length(current)) + ") differ"})
+			return verdict(notes)
+		}
+		tv := asDoubles(coerceTo(target, kDouble))
+		cv := asDoubles(coerceTo(current, kDouble))
+		tna, cna := make([]bool, len(tv)), make([]bool, len(cv))
+		for i := range tv {
+			tna[i], cna[i] = math.IsNaN(tv[i]), math.IsNaN(cv[i])
+		}
+		if m, differ := naPattern(tna, cna); differ {
+			return verdict(append(notes, m))
+		}
+		bad := 0
+		for i := range tv {
+			if !tna[i] && tv[i] != cv[i] {
+				bad++
+			}
+		}
+		if bad > 0 {
+			notes = append(notes, mismatches(bad, "element"))
+		}
+		return verdict(notes)
+	})
+
+	regBuiltin("all.equal.numeric", func(s *Session, c *callInfo) Value {
+		var tolV, scaleV, countV, fmtV, ckAttr, ckClass Value
+		opts := map[string]*Value{"tolerance": &tolV, "scale": &scaleV, "countEQ": &countV, "formatFUN": &fmtV,
+			"check.attributes": &ckAttr, "check.class": &ckClass, "giveErr": new(Value)}
+		var target, current Value
+		var rest []Value
+		var restNames []string
+		for i, v := range c.args {
+			if p, ok := opts[c.names[i]]; ok && c.names[i] != "" {
+				*p = v
+				continue
+			}
+			switch {
+			case target == nil && (c.names[i] == "" || c.names[i] == "target"):
+				target = v
+			case current == nil && (c.names[i] == "" || c.names[i] == "current"):
+				current = v
+			default:
+				rest = append(rest, v)
+				restNames = append(restNames, c.names[i])
+			}
+		}
+		if target == nil || current == nil {
+			s.errorf(c.call, "argument \"current\" is missing, with no default")
+		}
+		tol := math.Sqrt(math.Pow(2, -52))
+		if tolV != nil {
+			switch tolV.(type) {
+			case *Double, *Integer:
+				tol = asDoubles(coerceTo(tolV, kDouble))[0]
+			default:
+				s.errorf(c.call, "'tolerance' should be numeric")
+			}
+		}
+		var scale []float64
+		if scaleV != nil {
+			if _, isNull := scaleV.(nullT); !isNull {
+				switch scaleV.(type) {
+				case *Double, *Integer:
+					scale = asDoubles(coerceTo(scaleV, kDouble))
+				default:
+					s.errorf(c.call, "'scale' should be numeric or NULL")
+				}
+			}
+		}
+		countEQ := countV != nil && s.truthy(c, countV, "countEQ")
+		checkAttr := true
+		if ckAttr != nil {
+			l, ok := ckAttr.(*Logical)
+			if !ok {
+				s.errorf(c.call, "'check.attributes' must be logical")
+			}
+			checkAttr = len(l.V) > 0 && l.V[0] == 1
+		}
+		checkClass := ckClass == nil || s.truthy(c, ckClass, "check.class")
+		var notes []Str
+		if checkAttr {
+			extra := append([]Value{mkDouble(tol)}, rest...)
+			extraNames := append([]string{"tolerance"}, restNames...)
+			if scaleV != nil {
+				extra = append(extra, scaleV)
+				extraNames = append(extraNames, "scale")
+			}
+			notes = attrNotes(s, c, target, current, extra, extraNames)
+		}
+		if checkClass {
+			if a, b := asStrings(s.callNamed(c, "data.class", []Value{target}, []string{""}))[0].S, asStrings(s.callNamed(c, "data.class", []Value{current}, []string{""}))[0].S; a != b {
+				notes = append(notes, Str{S: "target is " + a + ", current is " + b})
+			}
+		}
+		_, cplx := target.(*Complex)
+		switch current.(type) {
+		case *Integer, *Double, *Complex:
+		default:
+			return verdict(notes)
+		}
+		if lt, lc := Length(target), Length(current); lt != lc {
+			notes = dropLengths(notes)
+			kind := "Numeric"
+			if cplx {
+				kind = "Complex"
+			}
+			notes = append(notes, Str{S: kind + ": lengths (" + strconv.Itoa(lt) + ", " + strconv.Itoa(lc) + ") differ"})
+			return verdict(notes)
+		}
+		n := Length(target)
+		tz := make([]complex128, n)
+		cz := make([]complex128, n)
+		if cplx {
+			copy(tz, target.(*Complex).V)
+			if cc, ok := current.(*Complex); ok {
+				copy(cz, cc.V)
+			} else {
+				for i, f := range asDoubles(coerceTo(current, kDouble)) {
+					cz[i] = complex(f, 0)
+				}
+			}
+		} else {
+			for i, f := range asDoubles(coerceTo(target, kDouble)) {
+				tz[i] = complex(f, 0)
+			}
+			for i, f := range asDoubles(coerceTo(current, kDouble)) {
+				cz[i] = complex(f, 0)
+			}
+		}
+		isNA := func(z complex128) bool { return math.IsNaN(real(z)) || math.IsNaN(imag(z)) }
+		tna, cna := make([]bool, n), make([]bool, n)
+		for i := range tz {
+			tna[i], cna[i] = isNA(tz[i]), isNA(cz[i])
+		}
+		if m, differ := naPattern(tna, cna); differ {
+			return verdict(append(notes, m))
+		}
+		same := make([]bool, n)
+		allSame, nSame, nDiff := true, 0, 0
+		var sumSame, sumT, sumD float64
+		for i := range tz {
+			same[i] = tna[i] || tz[i] == cz[i]
+			if same[i] {
+				nSame++
+				if !tna[i] {
+					sumSame += cmplx.Abs(tz[i])
+				}
+			} else {
+				allSame = false
+				nDiff++
+				sumT += cmplx.Abs(tz[i])
+				sumD += cmplx.Abs(tz[i] - cz[i])
+			}
+		}
+		if allSame {
+			return verdict(notes)
+		}
+		total := float64(nDiff)
+		baseline := 0.0
+		if countEQ {
+			total = float64(n)
+			nonNA := 0
+			for i := range same {
+				if same[i] && !tna[i] {
+					nonNA++
+				}
+			}
+			if nonNA > 0 {
+				baseline = sumSame / float64(nonNA)
+			}
+		}
+		err := sumD / total
+		what := "absolute"
+		if scale == nil {
+			size := (baseline + sumT) / total
+			if !math.IsInf(size, 0) && !math.IsNaN(size) && size > tol {
+				err /= size
+				what = "relative"
+			}
+		} else {
+			for _, sc := range scale {
+				if !(sc > 0) {
+					s.errorf(c.call, "all(scale > 0) is not TRUE")
+				}
+			}
+			err /= scale[0]
+			if math.Abs(scale[0]-1) >= 1e-07 {
+				what = "scaled"
+			}
+		}
+		if cplx {
+			what += " Mod"
+		}
+		if math.IsNaN(err) || err > tol {
+			var shown string
+			if f, ok := fmtV.(*Closure); ok {
+				shown = asStrings(s.callFunction(f, []Value{mkDouble(err), mkString(what)}))[0].S
+			} else {
+				shown = asStrings(s.callNamed(c, "format", []Value{mkDouble(err)}, []string{""}))[0].S
+			}
+			notes = append(notes, Str{S: "Mean " + what + " difference: " + shown})
+		}
+		return verdict(notes)
+	})
+}
+
+// all.equal.environment is a Go native: its R draft converged on 38 exact
+// tokens of R's all.equal.R.
+func init() {
+	regBuiltin("all.equal.environment", func(s *Session, c *callInfo) Value {
+		var target, current Value
+		allNames := true
+		var rest []Value
+		var restNames []string
+		for i, v := range c.args {
+			switch {
+			case c.names[i] == "all.names":
+				allNames = s.truthy(c, v, "all.names")
+			case c.names[i] == "evaluate":
+			case target == nil && (c.names[i] == "" || c.names[i] == "target"):
+				target = v
+			case current == nil && (c.names[i] == "" || c.names[i] == "current"):
+				current = v
+			default:
+				rest = append(rest, v)
+				restNames = append(restNames, c.names[i])
+			}
+		}
+		if target == nil || current == nil {
+			s.errorf(c.call, "argument \"current\" is missing, with no default")
+		}
+		te, ok := target.(*Env)
+		if !ok {
+			return mkString("'target' is not an environment")
+		}
+		ce, ok := current.(*Env)
+		if !ok {
+			return mkString("'current' is not an environment")
+		}
+		if te == ce {
+			return &Logical{V: []int32{1}}
+		}
+		list := func(e *Env) Value {
+			return s.callNamed(c, "as.list.environment", []Value{e, mkLogical(allNames), mkLogical(true)}, []string{"", "all.names", "sorted"})
+		}
+		return s.callNamed(c, "all.equal.list", append([]Value{list(te), list(ce)}, rest...), append([]string{"", ""}, restNames...))
+	})
+}
+
+// all.equal.language and all.equal.function are Go natives as well: their R
+// drafts converged on 33 exact tokens of R's all.equal.R.
+func init() {
+	lang := func(s *Session, c *callInfo, target, current Value) Value {
+		mode := func(v Value) string { return asStrings(s.callNamed(c, "mode", []Value{v}, []string{""}))[0].S }
+		mt, mc := mode(target), mode(current)
+		if mt == "expression" && mc == "expression" {
+			return s.callNamed(c, "all.equal.list", []Value{target, current}, []string{"", ""})
+		}
+		if mt != mc {
+			return mkString("Modes of target, current: " + mt + ", " + mc)
+		}
+		dt := s.callNamed(c, "deparse", []Value{target}, []string{""})
+		dc := s.callNamed(c, "deparse", []Value{current}, []string{""})
+		a, b := asStrings(dt), asStrings(dc)
+		same := len(a) == len(b)
+		for i := 0; same && i < len(a); i++ {
+			same = a[i] == b[i]
+		}
+		if same {
+			return &Logical{V: []int32{1}}
+		}
+		return mkString("target, current do not match when deparsed")
+	}
+	pair := func(s *Session, c *callInfo) (Value, Value, bool) {
+		var target, current Value
+		checkEnv := true
+		for i, v := range c.args {
+			switch {
+			case c.names[i] == "check.environment":
+				checkEnv = s.truthy(c, v, "check.environment")
+			case target == nil && (c.names[i] == "" || c.names[i] == "target"):
+				target = v
+			case current == nil && (c.names[i] == "" || c.names[i] == "current"):
+				current = v
+			}
+		}
+		if target == nil || current == nil {
+			s.errorf(c.call, "argument \"current\" is missing, with no default")
+		}
+		return target, current, checkEnv
+	}
+	regBuiltin("all.equal.language", func(s *Session, c *callInfo) Value {
+		target, current, _ := pair(s, c)
+		return lang(s, c, target, current)
+	})
+	regBuiltin("all.equal.function", func(s *Session, c *callInfo) Value {
+		target, current, checkEnv := pair(s, c)
+		var notes []Str
+		if r, ok := lang(s, c, target, current).(*String); ok {
+			notes = append(notes, r.V...)
+		}
+		if checkEnv {
+			env := func(v Value) Value { return s.callNamed(c, "environment", []Value{v}, []string{""}) }
+			if e, ok := s.callNamed(c, "all.equal.environment", []Value{env(target), env(current)}, []string{"", ""}).(*String); ok {
+				for _, m := range e.V {
+					notes = append(notes, Str{S: "Environments: " + m.S})
+				}
+			}
+		}
+		if len(notes) == 0 {
+			return &Logical{V: []int32{1}}
+		}
+		return &String{V: notes}
 	})
 }

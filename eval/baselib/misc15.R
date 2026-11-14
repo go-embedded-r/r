@@ -251,3 +251,15 @@ diff.default <- function(x, lag = 1L, differences = 1L, ...) {
   class(r) <- oldClass(x)
   r
 }
+
+# all.equal and its methods are Go natives (eval/funcs15.go); the generics are here
+all.equal <- function(target, current, ...) UseMethod("all.equal")
+
+isSymmetric <- function(object, ...) UseMethod("isSymmetric")
+
+isSymmetric.matrix <- function(object, tol = 100 * .Machine$double.eps, tol1 = 8 * tol, ...) {
+  d <- dim(object)
+  if (d[1L] != d[2L]) return(FALSE)
+  if (!identical(rownames(object), colnames(object))) return(FALSE)
+  isTRUE(all.equal(object, t(object), tolerance = tol, ...))
+}
