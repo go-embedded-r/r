@@ -233,6 +233,9 @@ func (s *Session) applyClosure(f *Closure, call *Lang, supplied []Arg, caller *E
 	if di != nil {
 		fenv.set(Intern(".Generic"), mkString(di.generic))
 		fenv.set(Intern(".Class"), strVec(di.classes[min(di.idx+1, len(di.classes)):]))
+		if di.method != nil {
+			fenv.set(Intern(".Method"), strVec(di.method))
+		}
 	}
 	fr := &frame{call: call, fn: f, env: fenv, supplied: supplied, di: di, caller: caller}
 	s.frames = append(s.frames, fr)

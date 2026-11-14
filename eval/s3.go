@@ -3,8 +3,6 @@ package eval
 import (
 	"strings"
 	"sync"
-
-	"github.com/go-embedded-r/r/syntax"
 )
 
 // dispatchInfo is what a method running under S3 dispatch knows.
@@ -13,6 +11,7 @@ type dispatchInfo struct {
 	classes []string // the dispatch classes, then "default"
 	idx     int      // the class whose method is running
 	object  Value
+	method  []string // .Method of a group method: per argument, the method it dispatched to or ""
 }
 
 // frameOf is the frame of the function whose frame environment is env.
@@ -117,7 +116,7 @@ var (
 		"gamma": true, "lgamma": true, "sinpi": true, "cospi": true, "tanpi": true, "trunc": true, "sign": true, "round": true, "signif": true,
 		"cumsum": true, "cumprod": true, "cummax": true, "cummin": true}
 	summaryGroup = map[string]bool{"sum": true, "prod": true, "min": true, "max": true, "any": true, "all": true, "range": true}
-	internalGen  = []string{"length", "names", "names<-", "dimnames", "dimnames<-", "duplicated", "levels<-", "as.character", "as.integer", "as.double", "as.numeric", "as.logical", "c", "is.na", "dim", "dim<-", "unlist", "rep", "seq_along", "mean", "t", "as.vector", "format", "seq", "is.numeric", "unique", "xtfrm", "sort", "rev", "rank"}
+	internalGen  = []string{"length", "length<-", "names", "names<-", "dimnames", "dimnames<-", "duplicated", "levels<-", "as.character", "as.integer", "as.double", "as.numeric", "as.logical", "c", "is.na", "dim", "dim<-", "unlist", "rep", "seq_along", "mean", "t", "as.vector", "format", "seq", "is.numeric", "unique", "xtfrm", "sort", "rev", "rank"}
 )
 
 // methodFor finds the method of generic (or of its group) for one class vector.
@@ -189,6 +188,22 @@ func (s *Session) dispatchGroup(op, group string, c *callInfo) (Value, bool) {
 	}
 	args := argsOf(c.args, c.names)
 	call := c.call
+	if group == "Ops" {
+		for i, a := range c.args {
+			if i > 1 {
+				break
+			}
+			name := ""
+			if isObject(a) {
+				if _, n, _ := s.methodFor(op, group, classAttr(a), c.env); n == fname {
+					name = fname
+				}
+			}
+			di.method = append(di.method, name)
+		}
+	} else {
+		di.method = []string{fname}
+	}
 	if group == "Summary" {
 		// the method gets na.rm, and its call shows the values
 		hasNaRm := false
@@ -366,8 +381,9 @@ func init() {
 		}
 		di := fr.di
 		if di == nil {
-			// a method called directly: with a generic named, a primitive
-			// runs its internal default; any other generic has no object
+			// a method called directly: the generic is the one named, the
+			// class is the one the method's name ends with, found among the
+			// classes of the object as it is now
 			gen := ""
 			if len(c.args) > 0 && (c.names[0] == "" || c.names[0] == "generic") {
 				if g, ok := c.args[0].(*String); ok && len(g.V) == 1 {
@@ -377,10 +393,34 @@ func init() {
 			if gen == "" {
 				s.errorf(c.call, "generic function not specified")
 			}
-			if !syntax.PrimitiveNames()[gen] {
+			var obj Value
+			if len(fr.fn.Formals) > 0 {
+				if b := c.env.lookup(fr.fn.Formals[0].Name); b != nil {
+					switch bv := b.val.(type) {
+					case *Promise:
+						obj = s.force(bv)
+					case missingT:
+					default:
+						obj = bv
+					}
+				}
+			}
+			cn := ""
+			if sym, ok := fr.call.Fun.(*Symbol); ok {
+				cn = sym.Name
+			}
+			classes := s.implicitDispatchClasses(obj)
+			at := -1
+			for k, cl := range classes {
+				if cn == gen+"."+cl {
+					at = k
+					break
+				}
+			}
+			if obj == nil || at < 0 {
 				s.errorf(c.call, "object not specified")
 			}
-			di = &dispatchInfo{generic: gen, classes: []string{"default"}, idx: len(fr.fn.Formals) + 100}
+			di = &dispatchInfo{generic: gen, classes: classes, idx: at, object: obj}
 		}
 		// the arguments: the formals of the running method, as promises to
 		// their current values, then those given to NextMethod

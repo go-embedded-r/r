@@ -153,7 +153,15 @@ func init() {
 					keepN = append(keepN, cn[k])
 				}
 			}
-			return &List{V: keepV, Attr: attrs(keepN, rn, false)}
+			// the attributes keep the order they had; only the names change
+			var kept []Attr
+			for _, at := range attrsOf(x) {
+				if at.Name == "names" {
+					at = Attr{Name: "names", Value: &String{V: keepN}}
+				}
+				kept = append(kept, at)
+			}
+			return &List{V: keepV, Attr: kept}
 		}
 		var ii []int
 		var newRN []Str

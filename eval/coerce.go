@@ -241,6 +241,18 @@ func (s *Session) asCharacter(c *callInfo) Value {
 		}
 		return &String{V: out}
 	case *List:
+		if !v.Expr {
+			// a list: an element of length one by its value, any other by its deparse
+			out := make([]Str, len(v.V))
+			for i, e := range v.V {
+				if isVector(e) && kindOf(e) != kList && Length(e) == 1 && getAttr(e, "class") == nil {
+					out[i] = asStrings(e)[0]
+				} else {
+					out[i] = Str{S: strings.Join(syntax.Deparse(toSyntax(e), nil), "\n")}
+				}
+			}
+			return &String{V: out}
+		}
 		if v.Expr {
 			out := make([]Str, len(v.V))
 			for i, e := range v.V {

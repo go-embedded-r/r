@@ -4,6 +4,8 @@ import (
 	"math"
 	"strconv"
 	"strings"
+
+	"github.com/go-embedded-r/r/syntax"
 )
 
 // Slice 15: function objects (formals, body<-, formals<-, as.function) and the
@@ -605,5 +607,154 @@ func init() {
 			}
 		}
 		return &String{V: out}
+	})
+}
+
+// as.character.condition and as.character.error are Go natives: blind R drafts
+// converged on 43 exact (94 normalised) tokens of R's conditions.R.
+func init() {
+	text := func(name string, head func(x Value) string) {
+		regBuiltin(name, func(s *Session, c *callInfo) Value {
+			a := s.matchFormals(c, "x", "...")
+			x, ok := a[0].(*List)
+			if !ok {
+				s.errorf(c.call, "argument is not a condition")
+			}
+			msg := ""
+			if m := listField(x, "message"); m != nil && Length(m) > 0 {
+				if st, ok := coerceTo(m, kString).(*String); ok {
+					msg = st.V[0].S
+				}
+			}
+			call := listField(x, "call")
+			if call == nil || call == Null {
+				return mkString(head(x) + ": " + msg + "\n")
+			}
+			d := syntax.Deparse(toSyntax(call), nil)
+			return mkString(head(x) + " in " + d[0] + ": " + msg + "\n")
+		})
+	}
+	text("as.character.condition", func(x Value) string {
+		if cl := classAttr(x); len(cl) > 0 {
+			return cl[0]
+		}
+		return ""
+	})
+	text("as.character.error", func(Value) string { return "Error" })
+}
+
+// print.condition, conditionMessage.condition, conditionCall.condition and
+// within.data.frame are Go natives: blind R drafts converged on R's conditions.R
+// (71 normalised tokens) and eval.R (43 exact tokens).
+func init() {
+	regBuiltin("conditionMessage.condition", func(s *Session, c *callInfo) Value {
+		a := s.matchFormals(c, "c")
+		if l, ok := a[0].(*List); ok {
+			if v := listField(l, "message"); v != nil {
+				return v
+			}
+		}
+		return Null
+	})
+	regBuiltin("conditionCall.condition", func(s *Session, c *callInfo) Value {
+		a := s.matchFormals(c, "c")
+		if l, ok := a[0].(*List); ok {
+			if v := listField(l, "call"); v != nil {
+				return v
+			}
+		}
+		return Null
+	})
+	regBuiltin("print.condition", func(s *Session, c *callInfo) Value {
+		a := s.matchFormals(c, "x", "...")
+		if a[0] == nil || len(classAttr(a[0])) == 0 {
+			s.errorf(c.call, "argument \"x\" is missing, with no default")
+		}
+		s.printCondition(a[0])
+		s.visible = false
+		return a[0]
+	})
+	regSpecial("within.data.frame", func(s *Session, c *callInfo) Value {
+		var data, expr Value
+		var positional []Value
+		for _, a := range c.raw {
+			switch {
+			case a.HasName && a.Name == "data":
+				data = a.Value
+			case a.HasName && a.Name == "expr":
+				expr = a.Value
+			case !a.HasName:
+				positional = append(positional, a.Value)
+			}
+		}
+		for _, p := range positional {
+			if data == nil {
+				data = p
+			} else if expr == nil {
+				expr = p
+			}
+		}
+		if data == nil {
+			s.errorf(c.call, "argument \"data\" is missing, with no default")
+		}
+		if expr == nil {
+			s.errorf(c.call, "argument \"expr\" is missing, with no default")
+		}
+		var df Value
+		if p, ok := data.(*Promise); ok {
+			df = s.force(p)
+		} else {
+			df = s.eval(data, c.env)
+		}
+		if p, ok := expr.(*Promise); ok {
+			expr = p.Expr // the expression as written, not its value
+		}
+		cols, ok := df.(*List)
+		if !ok {
+			s.errorf(c.call, "invalid data frame")
+		}
+		e := NewEnv(c.env)
+		nm := namesOf(cols)
+		for i, v := range cols.V {
+			if nm != nil && nm.V[i].S != "" {
+				e.set(Intern(nm.V[i].S), v)
+			}
+		}
+		s.eval(expr, e)
+		var newNames []Str
+		var newVals []Value
+		have := map[string]bool{}
+		for i := len(e.order) - 1; i >= 0; i-- {
+			sym := e.order[i]
+			b := e.lookup(sym)
+			if b == nil || have[sym.Name] {
+				continue
+			}
+			v := b.val
+			if p, ok := v.(*Promise); ok {
+				v = s.force(p)
+			}
+			if _, isNull := v.(nullT); isNull {
+				continue
+			}
+			have[sym.Name] = true
+			newNames = append(newNames, Str{S: sym.Name})
+			newVals = append(newVals, v)
+		}
+		assign := builtins["[<-.data.frame"].fn
+		out := df
+		if len(newNames) > 0 {
+			out = assign(s, &callInfo{call: c.call, env: c.env, args: []Value{out, &String{V: newNames}, &List{V: newVals, Attr: namesAttr(newNames)}}, names: []string{"", "", "value"}})
+		}
+		var gone []Str
+		if nm != nil {
+			for _, n := range nm.V {
+				if !have[n.S] {
+					gone = append(gone, n)
+				}
+			}
+		}
+		out = assign(s, &callInfo{call: c.call, env: c.env, args: []Value{out, &String{V: gone}, Null}, names: []string{"", "", "value"}})
+		return out
 	})
 }
