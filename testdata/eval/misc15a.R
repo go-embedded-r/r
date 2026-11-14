@@ -228,13 +228,13 @@ strtrim(character(0), 1)
 #---
 strtrim(matrix(c("abc", "defg"), 1), 2)
 #---
-mean(c(1, 2, 60, 100, 3), trim = 0.2)
+mean(c(1, 2, 60, 100, 4, 5), trim = 0.2)
 #---
 mean(c(1, 2, 60, 100, 3), trim = 0.5)
 #---
 mean(c(1, NA, 3), trim = 0.1)
 #---
-mean(c(1, NA, 3, 4, 5, 9), trim = 0.1, na.rm = TRUE)
+mean(c(1, NA, 3, 5, 8, 9), trim = 0.1, na.rm = TRUE)
 #---
 mean(1:10, trim = 0.6)
 #---
