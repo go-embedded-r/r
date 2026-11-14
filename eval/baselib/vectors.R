@@ -108,15 +108,6 @@ lengths <- function(x, use.names = TRUE) {
 
 rep_len <- function(x, length.out) rep(x, length.out = length.out)
 
-diff <- function(x, lag = 1L, differences = 1L) {
-  for (i in seq_len(differences)) {
-    n <- length(x)
-    if (lag >= n) return(x[0L])
-    x <- x[(1L + lag):n] - x[1L:(n - lag)]
-  }
-  x
-}
-
 outer <- function(X, Y, FUN = "*", ...) {
   product <- is.character(FUN) && length(FUN) == 1L && FUN == "*"
   FUN <- match.fun(FUN)

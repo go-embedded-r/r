@@ -3,6 +3,8 @@ package eval
 import (
 	"strings"
 	"sync"
+
+	"github.com/go-embedded-r/r/syntax"
 )
 
 // dispatchInfo is what a method running under S3 dispatch knows.
@@ -364,7 +366,21 @@ func init() {
 		}
 		di := fr.di
 		if di == nil {
-			s.errorf(c.call, "generic function not specified")
+			// a method called directly: with a generic named, a primitive
+			// runs its internal default; any other generic has no object
+			gen := ""
+			if len(c.args) > 0 && (c.names[0] == "" || c.names[0] == "generic") {
+				if g, ok := c.args[0].(*String); ok && len(g.V) == 1 {
+					gen = g.V[0].S
+				}
+			}
+			if gen == "" {
+				s.errorf(c.call, "generic function not specified")
+			}
+			if !syntax.PrimitiveNames()[gen] {
+				s.errorf(c.call, "object not specified")
+			}
+			di = &dispatchInfo{generic: gen, classes: []string{"default"}, idx: len(fr.fn.Formals) + 100}
 		}
 		// the arguments: the formals of the running method, as promises to
 		// their current values, then those given to NextMethod

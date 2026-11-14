@@ -218,6 +218,28 @@ func (s *Session) asCharacter(c *callInfo) Value {
 			return &String{V: st}
 		}
 		return &String{V: asStrings(x)}
+	case *Lang:
+		// a call: its function and its arguments, each as text
+		parts := []Value{v.Fun}
+		for _, a := range v.Args {
+			parts = append(parts, a.Value)
+		}
+		out := make([]Str, len(parts))
+		for i, e := range parts {
+			switch ev := e.(type) {
+			case *Symbol:
+				out[i] = Str{S: ev.Name}
+			case *String:
+				if len(ev.V) == 1 {
+					out[i] = ev.V[0]
+					continue
+				}
+				out[i] = Str{S: strings.Join(syntax.Deparse(toSyntax(e), nil), "\n")}
+			default:
+				out[i] = Str{S: strings.Join(syntax.Deparse(toSyntax(e), nil), "\n")}
+			}
+		}
+		return &String{V: out}
 	case *List:
 		if v.Expr {
 			out := make([]Str, len(v.V))

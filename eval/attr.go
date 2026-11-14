@@ -264,6 +264,11 @@ func (s *Session) setClass(c *callInfo, x, value Value) Value {
 		if len(v.V) == 0 {
 			return setAttr(x, "class", Null)
 		}
+		for _, e := range v.V {
+			if _, isInt := x.(*Integer); e.S == "factor" && !isInt {
+				s.errorf(c.call, "adding class \"factor\" to an invalid object")
+			}
+		}
 		return setAttr(x, "class", &String{V: append([]Str(nil), v.V...)})
 	}
 	s.errorf(c.call, "attempt to set invalid 'class' attribute")
@@ -344,23 +349,15 @@ func init() {
 		}
 		out := &List{}
 		var names []Str
-		// names come first
+		// in the order they were set (R 4.6 does not move names first)
 		for _, a := range at {
-			if a.Name == "names" {
-				out.V = append(out.V, a.Value)
+			if a.Name == "row.names" {
+				out.V = append(out.V, expandRowNames(a.Value))
 				names = append(names, Str{S: a.Name})
+				continue
 			}
-		}
-		for _, a := range at {
-			if a.Name != "names" {
-				if a.Name == "row.names" {
-					out.V = append(out.V, expandRowNames(a.Value))
-					names = append(names, Str{S: a.Name})
-					continue
-				}
-				out.V = append(out.V, a.Value)
-				names = append(names, Str{S: a.Name})
-			}
+			out.V = append(out.V, a.Value)
+			names = append(names, Str{S: a.Name})
 		}
 		out.Attr = namesAttr(names)
 		return out
