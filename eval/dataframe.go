@@ -24,7 +24,18 @@ func compactRowNames(v Value) Value {
 	if len(iv.V) == 2 && iv.V[0] == naInt && iv.V[1] != naInt {
 		return v // already compact
 	}
-	return v // attr<- does not compact 1:n; .set_row_names makes the compact form
+	// the integers 1..n (n above 2) are stored as c(NA, n), with n positive:
+	// R's mark for row names that are not "automatic" (.set_row_names gives
+	// c(NA, -n))
+	if len(iv.V) < 3 {
+		return v
+	}
+	for i, e := range iv.V {
+		if e != int32(i+1) {
+			return v
+		}
+	}
+	return &Integer{V: []int32{naInt, int32(len(iv.V))}}
 }
 
 // rowNamesCount is the number of rows a row.names attribute describes.
@@ -87,6 +98,46 @@ func validName(x Str) string {
 		n += "."
 	}
 	return n
+}
+
+// factorKeepsNA says whether factor(exclude = ex) makes NA a level: it does
+// when exclude is NULL, or a vector with no NA in it (exclude = "a" keeps NA).
+func factorKeepsNA(ex Value) bool {
+	switch v := ex.(type) {
+	case nil:
+		return false
+	case nullT:
+		return true
+	case *String:
+		for _, e := range v.V {
+			if e.NA {
+				return false
+			}
+		}
+		return true
+	case *Double:
+		for _, e := range v.V {
+			if e != e {
+				return false
+			}
+		}
+		return true
+	case *Logical:
+		for _, e := range v.V {
+			if e == naInt {
+				return false
+			}
+		}
+		return true
+	case *Integer:
+		for _, e := range v.V {
+			if e == naInt {
+				return false
+			}
+		}
+		return true
+	}
+	return false
 }
 
 // factorAssign is `[<-.factor` and `[[<-.factor`: the value is matched to the

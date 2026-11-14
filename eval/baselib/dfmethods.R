@@ -67,9 +67,14 @@
 
 # ---- format, print, matrix --------------------------------------------
 
-format.data.frame <- function(x, ..., justify = "left") {
-  cols <- lapply(..dfcols(x), function(col)
-    if (is.character(col)) col else if (is.factor(col)) as.character(col) else format(col, ...))
+format.data.frame <- function(x, ..., justify = "left", na.encode = TRUE) {
+  cols <- lapply(..dfcols(x), function(col) {
+    if (is.factor(col)) col <- as.character(col)
+    if (is.character(col)) {
+      if (na.encode) col[is.na(col)] <- "NA"
+      col
+    } else format(col, ...)
+  })
   cols <- lapply(cols, function(col) {
     class(col) <- "AsIs"
     col
@@ -109,7 +114,7 @@ print.data.frame <- function(x, ..., digits = NULL, quote = FALSE, right = TRUE,
     print(names(x), quote = FALSE)
     cat("<0 rows> (or 0-length row.names)\n")
   } else {
-    m <- as.matrix(format.data.frame(x, digits = digits))
+    m <- as.matrix(format.data.frame(x, digits = digits, na.encode = FALSE))
     if (identical(row.names, FALSE)) dimnames(m)[[1L]] <- rep("", n)
     print(m, quote = quote, right = right)
   }
@@ -166,7 +171,7 @@ rbind.data.frame <- function(..., deparse.level = 1, make.row.names = TRUE,
       clabs <- nms
       match.names(clabs, names(xi))
       n <- .row_names_info(ar, 2L)
-      auto[a] <- .row_names_info(ar) < 0L
+      auto[a] <- !is.character(.row_names_info(ar, 0L))
       rns[[a]] <- if (auto[a]) seq_len(n) else row.names(ar)
       for (k in seq_len(nc)) pieces[[k]][[a]] <- ar[[nms[k]]]
     } else {
@@ -193,7 +198,7 @@ rbind.data.frame <- function(..., deparse.level = 1, make.row.names = TRUE,
         if (length(rns[[a]]) == 1L) tags[a] else paste(tags[a], rns[[a]], sep = ".")
       } else as.character(rns[[a]] + sum(lengths(rns)[seq_len(a - 1L)]))
     }))
-    rn <- make.unique(rn)
+    rn <- make.unique(rn, sep = "")
   }
   ..mkdf(cols, nms, rn, TRUE)
 }
@@ -205,6 +210,10 @@ merge <- function(x, y, ...) UseMethod("merge")
 merge.data.frame <- function(x, y, by = intersect(names(x), names(y)), by.x = by,
                              by.y = by, all = FALSE, all.x = all, all.y = all,
                              sort = TRUE, suffixes = c(".x", ".y"), ...) {
+  fix.by <- function(by, df) {
+    if (!all(by %in% names(df))) stop("'by' must specify a uniquely valid column")
+    by
+  }
   nx <- nrow(x)
   ny <- nrow(y)
   if (is.numeric(by.x)) by.x <- names(x)[by.x]
@@ -216,16 +225,24 @@ merge.data.frame <- function(x, y, by = intersect(names(x), names(y)), by.x = by
     iy <- rep(seq_len(ny), each = nx)
     ux <- uy <- integer()
   } else {
-    if (!all(by.x %in% names(x)) || !all(by.y %in% names(y)))
-      stop("'by' must specify a uniquely valid column")
+    fix.by(by.x, x)
+    fix.by(by.y, y)
     kx <- do.call(paste, c(unname(as.list(x[by.x])), sep = "\r"))
     ky <- do.call(paste, c(unname(as.list(y[by.y])), sep = "\r"))
-    hits <- split(seq_len(ny), ky)[kx]
+    keys <- unique(ky)
+    groups <- split(seq_len(ny), factor(match(ky, keys), levels = seq_along(keys)))
+    hits <- groups[match(kx, keys)]
     lens <- vapply(hits, length, 1L)
     if (sum(as.numeric(lens)) > 2^27) stop("the result of 'merge' is too large")
     ix <- rep(seq_len(nx), lens)
     iy <- unlist(hits, use.names = FALSE)
     if (is.null(iy)) iy <- integer()
+    if (!sort && length(ix) > 1L) {
+      mk <- kx[ix]
+      o <- order(match(mk, unique(mk)), ix, iy)
+      ix <- ix[o]
+      iy <- iy[o]
+    }
     ux <- if (all.x) which(lens == 0L) else integer()
     uy <- if (all.y) setdiff(seq_len(ny), iy) else integer()
   }
@@ -239,7 +256,12 @@ merge.data.frame <- function(x, y, by = intersect(names(x), names(y)), by.x = by
   cols <- list()
   for (k in seq_along(by.x)) {
     v <- x[[by.x[k]]][c(ix, ux)]
-    if (length(uy)) v <- c(v, y[[by.y[k]]][uy])
+    if (length(uy)) {
+      w <- y[[by.y[k]]][uy]
+      if (is.factor(v)) w <- if (is.factor(w)) w else factor(w, levels = unique(w))
+      else if (is.factor(w)) w <- as.character(w)
+      v <- c(v, w)
+    }
     cols[[by.x[k]]] <- v
   }
   for (k in seq_along(rx)) cols[[nmx[k]]] <- x[[rx[k]]][rowsx]
@@ -248,25 +270,30 @@ merge.data.frame <- function(x, y, by = intersect(names(x), names(y)), by.x = by
     o <- do.call(order, unname(cols[seq_along(by.x)]))
     cols <- lapply(cols, function(v) v[o])
   }
-  ..mkdf(unname(cols), names(cols), .set_row_names(length(rowsx)), length(by.x) > 0L)
+  ..mkdf(unname(cols), names(cols), .set_row_names(length(rowsx)), sort && length(by.x) > 0L)
 }
 
 split.data.frame <- function(x, f, drop = FALSE, ...) {
-  idx <- split(seq_len(nrow(x)), f, drop = drop, ...)
+  idx <- split.default(x = seq_len(nrow(x)), f = f, drop = drop, ...)
   lapply(idx, function(rows) x[rows, , drop = FALSE])
 }
 
 subset <- function(x, ...) UseMethod("subset")
 subset.default <- function(x, subset, ...) x[subset & !is.na(subset)]
-subset.data.frame <- function(x, subset, select, drop = FALSE, ...)
-  ..subsetDF(x, if (missing(subset)) NULL else eval(substitute(subset), x, parent.frame()),
-            if (missing(select)) NULL else
-              eval(substitute(select), as.list(structure(seq_along(x), names = names(x))), parent.frame()),
-            drop)
+subset.data.frame <- function(x, subset, select, drop = FALSE, ...) {
+  nl <- as.list(seq_along(x))
+  names(nl) <- names(x)
+  ..subsetDF(x, if (missing(subset)) NULL else {
+               e <- substitute(subset)
+               eval(e, x, parent.frame())
+             },
+             if (missing(select)) NULL else eval(substitute(select), nl, parent.frame()),
+             drop)
+}
 
 transform <- function(`_data`, ...) UseMethod("transform")
 transform.data.frame <- function(`_data`, ...) {
   e <- eval(substitute(list(...)), `_data`, parent.frame())
   r <- ..transformDF(`_data`, e)
-  if (length(r[[2L]])) do.call("data.frame", c(list(r[[1L]]), r[[2L]])) else r[[1L]]
+  if (length(r[[2L]])) do.call("data.frame", c(list(r[[1L]]), r[[2L]], check.names = FALSE)) else r[[1L]]
 }

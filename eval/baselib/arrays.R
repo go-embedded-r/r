@@ -210,6 +210,7 @@ sweep <- function(x, MARGIN, STATS, FUN = "-", check.margin = TRUE, ...) {
 marginSums <- function(x, margin = NULL) {
   if (!length(margin)) return(sum(x))
   res <- apply(x, margin, sum)
+  if (is.list(res) && !length(res)) res <- integer()
   dim(res) <- dim(x)[margin]
   dimnames(res) <- dimnames(x)[margin]
   class(res) <- oldClass(x)

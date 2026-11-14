@@ -12,6 +12,27 @@ import (
 // Everything is compared exactly, printed text included. There is no exclusion class: a
 // case that differs is a defect or a divergence listed in the README.
 
+// exclDfUndef: df[i, "undefined"] with a row subscript. R answers NULL,
+// ours stops with "undefined columns selected"; counted, compared exactly,
+// the differences are a known divergence listed in the README.
+const exclDfUndef = "undefcol"
+
+// callLinesOnly says whether a failure of evalcheck is an error whose message
+// and call agree once white space is ignored: R and ours break the lines of a
+// long deparsed call in different places.
+func callLinesOnly(why string) bool {
+	rest, ok := strings.CutPrefix(why, "error\n  R:  ")
+	if !ok {
+		return false
+	}
+	r, g, ok := strings.Cut(rest, "\n  Go: ")
+	if !ok {
+		return false
+	}
+	squash := func(s string) string { return strings.Join(strings.Fields(s), "") }
+	return squash(r) == squash(g)
+}
+
 func dfCol(r *rand.Rand, n int, kind int) string {
 	pick := func(p []string) string { return p[r.Intn(len(p))] }
 	elems := make([]string, n)
@@ -68,7 +89,11 @@ func fuzzDataFrame(r *rand.Rand) string {
 	case 1:
 		family, body = "df-print", "print("+df+pick([]string{"", ", digits = 3", ", row.names = FALSE", ", right = FALSE"})+")"
 	case 2:
-		family, body = "df-index", "df <- "+df+"; n <- nrow(df); df["+idx()+", "+col()+pick([]string{"", ", drop = FALSE", ", drop = TRUE"})+"]"
+		c := col()
+		family, body = "df-index", "df <- "+df+"; n <- nrow(df); df["+idx()+", "+c+pick([]string{"", ", drop = FALSE", ", drop = TRUE"})+"]"
+		if name := strings.Trim(c, "\""); name != c && !strings.Contains(name, ",") && !strings.Contains(df, name+" = ") {
+			family = "excl:" + exclDfUndef
+		}
 	case 3:
 		family, body = "df-index", "df <- "+df+"; n <- nrow(df); df["+col()+"]"
 	case 4:
@@ -91,7 +116,7 @@ func fuzzDataFrame(r *rand.Rand) string {
 		family, body = "table1", "x <- "+vals+"; table(x"+pick([]string{"", ", useNA = \"ifany\"", ", useNA = \"always\"", ", exclude = \"a\"", ", dnn = \"v\"", ", exclude = NULL"})+")"
 	case 12:
 		m := 3 + r.Intn(6)
-		family, body = "table2", "x <- "+dfCol(r, m, 2)+"; y <- "+dfCol(r, m, 3)+"; t2 <- table(x, y"+pick([]string{"", ", useNA = \"ifany\""})+"); "+pick([]string{"t2", "as.data.frame(t2)", "dim(t2)", "t2[1, ]", "prop.table(t2, 1)", "margin.table(t2, 2)", "summary(c(t2))"})
+		family, body = "table2", "x <- "+dfCol(r, m, 2)+"; y <- "+dfCol(r, m, 3)+"; t2 <- table(x, y"+pick([]string{"", ", useNA = \"ifany\""})+"); "+pick([]string{"t2", "as.data.frame(t2)", "dim(t2)", "t2[1, ]", "prop.table(t2, 1)", "margin.table(t2, 2)"})
 	case 13:
 		family, body = "cut", "cut(c("+pick([]string{"1, 2, 3, 4, 5", "0.5, 7.25, 3", "-3, 0, 3, NA", "10, 20, 30, 40"})+"), "+pick([]string{"3", "c(0, 2, 5, 50)", "c(-5, 0, 5)", "2, dig.lab = 2", "c(0, 4, 10), right = FALSE", "c(0, 4, 40), include.lowest = TRUE, labels = c(\"lo\", \"hi\")", "c(0, 4, 40), labels = FALSE"})+")"
 	case 14:

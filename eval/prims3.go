@@ -237,7 +237,16 @@ func init() {
 			if inheritsClass(x, "factor") && kindOf(x) == kInteger {
 				// the levels of a factor stay in the order of its own levels
 				codes := asInts(x)
-				sort.SliceStable(u, func(i, j int) bool { return codes[pos[i]] < codes[pos[j]] })
+				idx := make([]int, len(u))
+				for i := range idx {
+					idx[i] = i
+				}
+				sort.SliceStable(idx, func(i, j int) bool { return codes[pos[idx[i]]] < codes[pos[idx[j]]] })
+				sorted := make([]Str, len(u))
+				for i, k := range idx {
+					sorted[i] = u[k]
+				}
+				u = sorted
 			} else if _, isStr := x.(*String); isStr {
 				sort.SliceStable(u, func(i, j int) bool { return collate(u[i].S, u[j].S) < 0 })
 			} else {
@@ -254,7 +263,7 @@ func init() {
 				u = u2
 			}
 			levels = u
-			if _, keep := a[3].(nullT); keep {
+			if factorKeepsNA(a[3]) {
 				for _, e := range xs {
 					if e.NA {
 						levels = append(levels, Str{NA: true})
@@ -268,11 +277,13 @@ func init() {
 			if ex, ok := a[3].(*String); ok {
 				drop := map[string]bool{}
 				for _, e := range ex.V {
-					drop[e.S] = true
+					if !e.NA {
+						drop[e.S] = true
+					}
 				}
 				var keep []Str
 				for _, l := range levels {
-					if !drop[l.S] {
+					if l.NA || !drop[l.S] {
 						keep = append(keep, l)
 					}
 				}
@@ -280,7 +291,7 @@ func init() {
 			}
 		}
 		var cleaned []Str
-		_, keepNA := a[3].(nullT)
+		keepNA := factorKeepsNA(a[3])
 		for _, l := range levels {
 			if !l.NA || keepNA {
 				cleaned = append(cleaned, l)

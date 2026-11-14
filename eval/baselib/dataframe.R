@@ -33,6 +33,7 @@ is.data.frame <- function(x) inherits(x, "data.frame")
 
 # the store step of `[<-.data.frame` (a Go native, eval/dfassign.go)
 ..dfsetcol <- function(col, ii, v, has.i, newn) {
+  if (is.null(v)) return(col[seq_len(newn)])
   if (has.i) col[ii] <- v else col[seq_len(newn)] <- v
   col
 }
@@ -153,15 +154,20 @@ data.frame <- function(..., row.names = NULL, check.rows = FALSE, check.names = 
   nms <- character()
   rn <- NULL
   nrs <- integer()
+  argnr <- integer()
   for (i in seq_len(nx)) {
     xi <- x[[i]]
-    if (is.null(xi)) next
     named <- !is.na(labs[i]) && nzchar(labs[i])
+    if (is.null(xi)) {
+      if (named) argnr <- c(argnr, 0L)
+      next
+    }
     lab <- if (named) labs[i] else deparse(exprs[[i]])[1L]
     p <- ..dfpiece(xi, lab, named, stringsAsFactors)
     cols <- c(cols, p$cols)
     nms <- c(nms, p$names)
     nrs <- c(nrs, rep(p$nr, length(p$cols)))
+    argnr <- c(argnr, p$nr)
     if (is.null(rn) && !is.null(p$rn) && length(p$rn) == p$nr && !anyDuplicated(p$rn))
       rn <- p$rn
   }
@@ -170,9 +176,9 @@ data.frame <- function(..., row.names = NULL, check.rows = FALSE, check.names = 
     return(..mkdf(list(), character(), integer(), TRUE))
   }
   nr <- max(nrs)
-  if (any(nrs != nr & (nrs == 0L | nr %% nrs != 0L)))
+  if (any(nrs != nr & (nrs == 0L | nr %% nrs != 0L)) || (nr > 0L && any(argnr == 0L)))
     stop(gettextf("arguments imply differing number of rows: %s",
-                  paste(unique(nrs), collapse = ", ")), domain = NA)
+                  paste(unique(argnr), collapse = ", ")), domain = NA)
   for (k in seq_along(cols))
     if (nrs[k] != nr) cols[[k]] <- cols[[k]][rep_len(seq_len(nrs[k]), nr)]
   if (!is.null(row.names)) {

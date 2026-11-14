@@ -37,6 +37,8 @@ func (s *Session) dfIndex(c *callInfo, sub Value, n int, names []Str) (pos []int
 			}
 			pos = append(pos, found)
 		}
+	case nullT:
+		return nil, nil
 	case *Logical:
 		if len(v.V) == 0 {
 			return nil, nil
@@ -166,6 +168,20 @@ func init() {
 					}
 				}
 			}
+			switch sv := iSub.(type) {
+			case *Logical:
+				for _, e := range sv.V {
+					if e == naInt {
+						s.errorf(c.call, "missing values are not allowed in subscripted assignments of data frames")
+					}
+				}
+			case *Integer, *Double:
+				for _, e := range asDoubles(coerceTo(sv, kDouble)) {
+					if e != e {
+						s.errorf(c.call, "missing values are not allowed in subscripted assignments of data frames")
+					}
+				}
+			}
 			ii, newRN = s.dfIndex(c, iSub, nrows, rnames)
 		} else {
 			for k := 0; k < nrows; k++ {
@@ -196,9 +212,15 @@ func init() {
 		if len(per) == 0 {
 			s.errorf(c.call, "replacement has length zero")
 		}
+		if l, ok := value.(*List); ok && len(l.V) > len(jj) && len(jj) > 0 && !(hasI && len(ii) == 0 && allBelow(jj, ncol0)) {
+			s.warningf(c.call, "provided %d variables to replace %d variables", len(l.V), len(jj))
+		}
 		setcol := s.findMethod("..dfsetcol", s.Base)
 		touched := map[int]bool{}
 		for k, p := range jj {
+			if hasI && len(ii) == 0 && allBelow(jj, ncol0) {
+				continue // no row to assign, no new column: the columns are left as they are
+			}
 			var col Value
 			if p < len(vals) {
 				col = vals[p]
@@ -223,7 +245,11 @@ func init() {
 				}
 			}
 			if len(newRN) == 0 && autoRN {
-				rn = &Integer{V: []int32{naInt, int32(newn)}}
+				seq := make([]int32, newn)
+				for k := range seq {
+					seq[k] = int32(k + 1)
+				}
+				rn = compactRowNames(&Integer{V: seq})
 			} else {
 				var all []Str
 				if st, ok := expandRowNames(rn).(*String); ok {
@@ -286,6 +312,7 @@ func init() {
 		vals := append([]Value(nil), data.V...)
 		var extra []Value
 		var extraN []Str
+		gone := map[int]bool{}
 		for k, v := range e.V {
 			name := Str{}
 			if en != nil {
@@ -300,9 +327,14 @@ func init() {
 					}
 				}
 			}
+			_, isNull := v.(nullT)
 			if hit < 0 {
 				extra = append(extra, v)
 				extraN = append(extraN, name)
+				continue
+			}
+			if isNull {
+				gone[hit] = true
 				continue
 			}
 			if m := Length(v); m != nrows && m > 0 && nrows > 0 {
@@ -318,12 +350,38 @@ func init() {
 			vals[hit] = v
 		}
 		out := &List{V: vals, Attr: attrsOf(data)}
+		if len(gone) > 0 {
+			var keepV []Value
+			var keepN []Str
+			for j := range vals {
+				if !gone[j] {
+					keepV = append(keepV, vals[j])
+					keepN = append(keepN, dn.V[j])
+				}
+			}
+			out = &List{V: keepV}
+			for _, at := range attrsOf(data) {
+				if at.Name == "names" {
+					at.Value = &String{V: keepN}
+				}
+				out.Attr = append(out.Attr, at)
+			}
+		}
 		ex := &List{V: extra}
 		if len(extra) > 0 {
 			ex.Attr = namesAttr(extraN)
 		}
 		return &List{V: []Value{out, ex}}
 	})
+}
+
+func allBelow(pos []int, n int) bool {
+	for _, p := range pos {
+		if p >= n {
+			return false
+		}
+	}
+	return true
 }
 
 func constNA(n int) []int32 {

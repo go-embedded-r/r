@@ -548,7 +548,7 @@ func init() {
 	pred("is.numeric", func(v Value) bool {
 		switch v.(type) {
 		case *Integer, *Double:
-			return getAttr(v, "class") == nil
+			return !inheritsClass(v, "factor") // the date classes have their own methods
 		}
 		return false
 	})

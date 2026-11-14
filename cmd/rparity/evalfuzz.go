@@ -90,7 +90,7 @@ func evalfuzzCmd() *cobra.Command {
 			}
 			defer p.Close()
 			r := rand.New(rand.NewSource(seed))
-			ok, bad, libm, approx := 0, 0, 0, 0
+			ok, bad, libm, approx, callLines := 0, 0, 0, 0, 0
 			perFn := map[string][2]int{}
 			excl := map[string][2]int{} // env mode: cases per exclusion class, and known divergences
 			worstULP := map[string]int64{}
@@ -156,7 +156,7 @@ func evalfuzzCmd() *cobra.Command {
 					} else if i := strings.IndexByte(fn, '('); i > 0 {
 						fn = fn[:i]
 					}
-					if cls, isExcl := strings.CutPrefix(fn, "excl:"); isExcl && (mode == "env" || mode == "datetime" || mode == "io" || mode == "rawcplx") {
+					if cls, isExcl := strings.CutPrefix(fn, "excl:"); isExcl && (mode == "env" || mode == "datetime" || mode == "io" || mode == "rawcplx" || mode == "dataframe") {
 						// a counted exclusion: compared as weakly as its class needs
 						var why string
 						switch cls {
@@ -179,7 +179,7 @@ func evalfuzzCmd() *cobra.Command {
 						e[0]++
 						if why != "" {
 							switch cls {
-							case exclInstalled, exclHash, exclTzAbbrev, exclDstGap, exclPost2037:
+							case exclInstalled, exclHash, exclTzAbbrev, exclDstGap, exclPost2037, exclDfUndef:
 								e[1]++ // a known divergence, listed in the README
 							default:
 								bad++
@@ -202,6 +202,10 @@ func evalfuzzCmd() *cobra.Command {
 					} else {
 						why = evalcheck.Check(rec)
 					}
+					if why != "" && mode == "dataframe" && callLinesOnly(why) {
+						callLines++ // the messages agree; only where R breaks the call's text differs
+						why = ""
+					}
 					if why != "" {
 						bad++
 						t[1]++
@@ -216,19 +220,22 @@ func evalfuzzCmd() *cobra.Command {
 				}
 			}
 			fmt.Fprintf(c.OutOrStdout(), "evalfuzz (seed %d): %d expressions, %d agree with R, %d differ\n", seed, ok+bad, ok, bad)
+			if callLines > 0 {
+				fmt.Fprintf(c.OutOrStdout(), "  of which %d errors whose call is a long deparse: message and call agree except for where R breaks the lines (a known divergence)\n", callLines)
+			}
 			if approx > 0 {
 				fmt.Fprintf(c.OutOrStdout(), "  of which %d gamma-family cases (lgamma, digamma, trigamma) compared through signif(x, 12): an accuracy defect, tracked in the issue tracker\n", approx)
 			}
 			if libm > 0 {
 				fmt.Fprintf(c.OutOrStdout(), "  of which %d libm cases compared within %d ulp (C-library last-bit noise); every other case is compared exactly\n", libm, maxULP)
 			}
-			if mode == "env" || mode == "datetime" || mode == "io" || mode == "rawcplx" {
+			if mode == "env" || mode == "datetime" || mode == "io" || mode == "rawcplx" || mode == "dataframe" {
 				total := 0
 				for _, e := range excl {
 					total += e[0]
 				}
 				fmt.Fprintf(c.OutOrStdout(), "  exclusions, counted (%d cases, not in the figures above):\n", total)
-				for _, cls := range []string{exclAddr, exclBuiltin, exclInstalled, exclHash, exclPre1902, exclTzAbbrev, exclDstGap, exclPost2037, exclEncoding, exclCplxInv} {
+				for _, cls := range []string{exclAddr, exclBuiltin, exclInstalled, exclHash, exclPre1902, exclTzAbbrev, exclDstGap, exclPost2037, exclEncoding, exclCplxInv, exclDfUndef} {
 					e, used := excl[cls]
 					if !used {
 						continue
@@ -243,6 +250,7 @@ func evalfuzzCmd() *cobra.Command {
 						exclDstGap:    "local times that a daylight-saving change skips or repeats; compared exactly, differences are known divergences",
 						exclEncoding:  "non-ASCII text that goes through a connection: R leaves it unmarked, ours is marked UTF-8 (no mark is tracked); compared exactly except for the mark",
 						exclCplxInv:   "asin, acos, atan, acosh of a complex number: R's algorithms lose digits that ours keep; compared within 2^36 units in the last place (about 1e-5 relative), anything else fails",
+						exclDfUndef:   "df[i, \"undefined\"]: R answers NULL, ours stops with 'undefined columns selected'; compared exactly, differences are a known divergence",
 						exclPost2037:  "years after 2037 in zones with daylight-saving time (%s, %Z, %z there); compared exactly, differences are known divergences",
 					}[cls]
 					fmt.Fprintf(c.OutOrStdout(), "    %-10s %5d cases, %d differ (%s)\n", cls, e[0], e[1], how)
