@@ -1,8 +1,6 @@
 # Base library, part 2: strings. Written from the help pages of R 4.6.2 and
 # checked against the oracle (docs/m3-plan.md). BSD licence.
 
-toString <- function(x, ...) paste(x, collapse = ", ")
-
 sQuote <- function(x, q = TRUE) {
   if (!length(x)) return(character())
   if (isFALSE(q)) paste0("'", x, "'") else paste0("‘", x, "’")

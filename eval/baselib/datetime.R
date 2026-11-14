@@ -574,6 +574,7 @@ as.difftime <- function(tim, format = "%X", units = "auto", tz = "UTC") {
   if (!is.numeric(tim)) stop("'tim' is not character or numeric")
   if (units == "auto") stop("need explicit units for numeric conversion")
   if (!(units %in% ..units)) stop("invalid units specified")
+  if (!is.double(tim)) storage.mode(tim) <- "double"
   .difftime(tim, units = units)
 }
 

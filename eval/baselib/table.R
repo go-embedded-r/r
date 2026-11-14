@@ -59,7 +59,11 @@ print.table <- function(x, digits = getOption("digits"), quote = FALSE, na.print
     txt <- format(unclass(x), digits = digits)
     txt[is.na(x)] <- na.print
     print(txt, quote = quote, right = right)
-  } else print(unclass(x), quote = quote)
+  } else {
+    txt <- unclass(x)
+    txt[is.na(txt)] <- na.print
+    print(txt, quote = quote, right = right)
+  }
   invisible(x)
 }
 

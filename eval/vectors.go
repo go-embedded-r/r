@@ -727,6 +727,43 @@ func init() {
 			return &Double{V: []float64{naReal}}
 		}
 		d := asDoubles(x)
+		if a[1] != nil {
+			tr, ok := a[1].(*Double)
+			if ti, isI := a[1].(*Integer); isI && len(ti.V) == 1 {
+				tr, ok = &Double{V: []float64{float64(ti.V[0])}}, true
+			}
+			if !ok || len(tr.V) != 1 || math.IsNaN(tr.V[0]) {
+				s.errorf(c.call, "'trim' must be numeric of length one")
+			}
+			if t := tr.V[0]; t > 0 && len(d) > 0 {
+				var keep []float64
+				for _, e := range d {
+					if math.IsNaN(e) {
+						if narm {
+							continue
+						}
+						return &Double{V: []float64{naReal}}
+					}
+					keep = append(keep, e)
+				}
+				n := len(keep)
+				if n == 0 {
+					return &Double{V: []float64{math.NaN()}}
+				}
+				sort.Float64s(keep)
+				if t >= 0.5 {
+					if n%2 == 1 {
+						return mkDouble(keep[n/2])
+					}
+					return mkDouble((keep[n/2-1] + keep[n/2]) / 2)
+				}
+				lo := int(math.Floor(float64(n)*t)) + 1
+				hi := n + 1 - lo
+				d = keep[lo-1 : hi]
+				x = &Double{V: d}
+				narm = false
+			}
+		}
 		if _, isI := x.(*Integer); isI || kindOf(x) == kLogical {
 			var sum float64
 			n := 0

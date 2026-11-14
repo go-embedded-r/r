@@ -44,7 +44,9 @@ zapsmall <- function(x, digits = getOption("digits"),
   ina <- is.na(x)
   if (all(ina)) return(x)
   top <- mFUN(x, ina)
-  if (top > 0) digits <- max(min.d, digits - as.numeric(ceiling(log10(top))))
+  # round() takes the digits to the nearest integer, half up (observed: zapsmall(x, 8) with
+  # a largest value of 123.456 rounds to 6 places, not 5)
+  if (top > 0) digits <- max(min.d, floor(digits - log10(top) + 0.5))
   round(x, digits = digits)
 }
 

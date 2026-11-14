@@ -109,6 +109,8 @@ func evalfuzzCmd() *cobra.Command {
 						srcs[i] = fuzzArrays(r)
 					} else if mode == "dataframe" {
 						srcs[i] = fuzzDataFrame(r)
+					} else if mode == "summary" {
+						srcs[i] = fuzzSummary(r)
 					} else if mode == "rawcplx" {
 						srcs[i] = fuzzRawComplex(r)
 						if strings.HasSuffix(srcs[i], "# libm") {
@@ -150,7 +152,7 @@ func evalfuzzCmd() *cobra.Command {
 				}
 				for _, rec := range recs {
 					fn := rec.Src
-					if mode == "env" || mode == "datetime" || mode == "io" || mode == "arrays" || mode == "rawcplx" || mode == "dataframe" {
+					if mode == "env" || mode == "datetime" || mode == "io" || mode == "arrays" || mode == "rawcplx" || mode == "dataframe" || mode == "summary" {
 						// the first line names the family
 						fn = strings.TrimPrefix(fn[:strings.IndexByte(fn, '\n')], "# ")
 					} else if i := strings.IndexByte(fn, '('); i > 0 {
@@ -202,7 +204,7 @@ func evalfuzzCmd() *cobra.Command {
 					} else {
 						why = evalcheck.Check(rec)
 					}
-					if why != "" && mode == "dataframe" && callLinesOnly(why) {
+					if why != "" && (mode == "dataframe" || mode == "summary") && callLinesOnly(why) {
 						callLines++ // the messages agree; only where R breaks the call's text differs
 						why = ""
 					}
@@ -278,7 +280,7 @@ func evalfuzzCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().Int64Var(&maxULP, "ulp", 4, "math mode: units in the last place allowed to libm cases")
-	cmd.Flags().StringVar(&mode, "mode", "arith", "arith, subset, regex, strings, apply, math, vec, strings2, env, datetime, io, arrays, rawcplx or dataframe")
+	cmd.Flags().StringVar(&mode, "mode", "arith", "arith, subset, regex, strings, apply, math, vec, strings2, env, datetime, io, arrays, rawcplx, dataframe or summary")
 	cmd.Flags().IntVar(&n, "n", 2000, "expressions")
 	cmd.Flags().Int64Var(&seed, "seed", 1, "random seed")
 	cmd.Flags().IntVar(&maxFail, "max-diff", 15, "differences to print")
