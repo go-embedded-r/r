@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -103,7 +104,11 @@ func repoCopy(t *testing.T) string {
 
 // evalShards names the golden shards a regeneration writes: one per snippet
 // file of testdata/eval.
-func evalShards(t *testing.T) []string {
+func evalShards(t *testing.T) []string { return evalShardsFor(t, false) }
+
+// evalShardsFor is evalShards; with written set it leaves out the shards of
+// another platform, which a regeneration keeps as committed.
+func evalShardsFor(t *testing.T, written bool) []string {
 	t.Helper()
 	entries, err := os.ReadDir("../../testdata/eval")
 	if err != nil {
@@ -112,6 +117,9 @@ func evalShards(t *testing.T) []string {
 	var out []string
 	for _, e := range entries {
 		if n, ok := strings.CutSuffix(e.Name(), ".R"); ok {
+			if p := gen.PlatformOf(e.Name()); written && p != "" && p != runtime.GOOS {
+				continue
+			}
 			out = append(out, gen.EvalShardDir+"/"+n+".jsonl")
 		}
 	}
@@ -157,7 +165,7 @@ func TestRegenWritesGoldens(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, f := range append([]string{"testdata/golden/deparse.jsonl", "testdata/golden/rds.jsonl", "testdata/golden/parse.jsonl"}, evalShards(t)...) {
+	for _, f := range append([]string{"testdata/golden/deparse.jsonl", "testdata/golden/rds.jsonl", "testdata/golden/parse.jsonl"}, evalShardsFor(t, true)...) {
 		if !strings.Contains(out, "wrote "+f) {
 			t.Errorf("no report for %s in %q", f, out)
 		}
@@ -238,7 +246,7 @@ func TestLiveRegen(t *testing.T) {
 	if _, _, err := run(t, "regen", "-C", dir); err != nil {
 		t.Fatal(err)
 	}
-	for _, f := range append([]string{"testdata/golden/deparse.jsonl", "testdata/golden/rds.jsonl", "testdata/golden/parse.jsonl"}, evalShards(t)...) {
+	for _, f := range append([]string{"testdata/golden/deparse.jsonl", "testdata/golden/rds.jsonl", "testdata/golden/parse.jsonl"}, evalShardsFor(t, true)...) {
 		got, _ := os.ReadFile(filepath.Join(dir, f))
 		want, _ := os.ReadFile(filepath.Join("../..", f))
 		if !bytes.Equal(got, want) {
