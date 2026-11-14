@@ -247,17 +247,15 @@ func init() {
 		bad := func() {
 			s.errorf(c.call, "'lag' and 'differences' must be integers >= 1")
 		}
-		if a[1] != nil {
-			if Length(a[1]) != 1 {
+		for i, p := range []*int{&lag, &diffs} {
+			if _, blank := a[i+1].(missingT); a[i+1] == nil || blank {
+				continue
+			}
+			d := asDoubles(coerceTo(a[i+1], kDouble))
+			if Length(a[i+1]) != 1 || len(d) != 1 || math.IsNaN(d[0]) || d[0] > math.MaxInt32 {
 				bad()
 			}
-			lag = int(asDoubles(coerceTo(a[1], kDouble))[0])
-		}
-		if a[2] != nil {
-			if Length(a[2]) != 1 {
-				bad()
-			}
-			diffs = int(asDoubles(coerceTo(a[2], kDouble))[0])
+			*p = int(d[0])
 		}
 		if lag < 1 || diffs < 1 {
 			bad()
@@ -441,12 +439,14 @@ func init() {
 			lag, diffs := 1, 1
 			bad := func() { s.errorf(c.call, "'lag' and 'differences' must be integers >= 1") }
 			for i, p := range []*int{&lag, &diffs} {
-				if a[i+1] != nil {
-					if Length(a[i+1]) != 1 {
-						bad()
-					}
-					*p = int(asDoubles(coerceTo(a[i+1], kDouble))[0])
+				if _, blank := a[i+1].(missingT); a[i+1] == nil || blank {
+					continue
 				}
+				d := asDoubles(coerceTo(a[i+1], kDouble))
+				if Length(a[i+1]) != 1 || len(d) != 1 || math.IsNaN(d[0]) || d[0] > math.MaxInt32 {
+					bad()
+				}
+				*p = int(d[0])
 			}
 			if lag < 1 || diffs < 1 {
 				bad()
@@ -555,7 +555,11 @@ func init() {
 			if pv[i] >= eps {
 				big = append(big, i)
 				v := pv[i]
-				if v == 0 || math.Floor(math.Log10(v)) >= -4 {
+				floor := -4
+				if digits < 2 {
+					floor = -3
+				}
+				if v == 0 || math.Floor(math.Log10(v)) >= float64(floor) {
 					plain = append(plain, i)
 				} else {
 					sci = append(sci, i)
@@ -902,7 +906,7 @@ func init() {
 	stripLengths := func(notes []Str) []Str {
 		var out []Str
 		for _, n := range notes {
-			if !strings.HasPrefix(n.S, "Lengths") {
+			if !strings.Contains(n.S, "Lengths") {
 				out = append(out, n)
 			}
 		}
@@ -1095,7 +1099,7 @@ func init() {
 			}
 			notes = append(notes, Str{S: "Length mismatch: comparison on first " + strconv.Itoa(n) + " components"})
 		}
-		tn := namesOf(target)
+		tn, cn := namesOf(target), namesOf(current)
 		for i := 1; i <= n; i++ {
 			idx := mkInt(int32(i))
 			a := s.callNamed(c, "[[", []Value{target, idx}, []string{"", ""})
@@ -1104,7 +1108,8 @@ func init() {
 			names := append([]string{"", "", "check.attributes", "use.names"}, restNames...)
 			why := s.callNamed(c, "all.equal", args, names)
 			label := strconv.Itoa(i)
-			if useNames && tn != nil && i <= len(tn.V) && tn.V[i-1].S != "" {
+			// a component is named when both sides call it by the same name
+			if useNames && tn != nil && cn != nil && i <= len(tn.V) && i <= len(cn.V) && tn.V[i-1].S != "" && tn.V[i-1] == cn.V[i-1] {
 				label = "“" + tn.V[i-1].S + "”"
 			}
 			for _, m := range messages(why) {
@@ -1160,7 +1165,7 @@ func init() {
 	dropLengths := func(notes []Str) []Str {
 		var out []Str
 		for _, n := range notes {
-			if !strings.HasPrefix(n.S, "Lengths") {
+			if !strings.Contains(n.S, "Lengths") {
 				out = append(out, n)
 			}
 		}
@@ -1235,16 +1240,41 @@ func init() {
 		if checkAttr {
 			notes = attrNotes(s, c, target, current, rest, restNames)
 		}
+		classDiffers := false
 		if a, b := asStrings(s.callNamed(c, "data.class", []Value{target}, []string{""}))[0].S, asStrings(s.callNamed(c, "data.class", []Value{current}, []string{""}))[0].S; a != b {
 			notes = append(notes, Str{S: "target is " + a + ", current is " + b})
+			classDiffers = true
 		}
 		if Length(target) != Length(current) {
+			if classDiffers {
+				return verdict(notes) // the lengths are already in the notes
+			}
 			notes = dropLengths(notes)
 			notes = append(notes, Str{S: "Lengths (" + strconv.Itoa(Length(target)) + ", " + strconv.Itoa(Length(current)) + ") differ"})
 			return verdict(notes)
 		}
 		tv := asDoubles(coerceTo(target, kDouble))
 		cv := asDoubles(coerceTo(current, kDouble))
+		if len(tv) != Length(target) || len(cv) != Length(current) {
+			// what cannot be read as numbers is compared by its text
+			ts, cs := asStrings(target), asStrings(current)
+			tv, cv = make([]float64, len(ts)), make([]float64, len(cs))
+			for i := range ts {
+				if ts[i].NA {
+					tv[i] = math.NaN()
+				} else if i < len(cs) && ts[i].S != cs[i].S {
+					tv[i], cv[i] = 0, 1
+				}
+			}
+			for i := range cs {
+				if cs[i].NA {
+					cv[i] = math.NaN()
+				}
+			}
+		}
+		if len(tv) != len(cv) {
+			return verdict(notes)
+		}
 		tna, cna := make([]bool, len(tv)), make([]bool, len(cv))
 		for i := range tv {
 			tna[i], cna[i] = math.IsNaN(tv[i]), math.IsNaN(cv[i])
@@ -1329,9 +1359,11 @@ func init() {
 			}
 			notes = attrNotes(s, c, target, current, extra, extraNames)
 		}
+		classDiffers := false
 		if checkClass {
 			if a, b := asStrings(s.callNamed(c, "data.class", []Value{target}, []string{""}))[0].S, asStrings(s.callNamed(c, "data.class", []Value{current}, []string{""}))[0].S; a != b {
 				notes = append(notes, Str{S: "target is " + a + ", current is " + b})
+				classDiffers = true
 			}
 		}
 		_, cplx := target.(*Complex)
@@ -1341,6 +1373,9 @@ func init() {
 			return verdict(notes)
 		}
 		if lt, lc := Length(target), Length(current); lt != lc {
+			if classDiffers {
+				return verdict(notes) // the lengths are already in the notes
+			}
 			notes = dropLengths(notes)
 			kind := "Numeric"
 			if cplx {
@@ -1399,16 +1434,13 @@ func init() {
 		}
 		total := float64(nDiff)
 		baseline := 0.0
-		if countEQ {
-			total = float64(n)
-			nonNA := 0
+		if countEQ && nSame > 0 {
+			// the equal elements count as their mean size; a missing one makes it unknown
+			baseline = sumSame / float64(nSame) * float64(nDiff)
 			for i := range same {
-				if same[i] && !tna[i] {
-					nonNA++
+				if same[i] && tna[i] {
+					baseline = math.NaN()
 				}
-			}
-			if nonNA > 0 {
-				baseline = sumSame / float64(nonNA)
 			}
 		}
 		err := sumD / total
@@ -1498,8 +1530,9 @@ func init() {
 		if mt == "expression" && mc == "expression" {
 			return s.callNamed(c, "all.equal.list", []Value{target, current}, []string{"", ""})
 		}
+		var notes []Str
 		if mt != mc {
-			return mkString("Modes of target, current: " + mt + ", " + mc)
+			notes = append(notes, Str{S: "Modes of target, current: " + mt + ", " + mc})
 		}
 		dt := s.callNamed(c, "deparse", []Value{target}, []string{""})
 		dc := s.callNamed(c, "deparse", []Value{current}, []string{""})
@@ -1508,10 +1541,13 @@ func init() {
 		for i := 0; same && i < len(a); i++ {
 			same = a[i] == b[i]
 		}
-		if same {
+		if !same {
+			notes = append(notes, Str{S: "target, current do not match when deparsed"})
+		}
+		if len(notes) == 0 {
 			return &Logical{V: []int32{1}}
 		}
-		return mkString("target, current do not match when deparsed")
+		return &String{V: notes}
 	}
 	pair := func(s *Session, c *callInfo) (Value, Value, bool) {
 		var target, current Value

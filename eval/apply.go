@@ -831,6 +831,11 @@ func init() {
 		if a[2] != nil {
 			each = s.countOf(c, a[2], "each")
 		}
+		// the product is checked before it is allocated (and cannot overflow int32)
+		if n > 0 && each > 0 && n > s.opts.MaxVector/each {
+			s.errorf(c.call, "cannot allocate vector of length %d", min(math.MaxInt32, int64(n)*int64(each)))
+		}
+		s.checkLen(c.call, n*each)
 		base := make([]int, 0, n*each)
 		for i := 0; i < n; i++ {
 			for j := 0; j < each; j++ {

@@ -38,7 +38,8 @@ func init() {
 			s.errorf(c.call, "invalid 'width' argument")
 		}
 		w := asInts(coerceTo(a[1], kInteger))
-		if len(w) == 0 {
+		// a shorter width is recycled only when it divides the length of x
+		if len(w) == 0 || (len(w) < len(x.V) && len(x.V)%len(w) != 0) {
 			s.errorf(c.call, "invalid 'width' argument")
 		}
 		for _, e := range w {

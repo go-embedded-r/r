@@ -89,8 +89,13 @@ format.summaryDefault <- function(x, digits = max(3L, getOption("digits") - 3L),
   attributes(v) <- NULL
   nm <- names(x)
   at <- match("NAs", nm, 0L)
-  out <- if (at) c(format(v[-at], digits = digits, ...), as.character(v[at]))
-         else format(v, digits = digits, ...)
+  zap <- function(u) {
+    ok <- is.finite(u)
+    if (any(ok)) u[ok] <- zapsmall(u[ok], digits + 4L)
+    u
+  }
+  out <- if (at) c(format(zap(v[-at]), digits = digits, ...), as.character(v[at]))
+         else format(zap(v), digits = digits, ...)
   names(out) <- if (at) c(nm[-at], nm[at]) else nm
   out
 }
