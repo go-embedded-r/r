@@ -62,6 +62,7 @@ closures not yet implemented** at the time of writing). The slices:
 | 11 (v0.14.0, done: see README) | matrices, arrays and grouping: `apply`, `sweep`, `scale`, `aperm`, `prop.table`, `margin.table`, `rownames`/`colnames`, `lower.tri`, `diag<-`, `split`, `unsplit`, `tapply`, `rle`, `sequence`, `replace`, `replicate`, `bquote`, `is.vector` and the printing they need (named dimnames, one-dimensional arrays, list matrices). Taken ahead of linear algebra because 530 closures needed no missing internal and the numerics wait for go-numerics. **Deferred**: `table` and everything with data frames, `kronecker`, `Vectorize`, `alist`, `interaction`, `cut`, `strwrap`, `pretty`, `print.rle` (needs `str`) | 40 % of base's exports; the notebook idioms (`apply`, `tapply`, `split`) |
 | 12 (v0.15.0, done: see README) | the complex and raw types, expression vectors: `raw`, `as.raw`, `rawToChar`, `charToRaw`, `rawToBits`, `intToBits`, `packBits`, `rawShift`, `bitwAnd` and the other `bitw` functions, `complex`, `as.complex`, `Re`, `Im`, `Mod`, `Arg`, `Conj` and the math group on complex numbers, `expression`, `as.expression`, `parse`, `str2lang`, `str2expression`, `eval` of an expression vector; `rawConnection`, `rawConnectionValue`, `readBin`, `writeBin`, `readChar`, `writeChar`, `seek`, `isSeekable` over `eval/conn.go`. **Deferred**: `polyroot` (its last bits are those of a Jenkins-Traub implementation), formulas (`~`) and S4 (they need attributes on calls and the methods package), `as.hexmode`, `dput`, `serialize`, `gzfile`/`memCompress` (no zlib is written here: the language-neutral engines are shared, see go-embedded-ruby/ruby#918) | the value types that the numeric and stats work and the slice-10 deferrals needed |
 | 13 | linear algebra that base exports: `solve`, `qr`, `chol`, `svd`, `eigen`, `det` | depends on the extraction of go-ndarray's linear algebra into a shared library (go-embedded-ruby/ruby#918), not on go-numerics; until then refused |
+| 14 (v0.16.0, done: see README) | data frames and `table`, which slices 11 and 12 deferred: `data.frame`, `as.data.frame` (vector, list, matrix, table), `is.data.frame`, `[`/`[[`/`$` and their replacement forms, `dim`/`dimnames`/`row.names`, `rbind`/`cbind` of data frames and of vectors and matrices, `merge`, `split` of a data frame, `subset`, `transform`, `droplevels`, `print`/`format`/`as.matrix`/`t` of a data frame, `table`, `print.table`, `as.data.frame.table`, `expand.grid`, `interaction`, `cut`; goldens sharded per snippet file. **Deferred**: `summary` of a data frame or a table, the `Ops`/`Math`/`Summary` methods of data frames, `aggregate`, `by`, `stack`, `within`, `ftable`, `xtabs`, matrix and list columns; `head` and `tail` are `utils`, outside base | the notebook idioms (`data.frame`, `merge`, `table`, `cut`); 48.4 % of base's exports (659) |
 
 A slice is tagged when its goldens, fuzz, `FuzzEval` and bomb tests are green and
 `rparity basecov` has moved.
@@ -80,7 +81,11 @@ defaults, the result lists, the messages.
   from go-numerics' default, the R layer selects R's (for example `optim`'s
   Nelder–Mead constants, `uniroot`'s tolerance rule, `integrate`'s QUADPACK
   routine) and records in its divergences when a result is not bit-identical to
-  GNU R's.
+  GNU R's. go-numerics now states an accuracy contract: a bound on the error
+  against an extended-precision oracle (math/big or mpmath), see go-numerics
+  optimize#61 and special#69. When a result is not bit-identical to GNU R's,
+  the R layer quotes that bound as the guarantee instead of calling the
+  difference "last-bit noise"; bit-exact arithmetic stays an option.
 - **What R does better goes upstream.** When R's reference has an algorithm, a
   default or a test problem that go-numerics lacks, it is added to go-numerics
   for the whole fleet, not to the R layer. This applies only to what is
