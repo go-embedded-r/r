@@ -306,6 +306,62 @@ func EvalInputsByPlatform(root string) (common []string, byPlatform map[string][
 	return common, byPlatform, nil
 }
 
+// EvalShardDir holds the eval goldens, one file per snippet file of
+// testdata/eval (name.R gives name.jsonl), so that no golden file grows past
+// what a repository should hold in one blob.
+const EvalShardDir = "testdata/golden/eval"
+
+// MaxEvalShard is the size a golden shard must stay below; a test fails
+// beyond it, and the fix is to split the snippet file.
+const MaxEvalShard = 512 << 10
+
+// EvalFile is one snippet file of testdata/eval and its inputs.
+type EvalFile struct {
+	Name     string // without .R
+	Platform string // "" for every platform
+	Snippets []string
+}
+
+// EvalInputFiles reads the snippet files under testdata/eval, in name order.
+func EvalInputFiles(root string) ([]EvalFile, error) {
+	entries, err := os.ReadDir(filepath.Join(root, "testdata/eval"))
+	if err != nil {
+		return nil, err
+	}
+	var out []EvalFile
+	for _, e := range entries {
+		if !strings.HasSuffix(e.Name(), ".R") {
+			continue
+		}
+		s, err := ReadSnippets(root, "testdata/eval/"+e.Name())
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, EvalFile{Name: strings.TrimSuffix(e.Name(), ".R"), Platform: PlatformOf(e.Name()), Snippets: s})
+	}
+	return out, nil
+}
+
+// ReadEvalGoldens reads every shard of the eval goldens, in name order.
+func ReadEvalGoldens(root string) ([]EvalRecord, error) {
+	entries, err := os.ReadDir(filepath.Join(root, EvalShardDir))
+	if err != nil {
+		return nil, err
+	}
+	var all []EvalRecord
+	for _, e := range entries {
+		if !strings.HasSuffix(e.Name(), ".jsonl") {
+			continue
+		}
+		recs, err := ReadJSONL[EvalRecord](filepath.Join(root, EvalShardDir, e.Name()))
+		if err != nil {
+			return nil, err
+		}
+		all = append(all, recs...)
+	}
+	return all, nil
+}
+
 // EvalGolden asks R to evaluate each snippet as a cell.
 func EvalGolden(o parity.Oracle, snippets []string) ([]byte, error) {
 	return EvalGoldenFor(o, snippets, "")

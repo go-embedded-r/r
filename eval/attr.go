@@ -278,6 +278,9 @@ func (s *Session) setAttrByName(c *callInfo, x Value, which string, value Value)
 		return s.setDim(c, x, value)
 	case "class":
 		return s.setClass(c, x, value)
+	case "row.names":
+		s.needVector(c, x, "an attribute")
+		return setAttr(x, which, compactRowNames(value))
 	}
 	s.needVector(c, x, "an attribute")
 	return setAttr(x, which, value)
@@ -312,6 +315,9 @@ func init() {
 		hits := 0
 		for _, a := range attrsOf(x) {
 			if a.Name == which {
+				if which == "row.names" {
+					return expandRowNames(a.Value)
+				}
 				return a.Value
 			}
 			if !exact && strings.HasPrefix(a.Name, which) {
@@ -347,6 +353,11 @@ func init() {
 		}
 		for _, a := range at {
 			if a.Name != "names" {
+				if a.Name == "row.names" {
+					out.V = append(out.V, expandRowNames(a.Value))
+					names = append(names, Str{S: a.Name})
+					continue
+				}
 				out.V = append(out.V, a.Value)
 				names = append(names, Str{S: a.Name})
 			}
@@ -455,8 +466,23 @@ func init() {
 			if len(dims) == 0 {
 				s.errorf(c.call, "'dimnames' applied to non-array")
 			}
-			if len(v.V) != len(dims) {
+			if len(v.V) > len(dims) {
 				s.errorf(c.call, "length of 'dimnames' [%d] must match that of 'dims' [%d]", len(v.V), len(dims))
+			}
+			if len(v.V) < len(dims) {
+				// a shorter list is padded with NULL, as R does
+				padded := &List{V: append([]Value(nil), v.V...), Attr: attrsOf(v)}
+				for len(padded.V) < len(dims) {
+					padded.V = append(padded.V, Null)
+				}
+				if nm := namesOf(v); nm != nil {
+					names := append([]Str(nil), nm.V...)
+					for len(names) < len(dims) {
+						names = append(names, Str{})
+					}
+					padded.Attr = namesAttr(names)
+				}
+				v = padded
 			}
 			out := &List{V: make([]Value, len(v.V)), Attr: attrsOf(v)}
 			for i, e := range v.V {

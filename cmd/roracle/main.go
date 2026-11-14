@@ -12,14 +12,11 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"runtime"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -90,7 +87,7 @@ func RootCmd() *cobra.Command {
 	cmd.AddCommand(&cobra.Command{Use: "parse", Short: "write testdata/golden/parse.jsonl (tree, tokens, errors)", Args: cobra.NoArgs, RunE: run("parse")})
 	cmd.AddCommand(&cobra.Command{Use: "prims", Short: "write syntax/prims_gen.go (the primitives of R's base environment)", Args: cobra.NoArgs, RunE: run("prims")})
 	cmd.AddCommand(&cobra.Command{Use: "print", Short: "write syntax/print_gen.go (the characters R's string encoder escapes)", Args: cobra.NoArgs, RunE: run("print")})
-	cmd.AddCommand(&cobra.Command{Use: "evalgolden", Short: "write testdata/golden/eval.jsonl (from testdata/eval/*.R)", Args: cobra.NoArgs, RunE: run("evalgolden")})
+	cmd.AddCommand(&cobra.Command{Use: "evalgolden", Short: "write testdata/golden/eval/*.jsonl (one per testdata/eval/*.R)", Args: cobra.NoArgs, RunE: run("evalgolden")})
 	cmd.AddCommand(&cobra.Command{Use: "regen", Short: "regenerate every golden file", Args: cobra.NoArgs, RunE: run("deparse", "rds", "parse", "evalgolden")})
 	cmd.AddCommand(&cobra.Command{
 		Use:   "version",
@@ -244,55 +241,25 @@ func writeNonprint(o oracleSession, root string, out io.Writer) error {
 }
 
 func writeEval(o oracleSession, root string, out io.Writer) error {
-	common, byPlatform, err := gen.EvalInputsByPlatform(root)
+	files, err := gen.EvalInputFiles(root)
 	if err != nil {
 		return err
 	}
-	data, err := gen.EvalGolden(o, common)
-	if err != nil {
-		return err
-	}
-	// Records for a platform are regenerated where R runs on that platform;
-	// those of the other platforms are kept as committed.
-	existing, _ := gen.ReadJSONL[gen.EvalRecord](filepath.Join(root, "testdata/golden/eval.jsonl"))
-	platforms := map[string]bool{}
-	for p := range byPlatform {
-		platforms[p] = true
-	}
-	for _, r := range existing {
-		if r.Platform != "" {
-			platforms[r.Platform] = true
-		}
-	}
-	names := make([]string, 0, len(platforms))
-	for p := range platforms {
-		names = append(names, p)
-	}
-	sort.Strings(names)
-	for _, p := range names {
-		if p == runtime.GOOS {
-			more, err := gen.EvalGoldenFor(o, byPlatform[p], p)
-			if err != nil {
-				return err
-			}
-			data = append(data, more...)
-			continue
-		}
-		var kept []gen.EvalRecord
-		for _, r := range existing {
-			if r.Platform == p {
-				kept = append(kept, r)
+	for _, f := range files {
+		rel := gen.EvalShardDir + "/" + f.Name + ".jsonl"
+		if f.Platform != "" && f.Platform != runtime.GOOS {
+			// records recorded for another platform are kept as committed
+			if _, err := os.Stat(filepath.Join(root, rel)); err == nil {
+				continue
 			}
 		}
-		var buf bytes.Buffer
-		enc := json.NewEncoder(&buf)
-		enc.SetEscapeHTML(false)
-		for _, r := range kept {
-			if err := enc.Encode(r); err != nil {
-				return err
-			}
+		data, err := gen.EvalGoldenFor(o, f.Snippets, f.Platform)
+		if err != nil {
+			return err
 		}
-		data = append(data, buf.Bytes()...)
+		if err := write(root, rel, data, out); err != nil {
+			return err
+		}
 	}
-	return write(root, "testdata/golden/eval.jsonl", data, out)
+	return nil
 }

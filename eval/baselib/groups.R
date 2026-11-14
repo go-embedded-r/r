@@ -95,6 +95,7 @@ split <- function(x, f, drop = FALSE, ...) UseMethod("split")
 split.default <- function(x, f, drop = FALSE, sep = ".", lex.order = FALSE, ...) {
   if (is.list(f)) f <- ..crossFactors(f, sep, lex.order)
   if (!is.factor(f)) f <- as.factor(f)
+  if (length(f) == 0L && length(x) > 0L) stop("group length is 0 but data length > 0")
   if (drop) f <- ..dropUnused(f)
   if (length(f) > 0L && length(x) %% length(f) != 0L)
     warning("data length is not a multiple of split variable")

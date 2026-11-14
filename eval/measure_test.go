@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -15,25 +16,31 @@ func TestMeasureLimits(t *testing.T) {
 	if os.Getenv("RGO_MEASURE") == "" {
 		t.Skip("set RGO_MEASURE=1")
 	}
-	f, err := os.Open("../testdata/golden/eval.jsonl")
-	if err != nil {
-		t.Fatal(err)
+	shards, err := filepath.Glob("../testdata/golden/eval/*.jsonl")
+	if err != nil || len(shards) == 0 {
+		t.Fatal("no golden shards", err)
 	}
-	defer f.Close()
-	sc := bufio.NewScanner(f)
-	sc.Buffer(make([]byte, 1<<20), 1<<26)
 	var maxSteps int
 	var maxAlloc int64
 	var maxTime time.Duration
 	var sSrc, aSrc string
 	n := 0
 	srcs := workloads
-	for sc.Scan() {
-		var rec struct{ Src string }
-		if json.Unmarshal(sc.Bytes(), &rec) != nil {
-			continue
+	for _, shard := range shards {
+		f, err := os.Open(shard)
+		if err != nil {
+			t.Fatal(err)
 		}
-		srcs = append(srcs, rec.Src)
+		sc := bufio.NewScanner(f)
+		sc.Buffer(make([]byte, 1<<20), 1<<26)
+		for sc.Scan() {
+			var rec struct{ Src string }
+			if json.Unmarshal(sc.Bytes(), &rec) != nil {
+				continue
+			}
+			srcs = append(srcs, rec.Src)
+		}
+		f.Close()
 	}
 	for _, src := range srcs {
 		rec := struct{ Src string }{src}

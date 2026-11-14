@@ -95,7 +95,11 @@ func (s *Session) dispatchInternal(name string, c *callInfo, args []Value, names
 		for _, g := range generics {
 			if m := s.findMethod(g+"."+cl, c.env); m != nil {
 				di := &dispatchInfo{generic: name, classes: append(append([]string{}, classes...), "default"), idx: i, object: args[0]}
-				return s.callMethod(m, g+"."+cl, c.call, argsOf(args, names), c.env, di), true
+				call := c.call
+				if c.tmpCall != nil {
+					call = c.tmpCall
+				}
+				return s.callMethod(m, g+"."+cl, call, argsOf(args, names), c.env, di), true
 			}
 		}
 	}
@@ -111,7 +115,7 @@ var (
 		"gamma": true, "lgamma": true, "sinpi": true, "cospi": true, "tanpi": true, "trunc": true, "sign": true, "round": true, "signif": true,
 		"cumsum": true, "cumprod": true, "cummax": true, "cummin": true}
 	summaryGroup = map[string]bool{"sum": true, "prod": true, "min": true, "max": true, "any": true, "all": true, "range": true}
-	internalGen  = []string{"length", "names", "names<-", "as.character", "as.integer", "as.double", "as.numeric", "as.logical", "c", "is.na", "dim", "dim<-", "unlist", "rep", "seq_along", "mean", "t", "as.vector", "format", "seq", "is.numeric", "unique", "xtfrm", "sort", "rev", "rank"}
+	internalGen  = []string{"length", "names", "names<-", "dimnames", "dimnames<-", "duplicated", "levels<-", "as.character", "as.integer", "as.double", "as.numeric", "as.logical", "c", "is.na", "dim", "dim<-", "unlist", "rep", "seq_along", "mean", "t", "as.vector", "format", "seq", "is.numeric", "unique", "xtfrm", "sort", "rev", "rank"}
 )
 
 // methodFor finds the method of generic (or of its group) for one class vector.
@@ -208,6 +212,14 @@ func installS3() {
 			switch {
 			case opsGroup[name]:
 				b.fn = func(s *Session, c *callInfo) Value {
+					if name == "==" || name == "!=" {
+						// a factor is compared by its labels
+						for i, a := range c.args {
+							if inheritsClass(a, "factor") && kindOf(a) == kInteger {
+								c.args[i] = &String{V: s.factorStrings(a)}
+							}
+						}
+					}
 					if r, ok := s.dispatchGroup(name, "Ops", c); ok {
 						return r
 					}

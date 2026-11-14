@@ -107,7 +107,29 @@ func copyAttrs(x, y Value, n int) []Attr {
 	}
 	add(x)
 	add(y)
+	// the attributes other than the shape come first, as R copies them before
+	// it sets dim and dimnames
+	if getAttrIn(out, "dim") != nil {
+		var rest, shape []Attr
+		for _, a := range out {
+			if a.Name == "dim" || a.Name == "dimnames" || a.Name == "names" {
+				shape = append(shape, a)
+			} else {
+				rest = append(rest, a)
+			}
+		}
+		out = append(rest, shape...)
+	}
 	return out
+}
+
+func getAttrIn(at []Attr, name string) Value {
+	for _, a := range at {
+		if a.Name == name {
+			return a.Value
+		}
+	}
+	return nil
 }
 
 func (s *Session) checkLen(call *Lang, n int) {
