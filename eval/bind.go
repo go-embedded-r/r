@@ -171,6 +171,9 @@ func (s *Session) bind(c *callInfo, byCol bool) Value {
 			ext++
 		}
 	}
+	if float64(m)*float64(ext) > float64(s.opts.MaxVector) {
+		s.errorf(c.call, "cannot allocate vector of length %.0f", float64(m)*float64(ext))
+	}
 	s.checkLen(c.call, m*ext)
 	var sources []Value
 	for _, a := range args {

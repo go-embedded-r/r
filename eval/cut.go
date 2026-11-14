@@ -50,6 +50,9 @@ func init() {
 			if math.IsNaN(br[0]) || br[0] < 2 {
 				s.errorf(c.call, "invalid number of intervals")
 			}
+			if br[0] > float64(s.opts.MaxVector) {
+				s.errorf(c.call, "cannot allocate vector of length %.0f", br[0]+1)
+			}
 			nb := int(br[0]) + 1
 			s.checkLen(c.call, nb)
 			lo, hi := math.Inf(1), math.Inf(-1)

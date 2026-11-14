@@ -70,6 +70,9 @@ func (s *Session) dfIndex(c *callInfo, sub Value, n int, names []Str) (pos []int
 			return pos, nil
 		}
 		for _, e := range d {
+			if e > float64(s.opts.MaxVector)+1 {
+				s.errorf(c.call, "cannot allocate vector of length %.0f", e) // before it overflows an int
+			}
 			if e >= 1 {
 				pos = append(pos, int(e)-1)
 			}
