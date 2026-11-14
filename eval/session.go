@@ -236,6 +236,7 @@ func NewSession(opts Options) *Session {
 	s.Base.Set("F", mkLogical(false))
 	s.Base.Set("letters", strVec(lower))
 	s.Base.Set("LETTERS", strVec(upper))
+	s.Base.Set(".Machine", machineList())
 	s.Global = &Env{parent: s.Base, name: "R_GlobalEnv"}
 	// the namespace of base shares the frame of the base environment
 	s.BaseNS = &Env{alias: s.Base, parent: s.Global, ns: true, special: true}

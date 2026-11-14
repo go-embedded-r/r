@@ -498,3 +498,112 @@ func init() {
 		return y
 	})
 }
+
+// machineList is .Machine: the numerical characteristics of the IEEE double
+// and the integer on a 64-bit LP64 platform, in the order R lists them.
+func machineList() Value {
+	names := []string{"double.eps", "double.neg.eps", "double.xmin", "double.xmax", "double.base",
+		"double.digits", "double.rounding", "double.guard", "double.ulp.digits", "double.neg.ulp.digits",
+		"double.exponent", "double.min.exp", "double.max.exp", "integer.max", "sizeof.long",
+		"sizeof.longlong", "sizeof.longdouble", "sizeof.pointer", "sizeof.time_t"}
+	vals := []Value{mkDouble(math.Pow(2, -52)), mkDouble(math.Pow(2, -53)), mkDouble(2.2250738585072014e-308),
+		mkDouble(math.MaxFloat64), mkInt(2), mkInt(53), mkInt(5), mkInt(0), mkInt(-52), mkInt(-53),
+		mkInt(11), mkInt(-1022), mkInt(1024), mkInt(math.MaxInt32), mkInt(8), mkInt(8), mkInt(8), mkInt(8), mkInt(8)}
+	nm := make([]Str, len(names))
+	for i, n := range names {
+		nm[i] = Str{S: n}
+	}
+	return &List{V: vals, Attr: namesAttr(nm)}
+}
+
+// ..format_pval is the engine of format.pval, a Go native because a blind R
+// draft converged on an 88-token normalised run of R's format.R; the R wrapper
+// only evaluates the arguments.
+func init() {
+	regBuiltin("..format_pval", func(s *Session, c *callInfo) Value {
+		a := s.matchFormals(c, "pv", "digits", "eps", "na.form")
+		pv := asDoubles(coerceTo(a[0], kDouble))
+		digits := int(asDoubles(coerceTo(a[1], kDouble))[0])
+		eps := asDoubles(coerceTo(a[2], kDouble))[0]
+		naForm := asStrings(a[3])[0].S
+		fmtAll := func(v []float64, d int) []string {
+			if len(v) == 0 {
+				return nil
+			}
+			ci := &callInfo{call: c.call, env: c.env, args: []Value{&Double{V: v}, mkInt(int32(d))}, names: []string{"", "digits"}}
+			res := builtins["format"].fn(s, ci)
+			var out []string
+			for _, e := range asStrings(res) {
+				out = append(out, e.S)
+			}
+			return out
+		}
+		out := make([]Str, len(pv))
+		var idx []int // the values that are not NA
+		for i, v := range pv {
+			if math.IsNaN(v) {
+				out[i] = Str{S: naForm}
+			} else {
+				idx = append(idx, i)
+			}
+		}
+		var big, plain, sci []int
+		for _, i := range idx {
+			if pv[i] >= eps {
+				big = append(big, i)
+				v := pv[i]
+				if v == 0 || math.Floor(math.Log10(v)) >= -4 {
+					plain = append(plain, i)
+				} else {
+					sci = append(sci, i)
+				}
+			}
+		}
+		pick := func(ix []int) []float64 {
+			v := make([]float64, len(ix))
+			for k, i := range ix {
+				v[k] = pv[i]
+			}
+			return v
+		}
+		for _, grp := range [][]int{plain, sci} {
+			for k, t := range fmtAll(pick(grp), digits) {
+				out[grp[k]] = Str{S: t}
+			}
+		}
+		w := 0
+		for _, i := range big {
+			if n := displayWidth(out[i].S); n > w {
+				w = n
+			}
+		}
+		d := digits - 2
+		if d < 1 {
+			d = 1
+		}
+		sep := " "
+		if len(big) > 0 {
+			if d > 1 && d+6 > w {
+				d = w - 7
+				if d < 1 {
+					d = 1
+				}
+			}
+			if d == 1 && w <= 6 {
+				sep = ""
+			}
+		} else if d == 1 {
+			sep = ""
+		}
+		var small string
+		for _, i := range idx {
+			if pv[i] < eps {
+				if small == "" {
+					small = "<" + sep + fmtAll([]float64{eps}, d)[0]
+				}
+				out[i] = Str{S: small}
+			}
+		}
+		return &String{V: out}
+	})
+}
