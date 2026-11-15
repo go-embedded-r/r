@@ -4,6 +4,8 @@ import (
 	"math"
 	"sort"
 	"strings"
+
+	"github.com/go-statistics/stats"
 )
 
 // The descriptive statistics of slice 18: median, var, sd, cov, cor,
@@ -135,26 +137,25 @@ func pairKernel(x, y []float64) (sxx, syy, sxy float64, ok bool) {
 // ---- ranks and Kendall ----------------------------------------------------
 
 // ranks are the ranks of x, ties getting their average.
+//
+// The ranks are go-statistics/stats's RankData (average ranks, exact: they are
+// integers or halves). The callers have removed the missing values, so the
+// error of RankData (a method out of range) cannot happen.
 func ranks(x []float64) []float64 {
-	n := len(x)
-	idx := make([]int, n)
-	for i := range idx {
-		idx[i] = i
-	}
-	sort.SliceStable(idx, func(a, b int) bool { return x[idx[a]] < x[idx[b]] })
-	r := make([]float64, n)
-	for i := 0; i < n; {
-		j := i
-		for j+1 < n && x[idx[j+1]] == x[idx[i]] {
-			j++
-		}
-		avg := float64(i+j)/2 + 1
-		for k := i; k <= j; k++ {
-			r[idx[k]] = avg
-		}
-		i = j + 1
-	}
+	r, _ := stats.RankData(x, stats.RankAverage)
 	return r
+}
+
+// kendallTau is Kendall's tau-b of x and y (no missing values) from
+// go-statistics/stats: integer counts of concordant, discordant and tied
+// pairs in O(n log n), one rounding of the ratio. ok is false when a column is
+// constant (R answers NA with a warning).
+func kendallTau(x, y []float64) (tau float64, ok bool) {
+	res, err := stats.Kendalltau(x, y, &stats.KendallOptions{Variant: stats.TauB, Method: stats.MethodAsymptotic})
+	if err != nil || math.IsNaN(res.Statistic) {
+		return 0, false
+	}
+	return clip1(res.Statistic), true
 }
 
 func sign(v float64) float64 {
@@ -410,18 +411,21 @@ func (s *Session) covCor(c *callInfo, x, y Value, use, method string, cor bool) 
 		}
 		switch method {
 		case "kendall":
-			sxy, sxx, syy := kendallSums(a, b)
 			if !cor {
+				// cov(method = "kendall") is the signed count itself, which
+				// go-statistics does not expose (a gap, see the README)
+				sxy, _, _ := kendallSums(a, b)
 				return sxy
 			}
 			if same {
 				return 1
 			}
-			if sxx == 0 || syy == 0 {
+			tau, ok := kendallTau(a, b)
+			if !ok {
 				warned = true
 				return naReal
 			}
-			return clip1(sxy / math.Sqrt(sxx*syy))
+			return tau
 		}
 		sxx, syy, sxy, ok := pairKernel(a, b)
 		if !ok {
