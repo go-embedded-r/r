@@ -131,10 +131,11 @@ func TestDepthBoundIsAnOption(t *testing.T) {
 	// a counter that a refusal leaves unbalanced would, after many of them,
 	// refuse everything
 	s := eval.NewSession(eval.Options{MaxDepth: 20})
-	for i := 0; i < 200; i++ {
-		if _, err := s.Eval("x <- list(); for (i in 1:30) x <- list(x); tryCatch(identical(x, x), error = function(e) 0)"); err != nil {
-			t.Fatalf("round %d: %v", i, err)
-		}
+	r, err := s.Eval("x <- list(); for (i in 1:30) x <- list(x); y <- list(list(list(1)));" +
+		"for (k in 1:200) { tryCatch(identical(x, x), error = function(e) 0); identical(y, y) };" +
+		"identical(y, y)")
+	if err != nil || r.Value.(*eval.Logical).V[0] != 1 {
+		t.Errorf("after 200 refusals and 200 walks in one evaluation: %v", err)
 	}
 	assertStillAlive(t, s)
 }
