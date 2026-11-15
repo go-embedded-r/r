@@ -20,6 +20,16 @@ func init() {
 		case *Raw:
 			s.errorf(callOf("sort.int(x, na.last = na.last, decreasing = decreasing, ...)"), "raw vectors cannot be sorted")
 		default:
+			if l, ok := x.(*List); ok && isObject(x) && !l.Expr {
+				// x[order(x, na.last = na.last, decreasing = decreasing)], as
+				// sort.default does for an object
+				naLast := Value(&Logical{V: []int32{naInt}})
+				if a[2] != nil {
+					naLast = a[2]
+				}
+				idx := s.callNamed(c, "order", []Value{x, naLast, mkLogical(dec)}, []string{"", "na.last", "decreasing"})
+				return s.callNamed(c, "[", []Value{x, idx}, []string{"", ""})
+			}
 			s.errorf(c.call, "'x' must be atomic")
 		}
 		n := Length(x)

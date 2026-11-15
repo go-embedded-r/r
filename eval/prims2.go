@@ -513,6 +513,10 @@ func init() {
 				return setAttr(x, "class", Null)
 			}
 			return x
+		case *String, *Logical, *Complex:
+			// as.vector(rank(x, ties.method = "min", na.last = "keep"))
+			r := s.callNamed(c, "rank", []Value{withAttr(x, nil), mkString("min"), mkString("keep")}, []string{"", "ties.method", "na.last"})
+			return withAttr(r, nil)
 		}
 		s.errorf(c.call, "xtfrm is only implemented for numeric vectors")
 		return nil

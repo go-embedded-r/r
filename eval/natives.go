@@ -201,6 +201,13 @@ func (s *Session) paste(c *callInfo, defSep string) Value {
 				strs = s.asCharacter(&callInfo{call: c.call, args: []Value{x}}).(*String).V
 				break
 			}
+			if isObject(x) {
+				// a classed list with an as.character method (a version number)
+				if r, ok := s.dispatchInternal("as.character", c, []Value{a}, []string{""}); ok {
+					strs = asStrings(r)
+					break
+				}
+			}
 			for _, e := range x.V {
 				if Length(e) == 1 && isVector(e) && kindOf(e) != kList {
 					strs = append(strs, asStrings(e)...)

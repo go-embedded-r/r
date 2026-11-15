@@ -112,11 +112,27 @@ func (s *Session) asDouble(c *callInfo, name string) Value {
 		}
 		return &Double{V: out}
 	}
-	if l, ok := x.(*List); ok && l.Expr {
-		s.errorf(nil, "'list' object cannot be coerced to type 'double'")
+	if l, ok := x.(*List); ok {
+		return s.listAsAtomic(c, l, "double", func(cc *callInfo) Value { return s.asDouble(cc, name) })
 	}
 	s.errorf(c.call, "cannot coerce type '%s' to vector of type 'double'", typeName(x))
 	return nil
+}
+
+// listAsAtomic coerces a list whose elements are all of length one, as
+// as.double, as.integer and as.logical do; any other list is refused.
+func (s *Session) listAsAtomic(c *callInfo, l *List, typ string, conv func(*callInfo) Value) Value {
+	if l.Expr {
+		s.errorf(nil, "'list' object cannot be coerced to type '%s'", typ)
+	}
+	for _, e := range l.V {
+		if !isVector(e) || kindOf(e) == kList || Length(e) != 1 {
+			s.errorf(nil, "'list' object cannot be coerced to type '%s'", typ)
+		}
+	}
+	cc := &callInfo{call: c.call, env: c.env, args: l.V, names: make([]string, len(l.V))}
+	comb := s.combine(cc)
+	return conv(&callInfo{call: c.call, env: c.env, args: []Value{comb}, names: []string{""}})
 }
 
 func (s *Session) asInteger(c *callInfo) Value {
@@ -167,6 +183,9 @@ func (s *Session) asInteger(c *callInfo) Value {
 		}
 		return &Integer{V: out}
 	}
+	if l, ok := x.(*List); ok {
+		return s.listAsAtomic(c, l, "integer", s.asInteger)
+	}
 	s.errorf(c.call, "cannot coerce type '%s' to vector of type 'integer'", typeName(x))
 	return nil
 }
@@ -201,6 +220,9 @@ func (s *Session) asLogical(c *callInfo) Value {
 			}
 		}
 		return &Logical{V: out}
+	}
+	if l, ok := x.(*List); ok {
+		return s.listAsAtomic(c, l, "logical", s.asLogical)
 	}
 	s.errorf(c.call, "cannot coerce type '%s' to vector of type 'logical'", typeName(x))
 	return nil
