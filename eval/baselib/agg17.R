@@ -59,9 +59,10 @@ aggregate.data.frame <- function(x, by, FUN, ..., simplify = TRUE, drop = TRUE) 
   pieces <- factor(id[row_ok], levels = groups)
   for (nm in names(x)) {
     col <- x[[nm]][row_ok]
-    got <- lapply(split(col, pieces), function(part) if (length(part)) FUN(part, ...))
-    empty <- vapply(got, is.null, NA)
-    if (any(empty)) got[empty] <- list(NA)
+    parts <- split(col, pieces)
+    full <- lengths(parts) > 0L
+    got <- rep(list(NA), length(parts))
+    got[full] <- lapply(parts[full], FUN, ...)
     one <- vapply(got, function(r) is.atomic(r) && length(r) == 1L, NA)
     if (simplify && all(one)) {
       out[[nm]] <- unlist(got, use.names = FALSE)

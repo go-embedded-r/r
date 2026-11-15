@@ -526,9 +526,24 @@ func init() {
 	regBuiltin("..format_pval", func(s *Session, c *callInfo) Value {
 		a := s.matchFormals(c, "pv", "digits", "eps", "na.form")
 		pv := asDoubles(coerceTo(a[0], kDouble))
-		digits := int(asDoubles(coerceTo(a[1], kDouble))[0])
-		eps := asDoubles(coerceTo(a[2], kDouble))[0]
-		naForm := asStrings(a[3])[0].S
+		// a digits or an eps that is not a number is refused as R does; an empty
+		// one stands for its default (a crasher of FuzzEval: format.pval(0, c))
+		for _, v := range a[1:3] {
+			switch v.(type) {
+			case *Closure, *Builtin, *Env, *Symbol, *Lang:
+				s.errorf(c.call, "non-numeric argument to binary operator")
+			}
+		}
+		digits, eps, naForm := 5, 2.220446049250313e-16, "NA"
+		if d := asDoubles(coerceTo(a[1], kDouble)); len(d) > 0 {
+			digits = int(d[0])
+		}
+		if d := asDoubles(coerceTo(a[2], kDouble)); len(d) > 0 {
+			eps = d[0]
+		}
+		if st := asStrings(a[3]); len(st) > 0 {
+			naForm = st[0].S
+		}
 		fmtAll := func(v []float64, d int) []string {
 			if len(v) == 0 {
 				return nil

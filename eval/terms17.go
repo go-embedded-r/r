@@ -308,18 +308,9 @@ func (x *termsCtx) eval(e Value) termsResult {
 				x.s.errorf(x.call, "invalid power in formula")
 			}
 			out := termsResult{icpt: -1, t: l.t}
+			// each term met so far is joined with each term of the base in turn
 			for i := 1; i < int(pw); i++ {
-				var next termSet
-				for _, b := range out.t.terms {
-					next.add(x.s, x.call, b)
-				}
-				for _, b := range l.t.terms {
-					next.add(x.s, x.call, b)
-				}
-				for _, b := range x.cross(out.t.terms, l.t.terms).terms {
-					next.add(x.s, x.call, b)
-				}
-				out.t = next
+				out.t = x.cross(out.t.terms, l.t.terms)
 			}
 			return out
 		}
@@ -638,10 +629,8 @@ func init() {
 			}
 			if rhsV == nil {
 				rhsV = mkDouble(1)
-				if icpt == 0 {
-					rhsV = mkDouble(0)
-				}
-			} else if icpt == 0 {
+			}
+			if icpt == 0 {
 				rhsV = &Lang{Fun: Intern("-"), Args: []Arg{{Value: rhsV}, {Value: mkDouble(1)}}}
 			}
 			nf := &Lang{Fun: f.Fun}

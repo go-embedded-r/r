@@ -509,3 +509,21 @@ attr(terms(y ~ (a)), "term.labels")
 #---
 `~` <- function(...) { f <- eval(sys.call(), baseenv()); environment(f) <- globalenv(); f }
 attr(terms(y ~ ((a + b))), "term.labels")
+#---
+`~` <- function(...) { f <- eval(sys.call(), baseenv()); environment(f) <- globalenv(); f }
+terms(y ~ 0, simplify = TRUE)
+#---
+`~` <- function(...) { f <- eval(sys.call(), baseenv()); environment(f) <- globalenv(); f }
+terms(y ~ a - a - 1, simplify = TRUE)
+#---
+`~` <- function(...) { f <- eval(sys.call(), baseenv()); environment(f) <- globalenv(); f }
+terms(~ 0, simplify = TRUE)
+#---
+`~` <- function(...) { f <- eval(sys.call(), baseenv()); environment(f) <- globalenv(); f }
+attr(terms(y ~ (b + d)^2, keep.order = TRUE), "term.labels")
+#---
+`~` <- function(...) { f <- eval(sys.call(), baseenv()); environment(f) <- globalenv(); f }
+attr(terms(y ~ (a + c)^2 - (a + a)^2 + (b + d), keep.order = TRUE), "term.labels")
+#---
+`~` <- function(...) { f <- eval(sys.call(), baseenv()); environment(f) <- globalenv(); f }
+attr(terms(y ~ (a + b + c)^3, keep.order = TRUE), "term.labels")

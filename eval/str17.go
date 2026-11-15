@@ -77,6 +77,9 @@ func (s *Session) strVector(c *callInfo, v Value, o strOpts) string {
 		parts := make([]string, len(d))
 		for i, e := range d {
 			parts[i] = "1:" + strconv.Itoa(e)
+			if e == 1 {
+				parts[i] = "1" // an extent of one is shown as 1
+			}
 		}
 		head = " " + typ + " [" + strings.Join(parts, ", ") + "]"
 	case n == 1:
