@@ -65,8 +65,8 @@
 {"src":"norm(matrix(c(1,NA,3,4), 2))","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000017ff00000000007a2","typeof":"double","visible":true,"output":"[1] NA\n"}
 {"src":"norm(matrix(numeric(0), 0, 0))","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000010000000000000000","typeof":"double","visible":true,"output":"[1] 0\n"}
 {"src":"norm(matrix(c(1+1i,2,3,4), 2)) # ulp","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e00000001401c000000000000","typeof":"double","visible":true,"output":"[1] 7\n"}
-{"src":"rcond(matrix(c(1,2,3,4,5,6,7,8,10,1,0,1), 4)[1:3, ]) # ulp","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000013f90db20a88f4696","typeof":"double","visible":true,"output":"[1] 0.01646091\n"}
-{"src":"rcond(matrix(c(1,2,3,4,5,6,7,8,10,1,0,1), 4)[1:3, ], \"I\") # ulp","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000013f8f07c1f07c1f0a","typeof":"double","visible":true,"output":"[1] 0.01515152\n"}
+{"src":"rcond(matrix(c(1,2,3,4,5,6,7,8,10,1,0,1), 4)[1:3, ]) # ulp","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000013f90db20a88f4697","typeof":"double","visible":true,"output":"[1] 0.01646091\n"}
+{"src":"rcond(matrix(c(1,2,3,4,5,6,7,8,10,1,0,1), 4)[1:3, ], \"I\") # ulp","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000013f8f07c1f07c1f0c","typeof":"double","visible":true,"output":"[1] 0.01515152\n"}
 {"src":"rcond(matrix(c(4,2,1,3,5,1,2,2,6), 3)) # ulp","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000013fc7ba117ba117ba","typeof":"double","visible":true,"output":"[1] 0.1853659\n"}
 {"src":"rcond(matrix(c(4,2,1,3,5,1,2,2,6), 3), \"I\") # ulp","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000013fd49c34115b1e60","typeof":"double","visible":true,"output":"[1] 0.3220339\n"}
 {"src":"rcond(matrix(c(1,2,2,4), 2))","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000e000000010000000000000000","typeof":"double","visible":true,"output":"[1] 0\n"}
