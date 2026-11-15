@@ -225,6 +225,10 @@ func init() {
 		}
 		s.flushSinks()
 		s.closeConn(cn, true)
+		if cn.kind == kFile {
+			// a file connection answers the status of its close
+			return s.invisible(mkInt(0))
+		}
 		return s.invisible(Null)
 	})
 	connGeneric("flush", func(s *Session, c *callInfo) Value {
