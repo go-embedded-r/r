@@ -219,7 +219,7 @@ func (s *Session) tcArgs(c *callInfo, na, asIs, dec, numerals, tryLogical Value)
 }
 
 func init() {
-	regBuiltin("type.convert.default", func(s *Session, c *callInfo) Value {
+	regBuiltin("..type.convert.default", func(s *Session, c *callInfo) Value {
 		a := s.matchFormals(c, "x", "na.strings", "as.is", "dec", "numerals", "tryLogical", "...")
 		o := s.tcArgs(c, a[1], a[2], a[3], a[4], a[5])
 		x := a[0]
@@ -260,7 +260,7 @@ func init() {
 				s.errorf(c.call, "invalid argument")
 			}
 			out := &List{V: make([]Value, len(x.V)), Attr: x.Attr}
-			if name == "type.convert.data.frame" {
+			if name == "..type.convert.data.frame" {
 				// the class comes last, after the row names
 				out.Attr = nil
 				var cls []Attr
@@ -281,8 +281,8 @@ func init() {
 			return out
 		})
 	}
-	typeConvertEach("type.convert.list")
-	typeConvertEach("type.convert.data.frame")
+	typeConvertEach("..type.convert.list")
+	typeConvertEach("..type.convert.data.frame")
 }
 
 // ---- count.fields ---------------------------------------------------------
@@ -367,7 +367,7 @@ func init() {
 			}
 		}
 		if out == nil {
-			return &Integer{V: []int32{}}
+			return Null
 		}
 		return &Integer{V: out}
 	})

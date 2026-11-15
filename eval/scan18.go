@@ -32,6 +32,25 @@ type scanner struct {
 	pos      int
 	sp       *scanSpec
 	unclosed bool // a quote was still open at the end of the data
+	lastQ    byte // the quote character of the field being read
+	// noQuote: with a separator, a field that is not read as text does not honour
+	// quotes (a separator inside one still splits)
+	noQuote bool
+}
+
+// shownText is the text of a field as R's conversion error shows it: the
+// blanks removed, a quoted field between its quote characters.
+func shownText(t scanTok) string {
+	s := strings.Map(func(r rune) rune {
+		if r == ' ' || r == '\t' {
+			return -1
+		}
+		return r
+	}, t.s)
+	if t.quoted && t.qc != 0 {
+		return string(t.qc) + s + string(t.qc)
+	}
+	return s
 }
 
 const (
@@ -43,6 +62,7 @@ const (
 type scanTok struct {
 	s      string
 	quoted bool
+	qc     byte // the quote character of a quoted field
 	kind   int
 	eol    bool // the field was the last one of its line (kind scField), or the line ended (scBlank)
 	eof    bool
@@ -185,6 +205,7 @@ func (sc *scanner) next(strip bool) scanTok {
 
 func (sc *scanner) nextWhite() scanTok {
 	sp := sc.sp
+	sc.lastQ = 0
 	var c byte
 	var esc, ok bool
 	for {
@@ -207,6 +228,7 @@ func (sc *scanner) nextWhite() scanTok {
 	quoted := false
 	if !esc && sc.isQuote(c) {
 		q := c
+		sc.lastQ = q
 		quoted = true
 		for {
 			c, esc, ok = sc.rce()
@@ -252,24 +274,25 @@ func (sc *scanner) finishWhite(s string, quoted bool) scanTok {
 		save := sc.pos
 		c, esc, ok := sc.rce()
 		if !ok {
-			return scanTok{s: s, quoted: quoted, kind: scField, eol: true, eof: true}
+			return scanTok{s: s, quoted: quoted, qc: sc.lastQ, kind: scField, eol: true, eof: true}
 		}
 		switch {
 		case c == ' ' || c == '\t':
 		case c == '\n':
-			return scanTok{s: s, quoted: quoted, kind: scField, eol: true}
+			return scanTok{s: s, quoted: quoted, qc: sc.lastQ, kind: scField, eol: true}
 		case !esc && c == sc.sp.comment && c != 0:
 			sc.skipToEOL()
-			return scanTok{s: s, quoted: quoted, kind: scField, eol: true}
+			return scanTok{s: s, quoted: quoted, qc: sc.lastQ, kind: scField, eol: true}
 		default:
 			sc.pos = save
-			return scanTok{s: s, quoted: quoted, kind: scField}
+			return scanTok{s: s, quoted: quoted, qc: sc.lastQ, kind: scField}
 		}
 	}
 }
 
 func (sc *scanner) nextSep(strip bool) scanTok {
 	sp := sc.sp
+	sc.lastQ = 0
 	var b []byte
 	var inq byte
 	quoted := false
@@ -321,8 +344,11 @@ func (sc *scanner) nextSep(strip bool) scanTok {
 					return scanTok{kind: scBlank, eol: true}
 				}
 				return sc.endSep(b, protect, strip, quoted, true, false)
-			case sc.isQuote(c):
+			case !sc.noQuote && sc.isQuote(c):
 				inq, quoted = c, true
+				if sc.lastQ == 0 {
+					sc.lastQ = c
+				}
 				continue
 			}
 		}
@@ -339,7 +365,7 @@ func (sc *scanner) endSep(b []byte, protect int, strip, quoted, eol, eof bool) s
 			b = b[:len(b)-1]
 		}
 	}
-	return scanTok{s: string(b), quoted: quoted, kind: scField, eol: eol, eof: eof}
+	return scanTok{s: string(b), quoted: quoted, qc: sc.lastQ, kind: scField, eol: eol, eof: eof}
 }
 
 // ---- conversion -----------------------------------------------------------
@@ -437,7 +463,7 @@ func (c *scanCol) add(t scanTok, sp *scanSpec, dec *byte, bad func(kind scanKind
 			case "F", "FALSE", "false", "False":
 				v = 0
 			default:
-				bad(c.kind, t.s)
+				bad(c.kind, shownText(t))
 			}
 		}
 		c.l = append(c.l, v)
@@ -446,7 +472,7 @@ func (c *scanCol) add(t scanTok, sp *scanSpec, dec *byte, bad func(kind scanKind
 		if !isNA {
 			n, err := strconv.ParseInt(txt, 10, 64)
 			if err != nil || n > math.MaxInt32 || n <= math.MinInt32 {
-				bad(c.kind, t.s)
+				bad(c.kind, shownText(t))
 			} else {
 				v = int32(n)
 			}
@@ -457,7 +483,7 @@ func (c *scanCol) add(t scanTok, sp *scanSpec, dec *byte, bad func(kind scanKind
 		if !isNA {
 			f, ok := scanNumber(txt, *dec)
 			if !ok {
-				bad(c.kind, t.s)
+				bad(c.kind, shownText(t))
 			}
 			v = f
 		}
@@ -467,13 +493,13 @@ func (c *scanCol) add(t scanTok, sp *scanSpec, dec *byte, bad func(kind scanKind
 		if !isNA {
 			if *dec != '.' {
 				if strings.IndexByte(txt, '.') >= 0 {
-					bad(c.kind, t.s)
+					bad(c.kind, shownText(t))
 				}
 				txt = strings.Replace(txt, string(*dec), ".", 1)
 			}
 			z, ok := parseComplex(Str{S: txt})
 			if !ok {
-				bad(c.kind, t.s)
+				bad(c.kind, shownText(t))
 			}
 			v = z
 		}
@@ -608,12 +634,14 @@ func (s *Session) scanRun(call *Lang, sc *scanner, cols []*scanCol, maxRec, nlin
 loop:
 	for maxRec == 0 || nrec < maxRec {
 		col := cols[colsread]
+		sc.noQuote = sp.sep != 0 && col.kind != skString
 		t := sc.next(sp.strip[colsread%len(sp.strip)])
 		switch t.kind {
 		case scEnd:
 			break loop
 		case scBlank:
-			if sp.blankSkip {
+			// in the middle of a record an empty line is an empty field
+			if sp.blankSkip && colsread == 0 {
 				linesRead++
 				if nlines > 0 && linesRead >= nlines {
 					natural = false

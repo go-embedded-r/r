@@ -7,3 +7,7 @@ median <- function(x, na.rm = FALSE, ...) UseMethod("median")
 quantile <- function(x, ...) UseMethod("quantile")
 
 weighted.mean <- function(x, w, ...) UseMethod("weighted.mean")
+
+# the methods that R's namespaces do not export: registered, not visible by name
+registerS3method("quantile", "default", ..quantile.default)
+registerS3method("weighted.mean", "default", ..weighted.mean.default)

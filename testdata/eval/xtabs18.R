@@ -47,3 +47,11 @@ summary(table(c("a", "b"), c("u", "v")))$n.vars
 xtabs(~ a, data.frame(a = integer(0)))
 #---
 x <- xtabs(~ a + b, data.frame(a = c(1, 1, 2), b = c("p", "q", "p"))); print(x, zero.print = "."); dim(x); dimnames(x)
+#---
+x <- summary.table(table(c(1, 2, 2))); x$n.cases; x$n.vars; class(x)
+#---
+print.summary.table(summary(table(c("a", "b", "b"))))
+#---
+summary.table(1:3)
+#---
+summary.table(table(c("a", "b"), c("u", "v")))$n.vars

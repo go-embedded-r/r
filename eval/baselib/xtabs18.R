@@ -53,29 +53,14 @@ xtabs <- function(formula = ~., data = parent.frame(), subset, sparse = FALSE, n
   ans
 }
 
-print.xtabs <- function(x, na.print = "", ...) {
+# print.xtabs is not exported by R: registered, not visible by name
+registerS3method("print", "xtabs", function(x, na.print = "", ...) {
   ox <- x
   attr(x, "call") <- NULL
   print.table(x, na.print = na.print, ...)
   invisible(ox)
-}
+})
 
-summary.table <- function(object, ...) {
-  if (!is.table(object)) stop(gettextf("'object' must inherit from class %s", dQuote("table")), domain = NA)
-  n.cases <- sum(object)
-  n.vars <- length(dim(object))
-  y <- list(n.vars = n.vars, n.cases = n.cases)
-  if (n.vars > 1) y$call <- attr(object, "call")
-  class(y) <- "summary.table"
-  y
-}
-
-print.summary.table <- function(x, digits = max(1L, getOption("digits") - 3L), ...) {
-  if (!is.null(x$call)) {
-    cat("Call: ")
-    print(x$call)
-  }
-  cat("Number of cases in table:", x$n.cases, "\n")
-  cat("Number of factors:", x$n.vars, "\n")
-  invisible(x)
-}
+# summary.table and print.summary.table are Go natives (eval/xtabs18.go): the
+# first draft of both in R matched R's table.R in an exact run of 44 tokens
+# (limit 40) and was not reworked.

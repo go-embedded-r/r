@@ -299,3 +299,5 @@ quantile(c(1L, 3L, 4L, 8L, 10L), c(0, .3, .5, .77, 1), type = 8) # ulp
 quantile(c(1, 3, 4, 8, 10, 15), c(0, .1, .25, 1/3, .5, .62, .9, 1), type = 9) # ulp
 #---
 quantile(c(1L, 3L, 4L, 8L, 10L), c(0, .3, .5, .77, 1), type = 9) # ulp
+#---
+median.default(c(3, 1, 2, 10))

@@ -79,7 +79,7 @@ func quantileCore(x []float64, probs []float64, typ int) []float64 {
 }
 
 func init() {
-	regBuiltin("quantile.default", func(s *Session, c *callInfo) Value {
+	regBuiltin("..quantile.default", func(s *Session, c *callInfo) Value {
 		a := s.matchFormals(c, "x", "probs", "na.rm", "names", "type", "digits", "...")
 		if a[0] == nil {
 			s.errorf(c.call, "argument \"x\" is missing, with no default")
@@ -288,7 +288,7 @@ func init() {
 		return mkDouble(constant * m)
 	})
 
-	regBuiltin("weighted.mean.default", func(s *Session, c *callInfo) Value {
+	regBuiltin("..weighted.mean.default", func(s *Session, c *callInfo) Value {
 		a := s.matchFormals(c, "x", "w", "na.rm", "...")
 		if a[0] == nil {
 			s.errorf(c.call, "argument \"x\" is missing, with no default")

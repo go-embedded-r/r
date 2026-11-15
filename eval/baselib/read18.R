@@ -5,3 +5,8 @@
 # eval/readtable18.go); the generic is R.
 
 type.convert <- function(x, ...) UseMethod("type.convert")
+
+# the methods are not exported by R: registered, not visible by name
+registerS3method("type.convert", "default", ..type.convert.default)
+registerS3method("type.convert", "list", ..type.convert.list)
+registerS3method("type.convert", "data.frame", ..type.convert.data.frame)
