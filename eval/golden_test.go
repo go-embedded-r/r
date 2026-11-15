@@ -10,6 +10,10 @@ import (
 	"github.com/go-embedded-r/r/internal/gen"
 )
 
+// ulpMark ends the snippets whose double values are compared within
+// evalcheck.GoldenULP units in the last place (see README, slice 16).
+const ulpMark = "# ulp"
+
 // No golden shard may reach MaxEvalShard: the pre-push gate refuses blobs of
 // 1 MiB, and the fix for a shard that grows is to split its snippet file.
 func TestGoldenShardsStaySmall(t *testing.T) {
@@ -48,7 +52,17 @@ func TestGoldens(t *testing.T) {
 			skipped++ // recorded for another platform, where R's C library answers differently
 			continue
 		}
-		if why := evalcheck.Check(rec); why != "" {
+		check := evalcheck.Check
+		if strings.HasSuffix(rec.Src, ulpMark) {
+			// a value whose last bits depend on whether the platform fuses a
+			// multiply and an add: compared within GoldenULP units in the last
+			// place, and its printed digits are not compared
+			check = func(r gen.EvalRecord) string {
+				var worst int64
+				return evalcheck.CheckULPNormalized(r, evalcheck.GoldenULP, &worst, func(string) string { return "" })
+			}
+		}
+		if why := check(rec); why != "" {
 			bad++
 			t.Errorf("%q: %s", rec.Src, why)
 		}

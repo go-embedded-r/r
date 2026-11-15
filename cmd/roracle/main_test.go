@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -9,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/go-embedded-r/r/internal/evalcheck"
 	"github.com/go-embedded-r/r/internal/gen"
 	"github.com/go-embedded-r/r/internal/oracle"
 	"github.com/go-embedded-r/r/rds"
@@ -249,9 +251,27 @@ func TestLiveRegen(t *testing.T) {
 	for _, f := range append([]string{"testdata/golden/deparse.jsonl", "testdata/golden/rds.jsonl", "testdata/golden/parse.jsonl"}, evalShardsFor(t, true)...) {
 		got, _ := os.ReadFile(filepath.Join(dir, f))
 		want, _ := os.ReadFile(filepath.Join("../..", f))
+		// a record that ends in "# ulp" holds a value whose last bits depend on
+		// the platform: what this oracle answers must agree with Go within
+		// evalcheck.GoldenULP, and the bytes are not compared
+		gl, wl := strings.Split(string(got), "\n"), strings.Split(string(want), "\n")
+		for i := 0; i < len(gl) && i < len(wl); i++ {
+			if strings.Contains(wl[i], `# ulp","ok"`) && gl[i] != wl[i] {
+				var rec gen.EvalRecord
+				if err := json.Unmarshal([]byte(gl[i]), &rec); err != nil {
+					t.Fatal(err)
+				}
+				var worst int64
+				if why := evalcheck.CheckULPNormalized(rec, evalcheck.GoldenULP, &worst, func(string) string { return "" }); why != "" {
+					t.Errorf("%s: %s", rec.Src, why)
+				}
+				gl[i] = wl[i]
+			}
+		}
+		got = []byte(strings.Join(gl, "\n"))
 		if !bytes.Equal(got, want) {
 			t.Errorf("%s differs from the committed golden", f)
-			g, w := strings.Split(string(got), "\n"), strings.Split(string(want), "\n")
+			g, w := gl, wl
 			for i := 0; i < len(g) && i < len(w); i++ {
 				if g[i] != w[i] {
 					t.Errorf("first difference, record %d:\n regenerated %.600s\n committed   %.600s", i+1, g[i], w[i])

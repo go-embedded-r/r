@@ -259,3 +259,23 @@ formatC(c(7, 12345678), format = "fg", digits = 3, big.mark = ",")
 seq(0, 1, length.out = 11)[11] == 1
 #---
 pretty(c(1, 10), n = 4)
+#---
+pretty(c(0.001, 0.0099)) # ulp
+#---
+pretty(c(0, 1), n = 10, high.u.bias = 5) # ulp
+#---
+pretty(c(0, 1), n = 7, u5.bias = 0) # ulp
+#---
+pretty(c(-1e-10, 1e-10)) # ulp
+#---
+pretty(c(0.1, 0.35), n = 4) # ulp
+#---
+pretty(c(0, 1), eps.correct = 1) # ulp
+#---
+pretty(c(10, 11), n = 20) # ulp
+#---
+pretty(c(0, 1e300)) # ulp
+#---
+pretty(-1:1 / 3) # ulp
+#---
+seq(-8.4e-05, 5.5e7, length.out = 12)[12] # ulp
