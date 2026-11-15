@@ -156,6 +156,7 @@ type deparser struct {
 	startline bool
 	left      int
 	fnarg     bool
+	first     bool // the next args() may break before the first element
 	elems     bool // the next args() are the elements of an expression vector
 	vec       bool // the next args() are the elements of an atomic vector
 }
@@ -610,9 +611,12 @@ func (d *deparser) formals(ps []Param) {
 }
 
 func (d *deparser) args(args []Arg) {
-	elems, vec := d.elems, d.vec
-	d.elems, d.vec = false, false
+	elems, vec, first := d.elems, d.vec, d.first
+	d.elems, d.vec, d.first = false, false, false
 	lbreak := false
+	if first && len(args) > 0 {
+		d.linebreak(&lbreak)
+	}
 	for i, a := range args {
 		if a.HasName {
 			if a.Name == "..." {
@@ -813,7 +817,7 @@ func (d *deparser) call(c *Call, fnarg bool, prevLeft int) {
 			}
 		}
 		d.print("(")
-		d.elems, d.vec = c.Elems, c.Vec
+		d.elems, d.vec, d.first = c.Elems, c.Vec, c.First
 		d.args(c.Args)
 		d.print(")")
 		return
@@ -945,7 +949,7 @@ func (d *deparser) call(c *Call, fnarg bool, prevLeft int) {
 		}
 		d.print("(")
 		d.inlist++
-		d.elems, d.vec = c.Elems, c.Vec
+		d.elems, d.vec, d.first = c.Elems, c.Vec, c.First
 		d.args(c.Args)
 		d.inlist--
 		d.print(")")

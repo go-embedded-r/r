@@ -239,11 +239,13 @@ func init() {
 		return &String{V: out}
 	})
 	regBuiltin("formatC", func(s *Session, c *callInfo) Value {
-		a := s.matchFormals(c, "x", "width", "digits", "format", "flag", "mode", "big.mark")
+		a := s.matchFormals(c, "x", "width", "digits", "format", "flag", "mode", "big.mark", "big.interval",
+			"small.mark", "small.interval", "decimal.mark", "preserve.width", "zero.print", "replace.zero", "drop0trailing")
 		x := a[0]
 		if x == nil {
 			s.errorf(c.call, "argument \"x\" is missing, with no default")
 		}
+		marks := s.readMarks(c, a[6], a[7], a[8], a[9], a[10], a[12], a[14])
 		switch x.(type) {
 		case *Integer, *Double, *String:
 		default:
@@ -267,10 +269,6 @@ func init() {
 		if width < 0 {
 			width = -width
 			flag += "-"
-		}
-		mark := ""
-		if a[6] != nil {
-			mark = s.stringArg(c, a[6], "big.mark")
 		}
 		format := ""
 		if a[3] != nil {
@@ -375,7 +373,9 @@ func init() {
 			if digitsGiven && (body == "NA" || body == "NaN" || body == "Inf" || body == "-Inf") && digits+1 > len(body) {
 				body = strings.Repeat(" ", digits+1-len(body)) + body
 			}
-			body = insertBigMark(body, mark)
+			if format != "s" {
+				body = marks.finish(marks.apply(body))
+			}
 			if w := displayWidth(body); w < width {
 				switch {
 				case strings.Contains(flag, "-"):
@@ -396,14 +396,12 @@ func init() {
 		return withAttr(&String{V: out}, keepShapeAttrs(x))
 	})
 	regBuiltin("prettyNum", func(s *Session, c *callInfo) Value {
-		a := s.matchFormals(c, "x", "big.mark")
+		a := s.matchFormals(c, "x", "big.mark", "big.interval", "small.mark", "small.interval", "decimal.mark",
+			"input.d.mark", "preserve.width", "zero.print", "replace.zero", "drop0trailing", "is.cmplx")
 		if a[0] == nil {
 			s.errorf(c.call, "argument \"x\" is missing, with no default")
 		}
-		mark := ""
-		if a[1] != nil {
-			mark = s.stringArg(c, a[1], "big.mark")
-		}
+		marks := s.readMarks(c, a[1], a[2], a[3], a[4], a[5], a[8], a[10])
 		var x []Str
 		if st, ok := a[0].(*String); ok {
 			x = st.V
@@ -427,7 +425,7 @@ func init() {
 				out[i] = e
 				continue
 			}
-			out[i] = Str{S: insertBigMark(e.S, mark)}
+			out[i] = Str{S: marks.finish(marks.apply(e.S))}
 		}
 		return withAttr(&String{V: out}, keepShapeAttrs(a[0]))
 	})

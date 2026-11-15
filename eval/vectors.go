@@ -465,7 +465,8 @@ func init() {
 				s.errorf(c.call, "argument \"x\" is missing, with no default")
 			}
 			if isObject(x) && inheritsClass(x, "data.frame") {
-				s.errorf(c.call, "data frames are not supported")
+				// a data frame is summed as the matrix it converts to
+				x = s.callNamed(c, "as.matrix", []Value{x}, []string{""})
 			}
 			dims := dimsOf(x)
 			if len(dims) < 2 {

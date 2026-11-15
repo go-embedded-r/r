@@ -177,7 +177,7 @@ write <- function(x, file = "data", ncolumns = if (is.character(x)) 1 else 5,
   s <- sprintf(fmt, unclass(x))
   s[is.na(x)] <- NA_character_
   attributes(s) <- attributes(unclass(x))
-  if (is.null(width) && length(s) > 0L) width <- max(nchar(s), na.rm = TRUE)
+  if (is.null(width) && length(s) > 0L && !all(is.na(s))) width <- max(nchar(s), na.rm = TRUE)
   if (!is.null(width)) {
     pad <- pmax(width - nchar(s), 0L)
     s <- ifelse(is.na(s), NA_character_, paste0(strrep("0", pad), s))

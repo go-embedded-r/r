@@ -858,11 +858,13 @@ func (s *Session) sprintf1(c *callInfo, f string, args []Value, row int, used []
 func (s *Session) format(c *callInfo) Value {
 	s.descend()
 	defer s.ascend()
-	a := s.matchFormals(c, "x", "trim", "digits", "nsmall", "justify", "width", "na.encode", "scientific", "big.mark")
+	a := s.matchFormals(c, "x", "trim", "digits", "nsmall", "justify", "width", "na.encode", "scientific", "big.mark",
+		"big.interval", "small.mark", "small.interval", "decimal.mark", "zero.print", "drop0trailing")
 	x := a[0]
 	if x == nil {
 		s.errorf(c.call, "argument \"x\" is missing, with no default")
 	}
+	marks := s.readMarks(c, a[8], a[9], a[10], a[11], a[12], a[13], a[14])
 	trim := a[1] != nil && s.truthy(c, a[1], "trim")
 	digits := printDigits
 	if a[2] != nil {
@@ -985,14 +987,12 @@ func (s *Session) format(c *callInfo) Value {
 	default:
 		s.errorf(c.call, "unsupported object for format()")
 	}
-	if a[8] != nil {
-		if mark := s.stringArg(c, a[8], "big.mark"); mark != "" {
-			switch x.(type) {
-			case *Double, *Integer, *Logical:
-				if !inheritsClass(x, "factor") {
-					for i := range items {
-						items[i] = insertBigMark(items[i], mark)
-					}
+	if marks.active() {
+		switch x.(type) {
+		case *Double, *Integer, *Logical:
+			if !inheritsClass(x, "factor") {
+				for i := range items {
+					items[i] = marks.apply(items[i])
 				}
 			}
 		}
@@ -1029,6 +1029,16 @@ func (s *Session) format(c *callInfo) Value {
 			it = strings.Repeat(" ", pad) + it
 		}
 		out[i] = Str{S: it}
+	}
+	if marks.zero != nil || marks.drop0 {
+		switch x.(type) {
+		case *Double, *Integer, *Logical:
+			if !inheritsClass(x, "factor") {
+				for i := range out {
+					out[i].S = marks.finish(out[i].S)
+				}
+			}
+		}
 	}
 	return keepShape(&String{V: out}, x)
 }

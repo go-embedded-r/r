@@ -403,10 +403,20 @@ func (s *Session) toSyntax(v Value) syntax.Node {
 				extra = append(extra, a)
 			}
 		}
+		if len(namesOnly) == 0 {
+			// the labels of a one-dimensional array are its names
+			if d := dimsOf(v); len(d) == 1 {
+				if dn, ok := getAttr(v, "dimnames").(*List); ok && len(dn.V) == 1 {
+					if nm, ok := dn.V[0].(*String); ok {
+						namesOnly = []Attr{{Name: "names", Value: nm}}
+					}
+				}
+			}
+		}
 		if s.dp.noAttr {
 			extra = nil
 		}
-		if len(namesOnly) > 0 && (s.dp.noNice || !niceNames(v)) {
+		if len(namesOnly) > 0 && (s.dp.noNice || !niceNames(withAttr(v, namesOnly))) {
 			// names the vector cannot show in place go in structure(), or are
 			// dropped when attributes are not shown
 			if !s.dp.noAttr {
@@ -572,7 +582,7 @@ func (s *Session) quoteLang(v Value, n syntax.Node) syntax.Node {
 // or integer(0) and the like.
 func (s *Session) vecToSyntax(head string, elems []Value, v Value) syntax.Node {
 	nm := namesOf(v)
-	call := &syntax.Call{Fun: &syntax.Sym{Name: head}, Elems: head == "expression", Vec: head == "c"}
+	call := &syntax.Call{Fun: &syntax.Sym{Name: head}, Elems: head == "expression", Vec: head == "c", First: head != "c"}
 	if s.dp.noNice || !niceNames(v) {
 		nm = nil
 	}

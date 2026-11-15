@@ -310,6 +310,23 @@ func init() {
 			return x
 		case *Lang:
 			return callAsList(x)
+		case *Logical, *Integer, *Double, *String, *Complex, *Raw:
+			if isObject(x) && !inheritsClass(x, "factor") {
+				// an object with no as.list method of its own: its elements,
+				// with the names (or, for a one-dimensional array, the labels)
+				n := Length(x)
+				out := make([]Value, n)
+				for i := range out {
+					out[i] = takeElems(x, []int{i})
+				}
+				names := namesOf(x)
+				if d := dimsOf(x); names == nil && len(d) == 1 {
+					if dn, ok := getAttr(x, "dimnames").(*List); ok && len(dn.V) == 1 {
+						names, _ = dn.V[0].(*String)
+					}
+				}
+				return listOf(out, names)
+			}
 		}
 		asVec := &Lang{Fun: Intern("as.vector"), Args: []Arg{{Value: Intern("x")}, {Value: mkString("list")}}}
 		switch a[0].(type) {
