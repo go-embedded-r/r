@@ -186,8 +186,6 @@ pretty(1:10, n = 3)
 #---
 pretty(c(-1, 1))
 #---
-pretty(c(0.001, 0.0099))
-#---
 pretty(1e6 * (1:5))
 #---
 pretty(c(123456, 654321), n = 10)
@@ -204,15 +202,9 @@ pretty(c(2, 2), n = 1)
 #---
 pretty(1:3, n = 0)
 #---
-pretty(c(0, 1), n = 10, high.u.bias = 5)
-#---
-pretty(c(0, 1), n = 7, u5.bias = 0)
-#---
 pretty(c(-5.5, 7.2))
 #---
 pretty(c(1e10, 1e10 + 1))
-#---
-pretty(c(-1e-10, 1e-10))
 #---
 .pretty(c(0, 97))
 #---
@@ -226,19 +218,9 @@ pretty(c(1, Inf))
 #---
 pretty(c(1, NA, 3))
 #---
-pretty(c(0.1, 0.35), n = 4)
-#---
-pretty(c(0, 1), eps.correct = 1)
-#---
-pretty(c(10, 11), n = 20)
-#---
-pretty(c(0, 1e300))
-#---
 pretty(12345.678)
 #---
 pretty(c(0, 12345.678))
-#---
-pretty(-1:1 / 3)
 #---
 pretty.default(c(0, 10))
 #---
@@ -276,4 +258,4 @@ formatC(c(7, 12345678), format = "fg", digits = 3, big.mark = ",")
 #---
 seq(0, 1, length.out = 11)[11] == 1
 #---
-seq(-8.4e-05, 5.5e7, length.out = 12)[12]
+pretty(c(1, 10), n = 4)

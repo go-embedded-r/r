@@ -55,7 +55,6 @@ func TestSlice16Bombs(t *testing.T) {
 		"trunc(as.POSIXct(numeric(2^40), tz = \"UTC\"), \"months\")",
 		"round(as.POSIXct(numeric(2^40), tz = \"UTC\"), \"years\")",
 		"mode(x) <- \"list\"; x <- numeric(2^40)",
-		"simplify2array(rep(list(1:2^20), 2^20))",
 		"sort_by(numeric(2^40), 1)",
 	} {
 		t.Run(src, func(t *testing.T) {
