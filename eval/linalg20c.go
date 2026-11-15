@@ -126,6 +126,8 @@ func init() {
 		var sym bool
 		if a[1] != nil {
 			sym = s.optBool(c, a[1], false, "symmetric")
+		} else if x.cplx {
+			sym = hermitian(n, x.z)
 		} else {
 			un := a[0]
 			if len(attrsOf(a[0])) > 0 {
@@ -257,4 +259,20 @@ func init() {
 		s.visible = false
 		return a[0]
 	})
+}
+
+// hermitian is isSymmetric for a complex matrix: the mean modulus of x - conj(t(x))
+// against the mean modulus of x, within 100 machine epsilons, as for a real one.
+func hermitian(n int, z []complex128) bool {
+	var diff, size float64
+	for i := 0; i < n; i++ {
+		for j := 0; j < n; j++ {
+			diff += cmplx.Abs(z[i+j*n] - cmplx.Conj(z[j+i*n]))
+			size += cmplx.Abs(z[i+j*n])
+		}
+	}
+	if size == 0 {
+		return true
+	}
+	return diff/size < 100*math.Pow(2, -52)
 }

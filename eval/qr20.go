@@ -54,7 +54,7 @@ func qrLinpack(n, p int, x []float64, tol float64) *qrObj {
 	piv := make([]int, p)
 	for j := 0; j < p; j++ {
 		piv[j] = j + 1
-		qraux[j] = nrm2(a[j*n : (j+1)*n])
+		qraux[j] = nrm2plain(a[j*n : (j+1)*n])
 		w1[j], w2[j] = qraux[j], qraux[j]
 		if w2[j] == 0 {
 			w2[j] = 1
@@ -82,7 +82,7 @@ func qrLinpack(n, p int, x []float64, tol float64) *qrObj {
 			break
 		}
 		ll := (l - 1) + (l-1)*n
-		nrmxl := nrm2(a[ll : l*n])
+		nrmxl := nrm2plain(a[ll : l*n])
 		if nrmxl != 0 {
 			if a[ll] != 0 {
 				nrmxl = math.Copysign(nrmxl, a[ll])
@@ -102,9 +102,8 @@ func qrLinpack(n, p int, x []float64, tol float64) *qrObj {
 					tt := 1 - (math.Abs(a[(l-1)+(j-1)*n])/qraux[j-1])*(math.Abs(a[(l-1)+(j-1)*n])/qraux[j-1])
 					tt = math.Max(tt, 0)
 					t = tt
-					tt = 1 + 0.05*tt*(qraux[j-1]/w1[j-1])*(qraux[j-1]/w1[j-1])
-					if tt == 1 {
-						qraux[j-1] = nrm2(a[l+(j-1)*n : j*n])
+					if math.Abs(t) < 1e-6 {
+						qraux[j-1] = nrm2plain(a[l+(j-1)*n : j*n])
 						w1[j-1] = qraux[j-1]
 					} else {
 						qraux[j-1] *= math.Sqrt(t)
@@ -655,4 +654,19 @@ func init() {
 	}
 	solveQR("qr.solve", true)
 	solveQR("solve.qr", false)
+}
+
+// nrm2plain is the Euclidean norm as the reference BLAS of LAPACK 3.10 and
+// later computes it for values in the middle of the range: the square root of
+// the plain sum of squares.
+func nrm2plain(x []float64) float64 {
+	s := 0.0
+	for _, v := range x {
+		av := math.Abs(v)
+		if av != 0 && (av < 1e-140 || av > 1e140) || math.IsNaN(av) || math.IsInf(av, 0) {
+			return nrm2(x)
+		}
+		s += v * v
+	}
+	return math.Sqrt(s)
 }

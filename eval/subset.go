@@ -322,7 +322,10 @@ func (s *Session) subset1(c *callInfo) Value {
 		attr = namesAttr(names)
 	}
 	// a factor keeps its levels and class; other objects lose their attributes
-	if cl := classAttr(x); cl != nil && len(cl) == 1 && cl[0] == "factor" {
+	if cl := classAttr(x); (len(cl) == 1 && cl[0] == "factor") || (len(cl) == 2 && cl[0] == "ordered" && cl[1] == "factor") {
+		if ct := getAttr(x, "contrasts"); ct != nil {
+			attr = append(attr, Attr{Name: "contrasts", Value: ct})
+		}
 		attr = append(attr, Attr{Name: "levels", Value: getAttr(x, "levels")}, Attr{Name: "class", Value: getAttr(x, "class")})
 	}
 	if attr != nil {

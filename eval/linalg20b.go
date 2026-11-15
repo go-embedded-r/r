@@ -26,7 +26,7 @@ func (s *Session) optBool(c *callInfo, v Value, def bool, what string) bool {
 
 func detList(mod float64, sign float64, log bool) Value {
 	m := &Double{V: []float64{mod}, Attr: []Attr{{Name: "logarithm", Value: mkLogical(log)}}}
-	l := mkNamedList([]string{"modulus", "sign"}, m, mkDouble(sign))
+	l := mkNamedList([]string{"modulus", "sign"}, m, mkInt(int32(sign)))
 	return setAttr(l, "class", mkString("det"))
 }
 
