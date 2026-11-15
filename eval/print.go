@@ -206,6 +206,38 @@ func formatElements(v Value, quote bool) (items []string, left bool) {
 	return
 }
 
+// formatElementsPrint is formatElements for print: without quotes a string
+// still shows its escapes (\n, \t, \\).
+func formatElementsPrint(v Value, quote bool) (items []string, left bool) {
+	items, left = formatElements(v, quote)
+	if st, ok := v.(*String); ok && !quote {
+		for i, e := range st.V {
+			if !e.NA {
+				items[i] = encodeUnquoted(e.S)
+			}
+		}
+	}
+	return
+}
+
+// encodeUnquoted is print(quote = FALSE) of one string: R's escapes, but not
+// around it and not for the double quote.
+func encodeUnquoted(s string) string {
+	plain := true
+	for i := 0; i < len(s); i++ {
+		if c := s[i]; c < 0x20 || c == '\\' || c == 0x7f {
+			plain = false
+			break
+		}
+	}
+	if plain {
+		return s
+	}
+	e := syntax.EncodeString(s, '"')
+	e = e[1 : len(e)-1]
+	return strings.ReplaceAll(e, `\"`, `"`)
+}
+
 func maxWidth(items []string) int {
 	w := 0
 	for _, s := range items {
@@ -223,7 +255,7 @@ func (s *Session) printVector(v Value, quote bool) {
 		s.out.WriteString("\n")
 		return
 	}
-	items, left := formatElements(v, quote)
+	items, left := formatElementsPrint(v, quote)
 	if nm := namesOf(v); nm != nil {
 		s.printNamedVector(v, items, nm, quote)
 		return

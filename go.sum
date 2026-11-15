@@ -1,6 +1,18 @@
 github.com/cpuguy83/go-md2man/v2 v2.0.6/go.mod h1:oOW0eioCTA6cOiMLiUPZOpcVxMig6NIQQ7OS05n1F4g=
 github.com/go-embedded-r/tre v0.1.3 h1:MuHk9dLUO51F6kr7j8mnu01bUMVBmOpVlrmO16qObjo=
 github.com/go-embedded-r/tre v0.1.3/go.mod h1:UN9RKw3VLEJpNmxPO+4JRTediME4pYay0iWFUMY2SUc=
+github.com/go-ndarray/ndarray v0.34.0 h1:UYGXAB4DUB0tk3c2+B8I1+hOgzzjvVNUrph7PfkV184=
+github.com/go-ndarray/ndarray v0.34.0/go.mod h1:OVccdl+ajDh+zTtEvkE/Xai2LTzdYigdPG/5XtzWFqk=
+github.com/go-numerics/optimize v0.6.0 h1:7QjTy+M+PclufHFwIo5PrxReU397BvX0ys/ZIJ+kkSo=
+github.com/go-numerics/optimize v0.6.0/go.mod h1:b5Fg+NuuCKViOXQLzfgBhxd0thmAjt6lREE8EDFVyQ8=
+github.com/go-numerics/special v0.5.3 h1:sTZ4hbZE7XsDmMM0AclR0dQFFe9+mIjstxECvaMEOsU=
+github.com/go-numerics/special v0.5.3/go.mod h1:A4gX/e2znfRvkjSDMmMaFomZVeD9rDMeMlAILQLtoIA=
+github.com/go-simd/floats v0.7.0 h1:6puR4IJ5EXl7m0Fg1PYERcN40h+xLL8AuAeXItdlJ1k=
+github.com/go-simd/floats v0.7.0/go.mod h1:Aq5a6oY5pUqm9Hpi+iV2nrNmaaUb0rwHvUHIerXWSvA=
+github.com/go-sparse/sparse v0.3.0 h1:y++tCTIdQsGwUavxCHKfDt4AX8T2zUnwyDQ3Vix3uP8=
+github.com/go-sparse/sparse v0.3.0/go.mod h1:Ds5+sYeB78IUtIe83Xi3km+wMbD7sW2u1q64eLS8bhI=
+github.com/go-statistics/stats v0.1.1 h1:41gSX4+rAc7BeOXUXZ+TsNU5rIUMkNmkeeETNXn9lUM=
+github.com/go-statistics/stats v0.1.1/go.mod h1:XZMulSJ+hyM/9vscU1Nnkiz9DH+T0qZ7aTJW60QxWPY=
 github.com/inconshreveable/mousetrap v1.1.0 h1:wN+x4NVGpMsO7ErUn/mUI3vEoE6Jt13X2s0bqwp9tc8=
 github.com/inconshreveable/mousetrap v1.1.0/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLfsEA9PFc4w1p2J65bw=
 github.com/russross/blackfriday/v2 v2.1.0/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
@@ -9,4 +21,6 @@ github.com/spf13/cobra v1.10.2/go.mod h1:7C1pvHqHw5A4vrJfjNwvOdzYu0Gml16OCs2GRiT
 github.com/spf13/pflag v1.0.9 h1:9exaQaMOCwffKiiiYk6/BndUBv+iRViNW+4lEMi0PvY=
 github.com/spf13/pflag v1.0.9/go.mod h1:McXfInJRrz4CZXVZOBLb0bTZqETkiAhM9Iw0y3An2Bg=
 go.yaml.in/yaml/v3 v3.0.4/go.mod h1:DhzuOOF2ATzADvBadXxruRBLzYTpT36CKvDb3+aBEFg=
+golang.org/x/sys v0.49.0 h1:XbzkgYJHdqh/8m2Uu0W/dQv8nktxx4BFHp1M0gROTXA=
+golang.org/x/sys v0.49.0/go.mod h1:hNLxWAXmnKAxqDtdwIYC4bM9oQPEecfsnNMuSxOs3og=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
