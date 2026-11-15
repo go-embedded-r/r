@@ -220,47 +220,47 @@ dput(file.info(c("nosuch", "other"), extra_cols = FALSE))
 #---
 dput(file.info(character()))
 #---
-writeLines(c("hello", "world"), "ff16a.txt"); fi <- file.info("ff16a.txt"); names(fi)
+f <- tempfile(); writeLines(c("hello", "world"), f); fi <- file.info(f); names(fi)
 #---
-writeLines(c("hello", "world"), "ff16b.txt"); fi <- file.info("ff16b.txt"); class(fi)
+f <- tempfile(); writeLines(c("hello", "world"), f); fi <- file.info(f); class(fi)
 #---
-writeLines(c("hello", "world"), "ff16c.txt"); fi <- file.info("ff16c.txt"); dim(fi)
+f <- tempfile(); writeLines(c("hello", "world"), f); fi <- file.info(f); dim(fi)
 #---
-writeLines(c("hello", "world"), "ff16d.txt"); fi <- file.info("ff16d.txt"); fi$size
+f <- tempfile(); writeLines(c("hello", "world"), f); fi <- file.info(f); fi$size
 #---
-writeLines(c("hello", "world"), "ff16e.txt"); fi <- file.info("ff16e.txt"); fi$isdir
+f <- tempfile(); writeLines(c("hello", "world"), f); fi <- file.info(f); fi$isdir
 #---
-writeLines(c("hello", "world"), "ff16f.txt"); fi <- file.info("ff16f.txt"); fi$mode
+f <- tempfile(); writeLines(c("hello", "world"), f); fi <- file.info(f); fi$mode
 #---
-writeLines(c("hello", "world"), "ff16g.txt"); fi <- file.info("ff16g.txt"); class(fi$mode)
+f <- tempfile(); writeLines(c("hello", "world"), f); fi <- file.info(f); class(fi$mode)
 #---
-writeLines(c("hello", "world"), "ff16h.txt"); fi <- file.info("ff16h.txt"); class(fi$mtime)
+f <- tempfile(); writeLines(c("hello", "world"), f); fi <- file.info(f); class(fi$mtime)
 #---
-writeLines(c("hello", "world"), "ff16i.txt"); fi <- file.info("ff16i.txt"); rownames(fi)
+f <- tempfile(); writeLines(c("hello", "world"), f); fi <- file.info(f); identical(rownames(fi), f)
 #---
 file.info("nosuch.txt")$size
 #---
-writeLines(c("hello", "world"), "ff16j.txt"); file.size("ff16j.txt")
+f <- tempfile(); writeLines(c("hello", "world"), f); file.size(f)
 #---
-writeLines(c("hello", "world"), "ff16k.txt"); file.size(c("ff16k.txt", "nosuch"))
+f <- tempfile(); writeLines(c("hello", "world"), f); file.size(c(f, "nosuch"))
 #---
-writeLines(c("hello", "world"), "ff16l.txt"); class(file.mtime("ff16l.txt"))
+f <- tempfile(); writeLines(c("hello", "world"), f); class(file.mtime(f))
 #---
 file.mtime("nosuch")
 #---
-writeLines(c("hello", "world"), "ff16m.txt"); file.mode("ff16m.txt")
+f <- tempfile(); writeLines(c("hello", "world"), f); file.mode(f)
 #---
-writeLines(c("hello", "world"), "ff16n.txt"); class(file.mode("ff16n.txt"))
+f <- tempfile(); writeLines(c("hello", "world"), f); class(file.mode(f))
 #---
-writeLines(c("hello", "world"), "ff16o.txt"); file.info(c("ff16o.txt", "nosuch"))$isdir
+f <- tempfile(); writeLines(c("hello", "world"), f); file.info(c(f, "nosuch"))$isdir
 #---
 file.info(".")$isdir
 #---
-writeLines(c("hello", "world"), "ff16p.txt"); names(file.info("ff16p.txt", extra_cols = FALSE))
+f <- tempfile(); writeLines(c("hello", "world"), f); names(file.info(f, extra_cols = FALSE))
 #---
-writeLines(c("hello", "world"), "ff16q.txt"); sapply(file.info("ff16q.txt"), class)
+f <- tempfile(); writeLines(c("hello", "world"), f); sapply(file.info(f), class)
 #---
-writeLines(c("hello", "world"), "ff16r.txt"); file.info("ff16r.txt")$size == file.size("ff16r.txt")
+f <- tempfile(); writeLines(c("hello", "world"), f); file.info(f)$size == file.size(f)
 #---
 x <- c(1234567.891, 0.5, 0, 12); format(x, big.mark = ",")
 #---

@@ -178,13 +178,13 @@ y <- 1:3; dump(c("y"), file = "", control = "keepInteger")
 #---
 x <- c(1.5, 2, 3); y <- 1:3; dump(c("x", "y"), file = "", append = TRUE)
 #---
-x <- c(1.5, 2, 3); dump("x", file = "d16a.R"); readLines("d16a.R")
+f <- tempfile(); x <- c(1.5, 2, 3); dump("x", file = f); readLines(f)
 #---
-x <- c(1.5, 2, 3); y <- 1:3; dump(c("x", "y"), "d16b.R", append = FALSE); readLines("d16b.R")
+f <- tempfile(); x <- c(1.5, 2, 3); y <- 1:3; dump(c("x", "y"), f, append = FALSE); readLines(f)
 #---
-x <- c(1.5, 2, 3); y <- 1:3; dump(c("x", "y"), "d16c.R"); dump("x", "d16c.R", append = TRUE); readLines("d16c.R")
+f <- tempfile(); x <- c(1.5, 2, 3); y <- 1:3; dump(c("x", "y"), f); dump("x", f, append = TRUE); readLines(f)
 #---
-x <- c(1.5, 2, 3); dump("x", "d16d.R"); dget("d16d.R")
+f <- tempfile(); x <- c(1.5, 2, 3); dump("x", f); dget(f)
 #---
 x <- c(1.5, 2, 3); dput(x)
 #---
@@ -208,9 +208,9 @@ y <- 1:3; dput(y, control = "all")
 #---
 x <- c(1.5, 2, 3); r2 <- dput(x); identical(r2, x)
 #---
-x <- c(1.5, 2, 3); dput(x, file = "p16a.R"); readLines("p16a.R")
+f <- tempfile(); x <- c(1.5, 2, 3); dput(x, file = f); readLines(f)
 #---
-x <- c(1.5, 2, 3); dput(x, file = "p16b.R"); dget("p16b.R")
+f <- tempfile(); x <- c(1.5, 2, 3); dput(x, file = f); dget(f)
 #---
 dput(as.Date("2024-01-02"))
 #---
