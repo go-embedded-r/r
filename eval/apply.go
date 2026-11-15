@@ -968,7 +968,8 @@ func init() {
 			}
 			out := make([]float64, lo)
 			for i := range out {
-				out[i] = from + float64(i)*by
+				// fused, as the reference's arm64 build computes it, on every platform
+				out[i] = math.FMA(float64(i), by, from)
 			}
 			if a[0] != nil && a[1] != nil && a[2] == nil && lo > 1 {
 				out[lo-1] = to // the end of the range is exact, not from + (n - 1) * by
