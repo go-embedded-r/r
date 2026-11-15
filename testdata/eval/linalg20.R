@@ -163,3 +163,21 @@ crossprod(matrix(c(1,2,3,4,5,6,7,8,10,1,0,1), 4, dimnames = list(NULL, c("A","B"
 tcrossprod(1:3)
 #---
 outer(1:2, 1:3)
+#---
+.kappa_tri(matrix(c(2,0,1,3), 2))
+#---
+chol.default(matrix(c(4,2,2,3), 2)) # ulp
+#---
+determinant.matrix(matrix(c(2,1,1,3), 2)) # ulp
+#---
+kappa.default(diag(3))
+#---
+kappa.qr(qr(diag(3)))
+#---
+kappa.lm(list(qr = qr(diag(2))))
+#---
+solve.default(matrix(c(2,1,1,3), 2)) # ulp
+#---
+signif(qr.default(matrix(c(1,2,3,5), 2))$qraux, 6)
+#---
+print.eigen(structure(list(values = c(2, 1), vectors = NULL), class = "eigen"))

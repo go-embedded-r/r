@@ -243,10 +243,10 @@ func normInf(nr, nc int, v []float64) float64 {
 }
 
 // rcondGeneral is the reciprocal condition number of the square n x n matrix
-// in the 1-norm (inf = false) or the infinity norm, from the inverse that
-// go-ndarray computes. LAPACK's dgecon estimates the norm of the inverse from
-// the LU factors; this is the exact value, which the estimate bounds from
-// below (README, divergences).
+// in the 1-norm (inf = false) or the infinity norm, as LAPACK's dgecon reports
+// it: an estimate of the norm of the inverse by dlacn2, on the operator of the
+// pivoted factors, here applied through the inverse that go-ndarray computes.
+// The estimate bounds the exact norm from below (README, divergences).
 func rcondGeneral(n int, v []float64, inf bool) float64 {
 	if n == 0 {
 		return math.Inf(1)

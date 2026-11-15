@@ -2,23 +2,23 @@
 # pages of contrast.matrix, contrasts and model.matrix and from the oracle's
 # answers, on the terms objects of slice 17.
 
-.contr_levels <- function(n) {
+..contr_levels <- function(n) {
   if (is.numeric(n) && length(n) == 1L) as.character(seq_len(n)) else as.character(n)
 }
 
-.contr_few <- function(n) is.numeric(n) && length(n) == 1L && n <= 1L
+..contr_few <- function(n) is.numeric(n) && length(n) == 1L && n <= 1L
 
-.contr_identity <- function(lev) {
+..contr_identity <- function(lev) {
   m <- diag(length(lev))
   dimnames(m) <- list(lev, lev)
   m
 }
 
 contr.treatment <- function(n, base = 1, contrasts = TRUE, sparse = FALSE) {
-  if (.contr_few(n)) stop("not enough degrees of freedom to define contrasts")
-  lev <- .contr_levels(n)
+  if (..contr_few(n)) stop("not enough degrees of freedom to define contrasts")
+  lev <- ..contr_levels(n)
   k <- length(lev)
-  m <- .contr_identity(lev)
+  m <- ..contr_identity(lev)
   if (!contrasts) return(m)
   if (k < 2L) stop(gettextf("contrasts not defined for %d degrees of freedom", k - 1L), domain = NA)
   if (base < 1L || base > k) stop("baseline group number out of range")
@@ -30,10 +30,10 @@ contr.SAS <- function(n, contrasts = TRUE, sparse = FALSE) {
 }
 
 contr.sum <- function(n, contrasts = TRUE, sparse = FALSE) {
-  if (.contr_few(n)) stop("not enough degrees of freedom to define contrasts")
-  lev <- .contr_levels(n)
+  if (..contr_few(n)) stop("not enough degrees of freedom to define contrasts")
+  lev <- ..contr_levels(n)
   k <- length(lev)
-  if (!contrasts) return(.contr_identity(lev))
+  if (!contrasts) return(..contr_identity(lev))
   if (k < 2L) stop(gettextf("contrasts not defined for %d degrees of freedom", k - 1L), domain = NA)
   m <- rbind(diag(k - 1L), -1)
   dimnames(m) <- list(lev, NULL)
@@ -41,10 +41,10 @@ contr.sum <- function(n, contrasts = TRUE, sparse = FALSE) {
 }
 
 contr.helmert <- function(n, contrasts = TRUE, sparse = FALSE) {
-  if (.contr_few(n)) stop("not enough degrees of freedom to define contrasts")
-  lev <- .contr_levels(n)
+  if (..contr_few(n)) stop("not enough degrees of freedom to define contrasts")
+  lev <- ..contr_levels(n)
   k <- length(lev)
-  if (!contrasts) return(.contr_identity(lev))
+  if (!contrasts) return(..contr_identity(lev))
   if (k < 2L) stop(gettextf("contrasts not defined for %d degrees of freedom", k - 1L), domain = NA)
   m <- matrix(-1, k, k - 1L)
   below <- row(m) - col(m)
@@ -78,7 +78,7 @@ contrasts <- function(x, contrasts = TRUE, sparse = FALSE) {
   if (is.logical(x)) x <- factor(x, levels = c(FALSE, TRUE))
   if (!is.factor(x)) stop("contrasts apply only to factors")
   lev <- levels(x)
-  if (!contrasts) return(.contr_identity(lev))
+  if (!contrasts) return(..contr_identity(lev))
   ctr <- attr(x, "contrasts")
   if (is.null(ctr)) {
     ctr <- getOption("contrasts")[[if (is.ordered(x)) 2L else 1L]]

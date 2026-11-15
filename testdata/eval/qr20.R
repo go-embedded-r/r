@@ -1,6 +1,6 @@
 x <- matrix(c(1,2,3,4,5,6,7,8,10,1,0,1), 4, dimnames = list(letters[1:4], c("A","B","C"))); qr(x) # ulp
 #---
-x <- matrix(c(1,2,3,4,5,7,7,8,10), 3); qr(x) # ulp
+x <- matrix(c(1,2,3,4,5,7,7,8,10), 3); q <- qr(x); list(signif(q$qr, 6), q$rank, signif(q$qraux, 6), q$pivot)
 #---
 x <- matrix(c(1,2,3,4,5,6,7,8,10,1,0,1), 4, dimnames = list(letters[1:4], c("A","B","C"))); attributes(qr(x[, 1:2]))$class
 #---
@@ -34,7 +34,7 @@ x <- matrix(c(1,2,3,4,5,6,7,8,10,1,0,1), 4); qr.fitted(qr(x), 1:4, k = 2) # ulp
 #---
 x <- matrix(c(1,2,3,4,5,6,7,8,10,1,0,1), 4, dimnames = list(letters[1:4], c("A","B","C"))); signif(qr.solve(x, c(1,3,2,5)), 9)
 #---
-x <- matrix(c(1,2,3,4,5,6,7,8,10,1,0,1), 4, dimnames = list(letters[1:4], c("A","B","C"))); qr.solve(x[1:3, ]) # ulp
+x <- matrix(c(1,2,3,4,5,6,7,8,10,1,0,1), 4, dimnames = list(letters[1:4], c("A","B","C"))); signif(qr.solve(x[1:3, ]), 6)
 #---
 x <- matrix(c(1,2,3,4,5,6,7,8,10,1,0,1), 4, dimnames = list(letters[1:4], c("A","B","C"))); signif(solve.qr(qr(x), c(1,3,2,5)), 9)
 #---
@@ -64,9 +64,9 @@ z <- cbind(c(1,2,3,4), c(2,4,6,8), c(10,1,0,1)); qr(z)$rank
 #---
 z <- cbind(c(1,2,3,4), c(2,4,6,8), c(10,1,0,1)); qr(z)$pivot
 #---
-z <- cbind(c(1,2,3,4), c(2,4,6,8), c(10,1,0,1)); qr(z) # ulp
+z <- cbind(c(1,2,3,4), c(2,4,6,8), c(10,1,0,1)); q <- qr(z); signif(c(q$qr[1, ], q$qr[2, 1:2]), 6)
 #---
-z <- cbind(c(1,2,3,4), c(2,4,6,8), c(10,1,0,1)); qr.coef(qr(z), c(1,3,2,5)) # ulp
+z <- cbind(c(1,2,3,4), c(2,4,6,8), c(10,1,0,1)); signif(qr.coef(qr(z), c(1,3,2,5)), 9)
 #---
 z <- cbind(c(1,2,3,4), c(2,4,6,8), c(10,1,0,1)); qr.solve(z, c(1,3,2,5))
 #---

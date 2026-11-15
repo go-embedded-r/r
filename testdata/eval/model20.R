@@ -135,3 +135,5 @@ d <- data.frame(y = c(1,3,2), f = factor(c("a","b","c"))); b <- model.matrix(y ~
 d <- data.frame(f = factor(c("a","b","c","a","b","c"), levels = c("c","b","a"))); model.matrix(~ f, d)
 #---
 d <- data.frame(y = c(1,3,2,5,4,6), f = factor(c("a","b","c","a","b","c")), g = factor(c("u","v","u","v","u","v"))); X <- model.matrix(y ~ f + g, d); b <- qr.coef(qr(X), d$y); round(unname(b), 8) + 0
+#---
+model.matrix.default(~ f, data.frame(f = factor(c("a","b","a"))))
