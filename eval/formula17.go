@@ -95,3 +95,24 @@ func init() {
 		return Null
 	})
 }
+
+func init() {
+	// unname(obj, force = FALSE): the names go, and the dimnames too except of
+	// a data frame (unless force). Written from the help page; it was an R
+	// closure until a one-line change made it match R's text over the limit.
+	regBuiltin("unname", func(s *Session, c *callInfo) Value {
+		a := s.matchFormals(c, "obj", "force")
+		if a[0] == nil {
+			s.errorf(c.call, "argument \"obj\" is missing, with no default")
+		}
+		obj := a[0]
+		force := a[1] != nil && s.truthy(c, a[1], "force")
+		if getAttr(obj, "names") != nil {
+			obj = s.callNamed(c, "names<-", []Value{obj, Null}, []string{"", "value"})
+		}
+		if getAttr(obj, "dimnames") != nil && (force || !inheritsClass(obj, "data.frame")) {
+			obj = s.callNamed(c, "dimnames<-", []Value{obj, Null}, []string{"", "value"})
+		}
+		return obj
+	})
+}

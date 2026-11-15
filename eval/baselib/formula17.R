@@ -70,9 +70,8 @@ registerS3method("formula", "character", function(x, env = parent.frame(), ...) 
 
 registerS3method("formula", "data.frame", function(x, ...) {
   nms <- names(x)
-  if (length(nms) < 2L) stop("cannot make a formula from fewer than two columns")
   quoted <- ifelse(make.names(nms) == nms, nms, paste0("`", nms, "`"))
-  out <- eval(str2lang(paste(quoted[1L], "~", paste(quoted[-1L], collapse = " + "))))
+  out <- eval(str2lang(if (length(nms) < 2L) paste("~", quoted) else paste(quoted[1L], "~", paste(quoted[-1L], collapse = " + "))))
   environment(out) <- parent.frame()
   out
 })
@@ -202,7 +201,10 @@ registerS3method("na.omit", "data.frame", function(object, ...) {
   drop <- which(gone)
   if (!length(drop)) return(object)
   names(drop) <- row.names(object)[drop]
-  kept <- object[-drop, , drop = FALSE]
+  kept <- lapply(object, function(col) if (is.matrix(col)) col[-drop, , drop = FALSE] else col[-drop])
+  attributes(kept) <- list(names = names(object))
+  attr(kept, "row.names") <- attr(object, "row.names")[-drop]
+  class(kept) <- "data.frame"
   attr(drop, "class") <- "omit"
   attr(kept, "na.action") <- drop
   kept
