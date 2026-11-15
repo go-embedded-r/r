@@ -9,13 +9,15 @@ import "sort"
 
 func defaultOptions() map[string]Value {
 	return map[string]Value{
-		"digits":                 mkInt(7),
-		"OutDec":                 mkString("."),
-		"width":                  mkInt(80),
-		"max.print":              mkInt(99999),
-		"scipen":                 mkInt(0),
-		"warn":                   mkInt(0),
-		"na.action":              mkString("na.omit"),
+		"digits":    mkInt(7),
+		"OutDec":    mkString("."),
+		"width":     mkInt(80),
+		"max.print": mkInt(99999),
+		"scipen":    mkInt(0),
+		"warn":      mkInt(0),
+		"na.action": mkString("na.omit"),
+		"contrasts": &String{V: strsOf([]string{"contr.treatment", "contr.poly"}),
+			Attr: namesAttr(strsOf([]string{"unordered", "ordered"}))},
 		"expressions":            mkInt(5000),
 		"warning.length":         mkInt(1000),
 		"nwarnings":              mkInt(50),

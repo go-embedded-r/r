@@ -641,14 +641,24 @@ func init() {
 		default:
 			s.errorf(c.call, "invalid 'nrow' value (too large or NA)")
 		}
-		if zx, isC := x.(*Complex); isC && len(dimsOf(x)) != 2 && a[1] == nil && a[2] == nil && Length(x) >= 1 {
+		if zx, isC := x.(*Complex); isC && len(dimsOf(x)) != 2 && Length(x) >= 1 {
 			n := len(zx.V)
-			s.checkLen(c.call, n*n)
-			out := make([]complex128, n*n)
-			for i, z := range zx.V {
-				out[i+i*n] = z
+			if a[1] != nil {
+				n = s.countArg(c, a[1], "nrow")
 			}
-			return withAttr(&Complex{V: out}, []Attr{{Name: "dim", Value: &Integer{V: []int32{int32(n), int32(n)}}}})
+			nc := n
+			if a[2] != nil {
+				nc = s.countArg(c, a[2], "ncol")
+			}
+			if n > 0 && nc > s.opts.MaxVector/n {
+				s.errorf(c.call, "vector size too large")
+			}
+			s.checkLen(c.call, n*nc)
+			out := make([]complex128, n*nc)
+			for i := 0; i < min(n, nc); i++ {
+				out[i+i*n] = zx.V[i%len(zx.V)]
+			}
+			return withAttr(&Complex{V: out}, []Attr{{Name: "dim", Value: &Integer{V: []int32{int32(n), int32(nc)}}}})
 		}
 		if d := dimsOf(x); len(d) == 2 {
 			m := min(d[0], d[1])
