@@ -58,6 +58,10 @@ func loadBaselib() {
 // installBaselib evaluates the library into the session's base environment.
 func (s *Session) installBaselib() {
 	loadBaselib()
+	// the library's own definitions do not count against the user's step limit
+	saved := s.opts.MaxSteps
+	s.opts.MaxSteps = 0
+	defer func() { s.opts.MaxSteps = saved }()
 	for _, e := range baselibExprs {
 		s.eval(e, s.Base)
 	}

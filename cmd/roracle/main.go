@@ -87,7 +87,16 @@ func RootCmd() *cobra.Command {
 	cmd.AddCommand(&cobra.Command{Use: "parse", Short: "write testdata/golden/parse.jsonl (tree, tokens, errors)", Args: cobra.NoArgs, RunE: run("parse")})
 	cmd.AddCommand(&cobra.Command{Use: "prims", Short: "write syntax/prims_gen.go (the primitives of R's base environment)", Args: cobra.NoArgs, RunE: run("prims")})
 	cmd.AddCommand(&cobra.Command{Use: "print", Short: "write syntax/print_gen.go (the characters R's string encoder escapes)", Args: cobra.NoArgs, RunE: run("print")})
-	cmd.AddCommand(&cobra.Command{Use: "evalgolden", Short: "write testdata/golden/eval/*.jsonl (one per testdata/eval/*.R)", Args: cobra.NoArgs, RunE: run("evalgolden")})
+	evalCmd := &cobra.Command{Use: "evalgolden", Short: "write testdata/golden/eval/*.jsonl (one per testdata/eval/*.R)", Args: cobra.NoArgs, RunE: run("evalgolden")}
+	evalCmd.Flags().StringSlice("only", nil, "regenerate only these snippet files (names without .R)")
+	evalCmd.PreRun = func(c *cobra.Command, _ []string) {
+		names, _ := c.Flags().GetStringSlice("only")
+		evalOnly = map[string]bool{}
+		for _, n := range names {
+			evalOnly[n] = true
+		}
+	}
+	cmd.AddCommand(evalCmd)
 	cmd.AddCommand(&cobra.Command{Use: "regen", Short: "regenerate every golden file", Args: cobra.NoArgs, RunE: run("deparse", "rds", "parse", "evalgolden")})
 	cmd.AddCommand(&cobra.Command{
 		Use:   "version",
@@ -240,12 +249,18 @@ func writeNonprint(o oracleSession, root string, out io.Writer) error {
 	return write(root, "syntax/print_gen.go", []byte(b.String()), out)
 }
 
+// evalOnly, when not empty, limits evalgolden to the named snippet files.
+var evalOnly = map[string]bool{}
+
 func writeEval(o oracleSession, root string, out io.Writer) error {
 	files, err := gen.EvalInputFiles(root)
 	if err != nil {
 		return err
 	}
 	for _, f := range files {
+		if len(evalOnly) > 0 && !evalOnly[f.Name] {
+			continue // --only: the other shards are left as committed
+		}
 		rel := gen.EvalShardDir + "/" + f.Name + ".jsonl"
 		if f.Platform != "" && f.Platform != runtime.GOOS {
 			// records recorded for another platform are kept as committed

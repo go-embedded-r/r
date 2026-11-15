@@ -122,11 +122,22 @@ func init() {
 			return c.env
 		case *Closure:
 			return f.Env
+		default:
+			if e := getAttr(f, ".Environment"); e != nil {
+				return e
+			}
 		}
 		return Null
 	})
 	regBuiltin("environment<-", func(s *Session, c *callInfo) Value {
 		a := s.matchFormals(c, "fun", "value")
+		if _, isLang := a[0].(*Lang); isLang || isVector(a[0]) {
+			e, ok := a[1].(*Env)
+			if !ok {
+				s.errorf(c.call, "replacement object is not an environment")
+			}
+			return setAttr(a[0], ".Environment", e)
+		}
 		f, ok := a[0].(*Closure)
 		if !ok {
 			s.errorf(c.call, "replacement object is not an environment")

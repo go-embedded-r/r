@@ -125,7 +125,13 @@ sort_by <- function(x, y, ...) UseMethod("sort_by")
 sort_by.default <- function(x, y, ...) x[order(y, ...)]
 
 sort_by.data.frame <- function(x, y, ...) {
-  if (inherits(y, "formula")) stop("a formula is not supported here")
+  if (inherits(y, "formula")) {
+    if (length(y) == 3L) {
+      warning("Unexpected LHS in 'formula' has been ignored.")
+      y <- y[-2L]
+    }
+    y <- model.frame(y, x, na.action = NULL)
+  }
   keys <- if (is.list(y)) unname(as.list(y)) else list(y)
   x[do.call(order, c(keys, list(...))), , drop = FALSE]
 }

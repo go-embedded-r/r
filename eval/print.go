@@ -409,6 +409,7 @@ func (s *Session) printValueTagged(v Value, prefix string, env *Env) {
 		s.out.WriteString(strings.Join(syntax.Deparse(&syntax.Sym{Name: x.Name}, nil), "\n") + "\n")
 	case *Lang:
 		s.out.WriteString(strings.Join(syntax.Deparse(s.toSyntax(x), nil), "\n") + "\n")
+		s.printAttributes(v, prefix, env)
 	case *Closure:
 		fn, ok := s.toSyntax(&Lang{Fun: Intern("function"), Args: []Arg{{Value: &Formals{F: x.Formals}}, {Value: x.Body}}}).(*syntax.Function)
 		if ok {
@@ -560,6 +561,18 @@ func (s *Session) catStrings(v Value) []string {
 }
 
 func init() {
+	regBuiltin("print.default", func(s *Session, c *callInfo) Value {
+		x := s.nargs1First(c)
+		for i, n := range c.names {
+			if n == "quote" && s.truthy(c, c.args[i], "quote") == false {
+				s.noQuote = true
+				defer func() { s.noQuote = false }()
+			}
+		}
+		s.printValueTagged(x, "", c.env)
+		s.visible = false
+		return x
+	})
 	regBuiltin("print", func(s *Session, c *callInfo) Value {
 		x := s.nargs1First(c)
 		for i, n := range c.names {

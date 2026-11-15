@@ -52,8 +52,3 @@ pmatch <- function(x, table, nomatch = NA_integer_, duplicates.ok = FALSE) {
   res
 }
 
-unname <- function(obj, force = FALSE) {
-  if (!is.null(names(obj))) names(obj) <- NULL
-  if (!is.null(dimnames(obj))) dimnames(obj) <- NULL
-  obj
-}

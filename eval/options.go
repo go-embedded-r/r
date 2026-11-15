@@ -15,6 +15,7 @@ func defaultOptions() map[string]Value {
 		"max.print":              mkInt(99999),
 		"scipen":                 mkInt(0),
 		"warn":                   mkInt(0),
+		"na.action":              mkString("na.omit"),
 		"expressions":            mkInt(5000),
 		"warning.length":         mkInt(1000),
 		"nwarnings":              mkInt(50),

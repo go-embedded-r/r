@@ -309,7 +309,11 @@ func init() {
 			}
 			return x
 		case *Lang:
-			return callAsList(x)
+			l := callAsList(x).(*List)
+			if len(x.Attr) > 0 {
+				l = &List{V: l.V, Attr: append(append([]Attr(nil), l.Attr...), x.Attr...)}
+			}
+			return l
 		case *Logical, *Integer, *Double, *String, *Complex, *Raw:
 			if isObject(x) && !inheritsClass(x, "factor") {
 				// an object with no as.list method of its own: its elements,

@@ -273,6 +273,9 @@ func (s *Session) subassign1(c *callInfo) Value {
 	x := c.args[0]
 	value := c.args[len(c.args)-1]
 	idx := c.args[1 : len(c.args)-1]
+	if l, isLang := x.(*Lang); isLang {
+		return s.subassignLang(c, l, s.subassign1)
+	}
 	if _, isNull := x.(nullT); isNull {
 		if _, vnull := value.(nullT); vnull {
 			return Null
@@ -494,6 +497,9 @@ func (s *Session) subassign2(c *callInfo) Value {
 	x := c.args[0]
 	value := c.args[len(c.args)-1]
 	idx := c.args[1 : len(c.args)-1]
+	if l, isLang := x.(*Lang); isLang {
+		return s.subassignLang(c, l, s.subassign2)
+	}
 	if env, ok := x.(*Env); ok {
 		if st, ok := idx[0].(*String); ok && len(idx) == 1 && len(st.V) == 1 {
 			s.assignTo(env, Intern(st.V[0].S), value, c.call)
