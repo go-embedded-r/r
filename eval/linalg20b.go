@@ -279,7 +279,7 @@ func svdCond(s *Session, c *callInfo, nr, nc int, v []float64) float64 {
 		if e > mx {
 			mx = e
 		}
-		if e > 0 && e < mn {
+		if e < mn {
 			mn = e
 		}
 	}

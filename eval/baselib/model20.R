@@ -147,6 +147,11 @@ model.matrix.default <- function(object, data = environment(object), contrasts.a
     }
     isfac[i] <- is.factor(v) || is.logical(v)
   }
+  contr.funs <- as.character(getOption("contrasts"))
+  isOF <- vapply(data, is.ordered, NA)
+  for (nn in vnames[isfac]) {
+    if (is.null(attr(data[[nn]], "contrasts"))) contrasts(data[[nn]]) <- contr.funs[1 + isOF[nn]]
+  }
   # without an intercept the first factor met is coded by indicators
   code <- fac
   if (length(code) && !has_int) {

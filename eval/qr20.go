@@ -368,7 +368,7 @@ func (s *Session) qrApply(c *callInfo, which string) Value {
 		s.errorf(c.call, "argument \"%s\" is missing, with no default", map[bool]string{true: "qr", false: "y"}[a[0] == nil])
 	}
 	q, _ := s.needQR(c, a[0])
-	cols, _, _ := s.yColumns(c, a[1], q.n)
+	cols, isMat, _ := s.yColumns(c, a[1], q.n)
 	out := make([]float64, 0, len(cols)*q.n)
 	for _, col := range cols {
 		switch which {
@@ -378,6 +378,10 @@ func (s *Session) qrApply(c *callInfo, which string) Value {
 			q.qty(col)
 		}
 		out = append(out, col...)
+	}
+	if q.lapack && !isMat {
+		// LAPACK's dormqr works on matrices: a vector comes back as a column
+		return dmat(q.n, 1, out, Null, Null)
 	}
 	return &Double{V: out, Attr: attrsOf(a[1])}
 }
@@ -575,7 +579,14 @@ func init() {
 		complete := s.optBool(c, a[1], false, "complete")
 		ncol := q.p
 		if a[2] != nil {
-			ncol = int(asDoubles(a[2])[0])
+			nc := asDoubles(a[2])
+			if len(nc) != 1 || math.IsNaN(nc[0]) || nc[0] < 0 {
+				s.errorf(c.call, "invalid 'ncol' argument")
+			}
+			if nc[0] > float64(s.opts.MaxVector) {
+				s.checkLen(c.call, s.opts.MaxVector+1) // not int(nc[0]): on 32 bits it wraps
+			}
+			ncol = int(nc[0])
 		} else if complete && q.n > q.p {
 			ncol = q.n
 		}

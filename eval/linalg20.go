@@ -261,7 +261,24 @@ func rcondGeneral(n int, v []float64, inf bool) float64 {
 	if inf {
 		an = normInf(n, n, v)
 	}
-	est := lacn2(n, func(x []float64, trans bool) { matvec(n, iv, x, trans != inf) })
+	perm := luPerm(n, v)
+	tmp := make([]float64, n)
+	// the operator is (P A)^-1 = A^-1 P', or its transpose P A^-T
+	est := lacn2(n, func(x []float64, trans bool) {
+		if trans != inf {
+			matvec(n, iv, x, true)
+			for i := 0; i < n; i++ {
+				tmp[i] = x[perm[i]]
+			}
+			copy(x, tmp)
+			return
+		}
+		for i := 0; i < n; i++ {
+			tmp[perm[i]] = x[i]
+		}
+		copy(x, tmp)
+		matvec(n, iv, x, false)
+	})
 	if an == 0 || est == 0 || math.IsNaN(an*est) {
 		return 0
 	}
@@ -576,4 +593,45 @@ func lacn2(n int, apply func(x []float64, trans bool)) float64 {
 		est = t
 	}
 	return est
+}
+
+// luPerm is the row permutation of the LU factorization with partial pivoting
+// of the n x n column-major a: row i of P A is row perm[i] of A. LAPACK's dgecon
+// applies the inverse of the factors L and U only, that is of P A, so the
+// estimate it reports depends on P; so does the one reproduced here.
+func luPerm(n int, a0 []float64) []int {
+	a := append([]float64(nil), a0...)
+	perm := make([]int, n)
+	for i := range perm {
+		perm[i] = i
+	}
+	for j := 0; j < n; j++ {
+		p := j
+		for i := j + 1; i < n; i++ {
+			if math.Abs(a[i+j*n]) > math.Abs(a[p+j*n]) {
+				p = i
+			}
+		}
+		if a[p+j*n] == 0 {
+			continue
+		}
+		if p != j {
+			for k := 0; k < n; k++ {
+				a[j+k*n], a[p+k*n] = a[p+k*n], a[j+k*n]
+			}
+			perm[j], perm[p] = perm[p], perm[j]
+		}
+		for i := j + 1; i < n; i++ {
+			a[i+j*n] /= a[j+j*n]
+		}
+		for k := j + 1; k < n; k++ {
+			t := a[j+k*n]
+			if t != 0 {
+				for i := j + 1; i < n; i++ {
+					a[i+k*n] -= a[i+j*n] * t
+				}
+			}
+		}
+	}
+	return perm
 }
