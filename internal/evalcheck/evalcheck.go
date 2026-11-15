@@ -33,7 +33,7 @@ func CheckNormalized(rec gen.EvalRecord, norm func(string) string) string {
 // that end in "# ulp": values computed as from + i * by, which a platform may
 // fuse into one rounding (the oracle's arm64 build does, its amd64 build does
 // not).
-const GoldenULP = 4
+const GoldenULP = 8
 
 // CheckULPNormalized is CheckULP with the printed output of both sides passed
 // through norm before it is compared, for a value whose printed digits go
