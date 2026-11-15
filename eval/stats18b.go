@@ -351,7 +351,7 @@ func weightedMean(x, w []float64) float64 {
 		*a = t
 	}
 	for i := range x {
-		p := x[i] * w[i]
+		p := float64(x[i] * w[i])
 		c += math.FMA(x[i], w[i], -p)
 		add(&s, &c, p)
 		add(&ws, &wc, w[i])

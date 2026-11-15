@@ -70,13 +70,15 @@ func sumSquares(x []float64) (float64, bool) {
 	}
 	mean := (s + c) / n
 	// the residual r = sum(x) - n mean, so that sum (x - mean) = r
-	p := n * mean
+	// float64(...) rounds the product: without it the compiler may fuse it with
+	// the subtraction that follows, and the error-free transformations break
+	p := float64(n * mean)
 	e := math.FMA(n, mean, -p)
 	r := ((s - p) + c) - e
 	var a, comp float64
 	for _, v := range x {
 		d := v - mean
-		sq := d * d
+		sq := float64(d * d)
 		comp += math.FMA(d, d, -sq)
 		t := a + sq
 		if a >= sq {
@@ -99,10 +101,10 @@ func pairKernel(x, y []float64) (sxx, syy, sxy float64, ok bool) {
 		return 0, 0, 0, false
 	}
 	mx, my := (sx+cx)/n, (sy+cy)/n
-	px := n * mx
+	px := float64(n * mx)
 	ex := math.FMA(n, mx, -px)
 	rx := ((sx - px) + cx) - ex
-	py := n * my
+	py := float64(n * my)
 	ey := math.FMA(n, my, -py)
 	ry := ((sy - py) + cy) - ey
 	var axx, cxx, ayy, cyy, axy, cxy float64
@@ -117,13 +119,13 @@ func pairKernel(x, y []float64) (sxx, syy, sxy float64, ok bool) {
 	}
 	for i := range x {
 		dx, dy := x[i]-mx, y[i]-my
-		p := dx * dx
+		p := float64(dx * dx)
 		cxx += math.FMA(dx, dx, -p)
 		add(&axx, &cxx, p)
-		q := dy * dy
+		q := float64(dy * dy)
 		cyy += math.FMA(dy, dy, -q)
 		add(&ayy, &cyy, q)
-		m := dx * dy
+		m := float64(dx * dy)
 		cxy += math.FMA(dx, dy, -m)
 		add(&axy, &cxy, m)
 	}
@@ -425,6 +427,12 @@ func (s *Session) covCor(c *callInfo, x, y Value, use, method string, cor bool) 
 		if !ok {
 			return math.NaN()
 		}
+		if cor && !(sxx > 1e-250 && syy > 1e-250 && sxx < 1e250 && syy < 1e250) {
+			// the squares left the range of the doubles: the correlation does not
+			// change when the columns are scaled by a power of two
+			a, b = scalePow2(a), scalePow2(b)
+			sxx, syy, sxy, ok = pairKernel(a, b)
+		}
 		if !cor {
 			return sxy / float64(len(a)-1)
 		}
@@ -465,6 +473,25 @@ func (s *Session) covCor(c *callInfo, x, y Value, use, method string, cor bool) 
 		s.warningf(c.call, "the standard deviation is zero")
 	}
 	return s.statResult(out, nr, nc, xnames, ynames, xmat || ymat, hasY)
+}
+
+// scalePow2 scales x by a power of two so that its largest element is in [0.5, 1).
+func scalePow2(x []float64) []float64 {
+	m := 0.0
+	for _, v := range x {
+		if a := math.Abs(v); a > m {
+			m = a
+		}
+	}
+	if m == 0 || math.IsInf(m, 0) {
+		return x
+	}
+	_, e := math.Frexp(m)
+	out := make([]float64, len(x))
+	for i, v := range x {
+		out[i] = math.Ldexp(v, -e)
+	}
+	return out
 }
 
 func clip1(r float64) float64 {
@@ -636,7 +663,7 @@ func quantileAt(a []float64, p float64, typ int) float64 {
 		if typ == 3 {
 			m = -0.5
 		}
-		hi := nf * p
+		hi := float64(nf * p)
 		lo := math.FMA(nf, p, -hi)
 		np := hi + m
 		j := math.Floor(np + quantileFuzz*math.Max(1, math.Abs(np)))
@@ -665,10 +692,13 @@ func quantileAt(a []float64, p float64, typ int) float64 {
 	}
 	ak, kk := quantileParams(typ)
 	// position = ak + p (n + k), with k a double-double
-	kn := dd{nf + kk.hi, kk.lo}
-	h1 := p * kn.hi
+	ksum := nf + kk.hi
+	kb := ksum - nf
+	kerr := (nf - (ksum - kb)) + (kk.hi - kb) // the error of the sum, exactly
+	kn := dd{ksum, kerr + kk.lo}
+	h1 := float64(p * kn.hi)
 	l1 := math.FMA(p, kn.hi, -h1)
-	l1 += p * kn.lo
+	l1 += float64(p * kn.lo)
 	pos := ak.hi + h1
 	// error-free addition of ak.hi and h1
 	bb := pos - ak.hi
