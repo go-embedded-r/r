@@ -16,9 +16,8 @@ import (
 // other than the four standard ones, external pointers and S4 instances are
 // not values of this evaluator yet.
 func (s *Session) fromRDS(c *callInfo, v rds.Value, depth int) Value {
-	if depth > 1000 {
-		s.errorf(c.call, "serialized object is nested too deeply")
-	}
+	s.descend()
+	defer s.ascend()
 	attrs := func(m rds.Meta) []Attr {
 		var out []Attr
 		for _, a := range m.Attrs {
@@ -110,9 +109,8 @@ func (s *Session) fromRDS(c *callInfo, v rds.Value, depth int) Value {
 
 // rdsCheck refuses what ToRDS cannot write.
 func (s *Session) rdsCheck(c *callInfo, v Value, depth int) {
-	if depth > 1000 {
-		s.errorf(c.call, "object is nested too deeply to serialize")
-	}
+	s.descend()
+	defer s.ascend()
 	for _, a := range attrsOf(v) {
 		s.rdsCheck(c, a.Value, depth+1)
 	}
@@ -179,8 +177,12 @@ func init() {
 		}
 		call := &Lang{Fun: Intern("gzfile"), Args: []Arg{{Value: Intern("file")}, {Value: mkString("rb")}}}
 		data, _ := s.readAll(c, a[0], "file", call, "cannot open compressed file '%s', probable reason '%s'")
-		v, _, err := rds.Decode(data, rds.Limits{MaxBytes: s.opts.MaxFileBytes})
+		// the decoder recurses on the stream: it gets what is left of the bound
+		v, _, err := rds.Decode(data, rds.Limits{MaxBytes: s.opts.MaxFileBytes, MaxDepth: max(s.opts.MaxDepth-s.depth, 1)})
 		if err != nil {
+			if strings.Contains(err.Error(), "nesting deeper than") {
+				s.dataTooDeep()
+			}
 			s.errorf(c.call, "unknown input format")
 		}
 		return s.fromRDS(c, v, 0)
@@ -222,7 +224,7 @@ func init() {
 			}
 		}
 		s.rdsCheck(c, a[0], 0)
-		b, err := rds.EncodeWith(ToRDS(a[0]), hdr, 0)
+		b, err := rds.EncodeWith(s.toRDS(a[0]), hdr, max(s.opts.MaxDepth-s.depth, 1))
 		if err != nil {
 			s.errorf(c.call, "%s", err.Error())
 		}
@@ -281,7 +283,7 @@ func init() {
 		call := &Lang{Fun: Intern("file"), Args: []Arg{{Value: Intern("filename")}, {Value: mkString("r")}, {Name: "encoding", HasName: true, Value: Intern("encoding")}}}
 		data, desc := s.readAll(c, a[0], "file", call, "cannot open file '%s': %s")
 		if _, isPath := a[0].(*String); !isPath {
-			desc = descriptionOf(c, "file", a[0])
+			desc = s.descriptionOf(c, "file", a[0])
 		}
 		value, visible := s.runSource(c, strings.TrimSuffix(string(data), "\n"), desc, env, printEval)
 		if value == nil {
@@ -325,7 +327,7 @@ func (s *Session) runSource(c *callInfo, text, desc string, env *Env, printEval 
 	visible := false
 	for _, e := range f.Exprs {
 		s.visible = true
-		value = s.underEval(sourceEvalCall, func() Value { return s.eval(FromSyntax(e), env) })
+		value = s.underEval(sourceEvalCall, func() Value { return s.eval(s.fromSyntax(e), env) })
 		visible = s.visible
 		if visible && printEval {
 			s.printValue(value, env)

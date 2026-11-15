@@ -864,7 +864,7 @@ func init() {
 			msg := a.Name
 			if !a.HasName || msg == "" {
 				d := ""
-				for i, line := range syntaxDeparse(a.Value) {
+				for i, line := range s.syntaxDeparse(a.Value) {
 					if i > 0 {
 						d += " "
 					}
@@ -1015,7 +1015,7 @@ func init() {
 			s.errorf(c.call, "'arg' must be NULL or a character vector")
 		}
 		if !several {
-			if identicalToDefault || identical(arg, choices) {
+			if identicalToDefault || s.identical(arg, choices) {
 				return &String{V: []Str{cs.V[0]}}
 			}
 			if len(as.V) != 1 {

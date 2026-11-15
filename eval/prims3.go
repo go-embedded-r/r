@@ -82,12 +82,12 @@ func init() {
 		}
 		var node syntax.Node
 		if cl, ok := a[0].(*Closure); ok {
-			fn, ok := toSyntax(&Lang{Fun: Intern("function"), Args: []Arg{{Value: &Formals{F: cl.Formals}}, {Value: cl.Body}}}).(*syntax.Function)
+			fn, ok := s.toSyntax(&Lang{Fun: Intern("function"), Args: []Arg{{Value: &Formals{F: cl.Formals}}, {Value: cl.Body}}}).(*syntax.Function)
 			if ok {
 				return strVec(syntax.DeparseClosure(fn.Params, fn.Body))
 			}
 		}
-		node = toSyntax(a[0])
+		node = s.toSyntax(a[0])
 		return strVec(syntax.Deparse(node, nil))
 	})
 
@@ -485,7 +485,7 @@ func (s *Session) duplicatedFlags(c *callInfo, x Value, fromLast bool) []bool {
 			k := bucketKey(l.V[i])
 			found := false
 			for _, e := range seen[k] {
-				if identical(e, l.V[i]) {
+				if s.identical(e, l.V[i]) {
 					found = true
 					break
 				}
@@ -539,7 +539,7 @@ func (s *Session) matchValues(c *callInfo, x, table Value, nomatch int32) []int3
 		for i := range out {
 			out[i] = nomatch
 			for j, t := range te {
-				if identical(xe[i], t) {
+				if s.identical(xe[i], t) {
 					out[i] = int32(j + 1)
 					break
 				}

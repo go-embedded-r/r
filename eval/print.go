@@ -332,6 +332,8 @@ func isSyntactic(name string) bool {
 
 // printValueTagged prints v with the tag prefix of the enclosing lists.
 func (s *Session) printValueTagged(v Value, prefix string, env *Env) {
+	s.descend()
+	defer s.ascend()
 	switch x := v.(type) {
 	case nullT:
 		s.out.WriteString("NULL\n")
@@ -350,7 +352,7 @@ func (s *Session) printValueTagged(v Value, prefix string, env *Env) {
 		s.printAttributes(v, prefix, env)
 	case *List:
 		if x.Expr {
-			s.out.WriteString(strings.Join(syntax.Deparse(toSyntax(withAttr(x, keepNamesOnly(x))), nil), "\n") + "\n")
+			s.out.WriteString(strings.Join(syntax.Deparse(s.toSyntax(withAttr(x, keepNamesOnly(x))), nil), "\n") + "\n")
 			s.printAttributes(v, prefix, env)
 			return
 		}
@@ -406,9 +408,9 @@ func (s *Session) printValueTagged(v Value, prefix string, env *Env) {
 	case *Symbol:
 		s.out.WriteString(strings.Join(syntax.Deparse(&syntax.Sym{Name: x.Name}, nil), "\n") + "\n")
 	case *Lang:
-		s.out.WriteString(strings.Join(syntax.Deparse(toSyntax(x), nil), "\n") + "\n")
+		s.out.WriteString(strings.Join(syntax.Deparse(s.toSyntax(x), nil), "\n") + "\n")
 	case *Closure:
-		fn, ok := toSyntax(&Lang{Fun: Intern("function"), Args: []Arg{{Value: &Formals{F: x.Formals}}, {Value: x.Body}}}).(*syntax.Function)
+		fn, ok := s.toSyntax(&Lang{Fun: Intern("function"), Args: []Arg{{Value: &Formals{F: x.Formals}}, {Value: x.Body}}}).(*syntax.Function)
 		if ok {
 			s.out.WriteString(strings.Join(syntax.DeparseClosure(fn.Params, fn.Body), "\n") + "\n")
 		}
@@ -486,7 +488,7 @@ func (s *Session) printCondition(v Value) {
 	cls := classAttr(v)[0]
 	msg := condMessage(v)
 	if cl := condCall(v); cl != nil {
-		s.out.WriteString("<" + cls + " in " + strings.Join(syntax.Deparse(toSyntax(cl), nil), "") + ": " + msg + ">\n")
+		s.out.WriteString("<" + cls + " in " + strings.Join(syntax.Deparse(s.toSyntax(cl), nil), "") + ": " + msg + ">\n")
 	} else {
 		s.out.WriteString("<" + cls + ": " + msg + ">\n")
 	}
@@ -504,7 +506,11 @@ func (s *Session) printValue(v Value, env *Env) {
 }
 
 // catString is the text cat() writes for one element.
-func catStrings(v Value) []string {
+func (s *Session) catStrings(v Value) []string {
+	if _, ok := v.(*List); ok {
+		s.descend()
+		defer s.ascend()
+	}
 	switch x := v.(type) {
 	case nullT:
 		return nil
@@ -540,7 +546,7 @@ func catStrings(v Value) []string {
 			switch e.(type) {
 			case *Logical, *Integer, *Double, *String, *Complex, *Raw:
 				if Length(e) == 1 {
-					out = append(out, catStrings(e)...)
+					out = append(out, s.catStrings(e)...)
 					continue
 				}
 			case nullT:
@@ -607,7 +613,7 @@ func init() {
 					s.errorf(c.call, "argument %d (type '%s') cannot be handled by 'cat'", i+1, typeName(a))
 				}
 				_, isNull := a.(nullT)
-				objs = append(objs, catObj{strs: catStrings(a), null: isNull})
+				objs = append(objs, catObj{strs: s.catStrings(a), null: isNull})
 			}
 		}
 		// a separator goes before every argument but the first, whatever its

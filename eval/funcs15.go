@@ -635,7 +635,7 @@ func init() {
 			if call == nil || call == Null {
 				return mkString(head(x) + ": " + msg + "\n")
 			}
-			d := syntax.Deparse(toSyntax(call), nil)
+			d := syntax.Deparse(s.toSyntax(call), nil)
 			return mkString(head(x) + " in " + d[0] + ": " + msg + "\n")
 		})
 	}

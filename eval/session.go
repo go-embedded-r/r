@@ -22,7 +22,6 @@ const Unbounded = -1
 // 1.6 GB of copies, 0.63 s) each get about ten times the largest legitimate
 // use.
 const (
-	DefaultMaxDepth = 5000
 	DefaultMaxSteps = 30_000_000
 	DefaultMaxAlloc = 16 << 30
 	DefaultTimeout  = 10 * time.Second
@@ -33,8 +32,16 @@ const (
 // Options bound a session. A zero field selects its default; Unbounded
 // (MaxSteps, MaxAlloc, Timeout only) removes the limit explicitly.
 type Options struct {
-	// MaxDepth bounds the nesting of evaluations: R's option "expressions"
-	// (default 5000). Exceeding it is R's error "evaluation nested too deeply".
+	// MaxDepth bounds the nesting of evaluations AND the recursion of every
+	// native that walks the structure of a value (identical, print, format,
+	// deparse, unlist, anyNA, saveRDS, readRDS...), which share one counter:
+	// R's option "expressions" (default DefaultMaxDepth: 5000, and 1000 under
+	// js/wasm and wasip1, whose engines have a stack of their own that Go
+	// cannot grow). Exceeding it is an R error that the session survives:
+	// "evaluation nested too deeply: infinite recursion / options(expressions=)?"
+	// (class expressionStackOverflowError) for evaluations, and "C stack usage
+	// N is too close to the limit" (class CStackOverflowError) for data; both
+	// also inherit stackOverflowError, error and condition, as in R.
 	MaxDepth int
 	// MaxVector bounds the length of any vector the runtime allocates.
 	MaxVector int
@@ -296,7 +303,7 @@ func (s *Session) EvalIn(ctx context.Context, src string, env *Env) (res *Result
 			e := &Error{Output: s.out.String(), Stderr: s.stderr.String(), Warnings: s.warnings}
 			switch x := r.(type) {
 			case *rError:
-				e.Message, e.Call, e.Condition, e.err = x.msg, callText(x.call), x.cond, x.err
+				e.Message, e.Call, e.Condition, e.err = x.msg, s.callText(x.call), x.cond, x.err
 			case *flowSignal:
 				e.Message = noLoopMessage(x.f)
 			case *unwindSignal:
@@ -311,7 +318,7 @@ func (s *Session) EvalIn(ctx context.Context, src string, env *Env) (res *Result
 	}()
 	for _, e := range f.Exprs {
 		s.visible = true
-		v := s.eval(FromSyntax(e), env)
+		v := s.eval(s.fromSyntax(e), env)
 		res.Value, res.Visible = v, s.visible
 		if s.visible {
 			s.printValue(v, env)
@@ -333,11 +340,11 @@ func noLoopMessage(f flowCode) string {
 func (s *Session) Get(name string) (Value, bool) { return s.Global.Get(name) }
 func (s *Session) Set(name string, v Value)      { s.Global.Set(name, v) }
 
-func callText(c *Lang) string {
+func (s *Session) callText(c *Lang) string {
 	if c == nil {
 		return ""
 	}
-	return strings.Join(syntax.Deparse(toSyntax(c), nil), "\n")
+	return strings.Join(syntax.Deparse(s.toSyntax(c), nil), "\n")
 }
 
 // errorf raises an R error with the given call: a condition that the

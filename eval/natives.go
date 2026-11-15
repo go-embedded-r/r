@@ -63,11 +63,13 @@ func (s *Session) makeVector(c *callInfo, kind int, n Value) Value {
 	return out
 }
 
-func identical(a, b Value) bool {
+func (s *Session) identical(a, b Value) bool {
 	if kindOf(a) != kindOf(b) || Length(a) != Length(b) {
 		return false
 	}
-	if !identicalAttrs(attrsOf(a), attrsOf(b)) {
+	s.descend()
+	defer s.ascend()
+	if !s.identicalAttrs(attrsOf(a), attrsOf(b)) {
 		return false
 	}
 	switch x := a.(type) {
@@ -103,7 +105,7 @@ func identical(a, b Value) bool {
 			return false
 		}
 		for i, e := range x.V {
-			if !identical(e, y[i]) {
+			if !s.identical(e, y[i]) {
 				return false
 			}
 		}
@@ -135,7 +137,7 @@ func identical(a, b Value) bool {
 		return true
 	case *Lang:
 		y, ok := b.(*Lang)
-		return ok && (callText(x) == callText(y) || x == y)
+		return ok && (s.callText(x) == s.callText(y) || x == y)
 	}
 	return a == b
 }
@@ -149,7 +151,7 @@ func equalInt32(a, b []int32) bool {
 	return true
 }
 
-func identicalAttrs(a, b []Attr) bool {
+func (s *Session) identicalAttrs(a, b []Attr) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -157,7 +159,7 @@ func identicalAttrs(a, b []Attr) bool {
 		found := false
 		for _, y := range b {
 			if x.Name == y.Name {
-				found = identical(x.Value, y.Value)
+				found = s.identical(x.Value, y.Value)
 				break
 			}
 		}
@@ -203,7 +205,7 @@ func (s *Session) paste(c *callInfo, defSep string) Value {
 				if Length(e) == 1 && isVector(e) && kindOf(e) != kList {
 					strs = append(strs, asStrings(e)...)
 				} else {
-					strs = append(strs, Str{S: callText2(e)})
+					strs = append(strs, Str{S: s.callText2(e)})
 				}
 			}
 		default:
@@ -251,10 +253,10 @@ func (s *Session) paste(c *callInfo, defSep string) Value {
 	return &String{V: out}
 }
 
-func callText2(v Value) string {
+func (s *Session) callText2(v Value) string {
 	switch x := v.(type) {
 	case *Lang:
-		return callText(x)
+		return s.callText(x)
 	case *Symbol:
 		return x.Name
 	}
@@ -361,7 +363,7 @@ func init() {
 		if len(c.args) < 2 {
 			s.errorf(c.call, "argument \"y\" is missing, with no default")
 		}
-		return mkLogical(identical(c.args[0], c.args[1]))
+		return mkLogical(s.identical(c.args[0], c.args[1]))
 	})
 	regBuiltin("paste", func(s *Session, c *callInfo) Value { return s.paste(c, " ") })
 	regBuiltin("paste0", func(s *Session, c *callInfo) Value { return s.paste(c, "") })

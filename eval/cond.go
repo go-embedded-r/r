@@ -84,7 +84,7 @@ func (s *Session) callFunction(fn Value, args []Value) Value {
 	s.depth++
 	defer func() { s.depth-- }()
 	if s.depth > s.opts.MaxDepth {
-		s.errorf(nil, "evaluation nested too deeply: infinite recursion / options(expressions=)?")
+		s.evalTooDeep()
 	}
 	call := &Lang{Fun: Intern("h")}
 	for _, a := range args {
@@ -173,7 +173,7 @@ func (s *Session) withRestart(name string, f func()) (invoked bool) {
 // doWarning signals a warning condition; when it is not muffled it is kept.
 func (s *Session) doWarning(cond Value, msg string, call *Lang) {
 	if !s.withRestart("muffleWarning", func() { s.signal(cond) }) {
-		s.warnings = append(s.warnings, Warning{Message: msg, Call: callText(call)})
+		s.warnings = append(s.warnings, Warning{Message: msg, Call: s.callText(call)})
 	}
 }
 
@@ -484,7 +484,7 @@ func init() {
 						msg := condMessage(us.cond)
 						text := "Error : " + msg + "\n"
 						if cl := condCall(us.cond); cl != nil {
-							text = "Error in " + callText(cl) + " : " + msg + "\n"
+							text = "Error in " + s.callText(cl) + " : " + msg + "\n"
 						}
 						s.lastErr = text
 						if !silent {

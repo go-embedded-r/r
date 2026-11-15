@@ -59,20 +59,20 @@ func connGeneric(name string, method func(s *Session, c *callInfo) Value) {
 
 // descriptionOf is deparse1(substitute(object)) for the first argument of a
 // builtin: the text R gives a text connection as its name.
-func descriptionOf(c *callInfo, formal string, v Value) string {
+func (s *Session) descriptionOf(c *callInfo, formal string, v Value) string {
 	if c.call != nil {
 		for _, a := range c.call.Args {
 			if a.HasName && a.Name == formal {
-				return strings.Join(deparseValue(a.Value), " ")
+				return strings.Join(s.deparseValue(a.Value), " ")
 			}
 		}
 		for _, a := range c.call.Args {
 			if !a.HasName {
-				return strings.Join(deparseValue(a.Value), " ")
+				return strings.Join(s.deparseValue(a.Value), " ")
 			}
 		}
 	}
-	return strings.Join(deparseValue(v), " ")
+	return strings.Join(s.deparseValue(v), " ")
 }
 
 // splitLines reads up to n lines (all when n < 0) from the unread data of cn;
@@ -131,7 +131,7 @@ func init() {
 		if a[0] == nil {
 			s.errorf(c.call, "argument \"object\" is missing, with no default")
 		}
-		name := descriptionOf(c, "object", a[0])
+		name := s.descriptionOf(c, "object", a[0])
 		if a[3] != nil {
 			name = s.stringArg(c, a[3], "name")
 		}

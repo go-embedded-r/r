@@ -575,6 +575,8 @@ func (s *Session) subassign2(c *callInfo) Value {
 			}
 			s.errorf(call, "attempt to select more than one element in vectorIndex")
 		}
+		s.descend()
+		defer s.ascend()
 		first, rest := element(i, 0), dropFirst(i)
 		sub := s.getElement(c, l, first, true)
 		inner := s.subassign2(&callInfo{call: c.call, env: c.env, args: []Value{sub, rest, value}, names: []string{"", "", ""}})

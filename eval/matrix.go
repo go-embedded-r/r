@@ -14,7 +14,7 @@ func (s *Session) matchFormals(c *callInfo, formals ...string) []Value {
 	used := make([]bool, len(c.args))
 	var unused []string
 	show := func(i int) string {
-		d := strings.Join(syntax.Deparse(toSyntax(c.args[i]), nil), " ")
+		d := strings.Join(syntax.Deparse(s.toSyntax(c.args[i]), nil), " ")
 		if c.names[i] != "" {
 			return c.names[i] + " = " + d
 		}
