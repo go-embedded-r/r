@@ -36,6 +36,8 @@ type scanner struct {
 	// noQuote: with a separator, a field that is not read as text does not honour
 	// quotes (a separator inside one still splits)
 	noQuote bool
+	// numWS: whitespace-separated, and the field is read as a number
+	numWS bool
 }
 
 // shownText is the text of a field as R's conversion error shows it: the
@@ -248,6 +250,26 @@ func (sc *scanner) nextWhite() scanTok {
 				}
 			}
 			b = append(b, c)
+		}
+		if sc.numWS {
+			// a field read as a number does not end at its closing quote
+			var rest []byte
+			for {
+				save := sc.pos
+				d, e2, ok2 := sc.rce()
+				if !ok2 {
+					break
+				}
+				if !e2 && (d == ' ' || d == '\t' || d == '\n') {
+					sc.pos = save
+					break
+				}
+				rest = append(rest, d)
+			}
+			if len(rest) > 0 {
+				b = append(append(append([]byte{q}, b...), q), rest...)
+				quoted = false
+			}
 		}
 	} else {
 		b = append(b, c)
@@ -629,20 +651,33 @@ func (s *Session) scanRun(call *Lang, sc *scanner, cols []*scanCol, maxRec, nlin
 		s.errorf(call, "scan() expected '%s', got '%s'", scanExpected[kind], text)
 	}
 	dec := sp.dec
-	colsread, linesRead := 0, 0
+	colsread, linesRead, skipped := 0, 0, 0
 	natural := true
 loop:
 	for maxRec == 0 || nrec < maxRec {
 		col := cols[colsread]
 		sc.noQuote = sp.sep != 0 && col.kind != skString
+		sc.numWS = sp.sep == 0 && col.kind != skString
+		startPos := sc.pos
 		t := sc.next(sp.strip[colsread%len(sp.strip)])
+		if nc > 1 && colsread == 0 && t.kind == scField && t.eol && t.s == "" && !t.quoted && sp.sep != 0 && startPos > 0 && sc.d[startPos-1] == sp.sep {
+			// a separator that ends a line leaves no field at the start of a record
+			linesRead++
+			if nlines > 0 && linesRead >= nlines {
+				natural = false
+				break loop
+			}
+			continue
+		}
 		switch t.kind {
 		case scEnd:
 			break loop
 		case scBlank:
 			// in the middle of a record an empty line is an empty field
 			if sp.blankSkip && colsread == 0 {
+				// it counts toward nlines, not toward the line number of an error
 				linesRead++
+				skipped++
 				if nlines > 0 && linesRead >= nlines {
 					natural = false
 					break loop
@@ -673,7 +708,7 @@ loop:
 			linesRead++
 			if colsread > 0 && (sp.fill || !sp.multi) {
 				if !sp.fill {
-					s.errorf(call, "line %d did not have %d elements", linesRead, nc)
+					s.errorf(call, "line %d did not have %d elements", linesRead-skipped, nc)
 				}
 				for ; colsread < nc; colsread++ {
 					cols[colsread].pad()

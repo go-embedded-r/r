@@ -663,14 +663,11 @@ func quantileAt(a []float64, p float64, typ int) float64 {
 		if typ == 3 {
 			m = -0.5
 		}
-		hi := float64(nf * p)
-		lo := math.FMA(nf, p, -hi)
-		np := hi + m
-		j := math.Floor(np + quantileFuzz*math.Max(1, math.Abs(np)))
-		g := (np - j) + lo
-		if math.Abs(g) < quantileFuzz*math.Max(1, math.Abs(np)) {
-			g = 0
-		}
+		// plain double arithmetic and an absolute tolerance on the index, as the
+		// oracle does: p = 0.6000000000000001 selects the next order statistic
+		np := float64(nf*p) + m
+		j := math.Floor(np + quantileFuzz)
+		g := np - j
 		var gamma float64
 		switch typ {
 		case 1:

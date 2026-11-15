@@ -104,6 +104,12 @@ func (s *Session) typeConvertStrings(c *callInfo, x []Str, o *tcOpts) Value {
 	}
 	n := len(x)
 	switch {
+	case allNA && !o.tryLogical:
+		out := make([]int32, n)
+		for i := range out {
+			out[i] = naInt
+		}
+		return &Integer{V: out}
 	case allNA:
 		out := make([]int32, n)
 		for i := range out {
@@ -771,14 +777,19 @@ func (s *Session) readTable(c0 *callInfo, call *Lang, a []Value) Value {
 			switch r := rowNames.(type) {
 			case *String:
 				seen := make(map[string]bool, len(r.V))
+				hasNA := false
 				for _, e := range r.V {
+					key := e.S
 					if e.NA {
-						s.errorf(c.call, "missing values in 'row.names' are not allowed")
+						hasNA, key = true, "\x00NA"
 					}
-					if seen[e.S] {
+					if seen[key] {
 						s.errorf(c.call, "duplicate 'row.names' are not allowed")
 					}
-					seen[e.S] = true
+					seen[key] = true
+				}
+				if hasNA {
+					s.errorf(c.call, "missing values in 'row.names' are not allowed")
 				}
 				rn = &String{V: r.V}
 			case *Integer:

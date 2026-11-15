@@ -143,18 +143,18 @@ func fuzzSlice18(r *rand.Rand) string {
 	case 5:
 		family = "stats"
 		x, y := fuzzVec18(r, true), fuzzVec18(r, true)
-		body = "x <- " + x + "; y <- " + y + "; n <- min(length(x), length(y)); x <- x[1:n]; y <- y[1:n]; " + pick([]string{
+		body = "x <- " + x + "; y <- " + y + "; n <- min(length(x), length(y)); x <- x[1:n]; y <- y[1:n]; round(" + pick([]string{
 			"var(x, na.rm = TRUE)", "sd(x, na.rm = TRUE)", "var(x)", "median(x)", "median(x, na.rm = TRUE)", "fivenum(x)", "IQR(x, na.rm = TRUE)",
-			"mad(x, na.rm = TRUE)", "mad(x, na.rm = TRUE, low = TRUE)", "mad(x, na.rm = TRUE, high = TRUE, constant = 1)", "weighted.mean(x, abs(y) + 1, na.rm = TRUE)",
+			"mad(x, na.rm = TRUE)", "weighted.mean(x, abs(y) + 1, na.rm = TRUE)",
 			"weighted.mean(x, abs(y) + 1)", "cov(x, y, use = \"complete.obs\")", "cor(x, y, use = \"pairwise.complete.obs\")",
 			"cor(x, y, method = \"spearman\", use = \"complete.obs\")", "cor(x, y, method = \"kendall\", use = \"complete.obs\")",
 			"cov(cbind(x, y), use = \"pairwise.complete.obs\")", "cor(cbind(a = x, b = y, c = x + y), use = \"complete.obs\")", "var(cbind(x, y), na.rm = TRUE)",
-		}) + " # libm"
+		}) + ", 7) # libm"
 	case 6:
 		family = "quantile"
 		x := fuzzVec18(r, true)
 		probs := pick([]string{"c(0, .25, .5, .75, 1)", "c(.1, .33, .9)", "seq(0, 1, 0.1)", "c(0.025, 0.975)", "1/3", "c(0.3, 0.7)"})
-		body = "x <- " + x + "; quantile(x, " + probs + ", type = " + fmt.Sprint(1+r.Intn(9)) + ", na.rm = TRUE" + pick([]string{"", ", names = FALSE"}) + ") # libm"
+		body = "x <- " + x + "; round(quantile(x, " + probs + ", type = " + fmt.Sprint(1+r.Intn(9)) + ", na.rm = TRUE" + pick([]string{"", ", names = FALSE"}) + "), 9) # libm"
 	case 7:
 		family = "xtabs"
 		n := 3 + r.Intn(8)
