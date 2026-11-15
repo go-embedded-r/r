@@ -180,7 +180,8 @@ jobs:
           export RGO_RSCRIPT="$RUNNER_TEMP/r/bin/Rscript"
           go run ./cmd/roracle version
           go run ./cmd/roracle regen
-          git diff --stat --exit-code
+          git diff --stat
+          git diff --exit-code
       - name: Parser parity with R on the committed inputs
         run: |
           export RGO_RSCRIPT="$RUNNER_TEMP/r/bin/Rscript"
