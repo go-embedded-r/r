@@ -231,3 +231,9 @@ c.POSIXlt <- function(..., recursive = FALSE) {
   attributes(parts) <- c(list(names = names(parts)), keep, if (!is.null(bal)) list(balanced = bal))
   parts
 }
+
+# ---- str ---------------------------------------------------------------------
+
+str <- function(object, ...) UseMethod("str")
+
+registerS3method("str", "default", function(object, ...) ..strDefault(object, ...))

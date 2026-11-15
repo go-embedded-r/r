@@ -1,0 +1,51 @@
+{"src":"str(1:100)","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":" int [1:100] 1 2 3 4 5 6 7 8 9 10 ...\n"}
+{"src":"str(as.numeric(1:100))","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":" num [1:100] 1 2 3 4 5 6 7 8 9 10 ...\n"}
+{"src":"str(c(1.2345, 2))","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":" num [1:2] 1.23 2\n"}
+{"src":"str(c(1.5, NA, 3))","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":" num [1:3] 1.5 NA 3\n"}
+{"src":"str(c(1234567.891, 0.00012))","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":" num [1:2] 1.23e+06 1.20e-04\n"}
+{"src":"str(seq(0.5, 50, by = 0.5))","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":" num [1:100] 0.5 1 1.5 2 2.5 3 3.5 4 4.5 5 ...\n"}
+{"src":"str(rep(c(\"alpha\", \"beta\"), 20))","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":" chr [1:40] \"alpha\" \"beta\" \"alpha\" \"beta\" \"alpha\" \"beta\" \"alpha\" \"beta\" ...\n"}
+{"src":"str(c(TRUE, NA, FALSE))","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":" logi [1:3] TRUE NA FALSE\n"}
+{"src":"str(rep(TRUE, 30))","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":" logi [1:30] TRUE TRUE TRUE TRUE TRUE TRUE ...\n"}
+{"src":"str(factor(c(\"u\", \"v\", \"u\", \"w\", NA)))","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":" Factor w/ 3 levels \"u\",\"v\",\"w\": 1 2 1 3 NA\n"}
+{"src":"str(factor(letters))","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":" Factor w/ 26 levels \"a\",\"b\",\"c\",\"d\",..: 1 2 3 4 5 6 7 8 9 10 ...\n"}
+{"src":"str(factor(c(\"a\", \"b\"), levels = c(\"b\", \"a\")))","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":" Factor w/ 2 levels \"b\",\"a\": 2 1\n"}
+{"src":"str(ordered(c(\"lo\", \"hi\"), levels = c(\"lo\", \"hi\")))","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":" Ord.factor w/ 2 levels \"lo\"<\"hi\": 1 2\n"}
+{"src":"str(as.Date(\"2024-01-01\") + 0:20)","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":" Date[1:21], format: \"2024-01-01\" \"2024-01-02\" \"2024-01-03\" \"2024-01-04\" \"2024-01-05\" ...\n"}
+{"src":"str(as.POSIXct(\"2024-01-01 10:00:00\", tz = \"UTC\"))","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":" POSIXct[1:1], format: \"2024-01-01 10:00:00\"\n"}
+{"src":"str(array(1:24, c(2, 3, 4)))","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":" int [1:2, 1:3, 1:4] 1 2 3 4 5 6 7 8 9 10 ...\n"}
+{"src":"str(matrix(c(\"a\", \"b\", \"c\", \"d\"), 2))","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":" chr [1:2, 1:2] \"a\" \"b\" \"c\" \"d\"\n"}
+{"src":"str(3L)","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":" int 3\n"}
+{"src":"str(2.5)","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":" num 2.5\n"}
+{"src":"str(NA)","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":" logi NA\n"}
+{"src":"str(c(2+3i))","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":" cplx 2+3i\n"}
+{"src":"str(as.raw(1:3))","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":" raw [1:3] 01 02 03\n"}
+{"src":"str(character(0))","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":" chr(0) \n"}
+{"src":"str(integer(0))","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":" int(0) \n"}
+{"src":"str(list())","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":" list()\n"}
+{"src":"str(\"a long string that goes on and on and on and on and on and on and on and on and on and on and on\")","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":" chr \"a long string that goes on and on and on and on and on and on and on and on and on and on and on\"\n"}
+{"src":"str(1e10)","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":" num 1e+10\n"}
+{"src":"str(c(0.1, 0.123456789))","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":" num [1:2] 0.1 0.123\n"}
+{"src":"str(100000L)","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":" int 100000\n"}
+{"src":"str(123456789)","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":" num 1.23e+08\n"}
+{"src":"str(c(1e-5, 1))","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":" num [1:2] 1e-05 1e+00\n"}
+{"src":"str(-1.5)","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":" num -1.5\n"}
+{"src":"str(1:3, vec.len = 1)","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":" int [1:3] 1 2 ...\n"}
+{"src":"str(letters, vec.len = 2)","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":" chr [1:26] \"a\" \"b\" ...\n"}
+{"src":"str(as.numeric(1:20), digits.d = 5)","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":" num [1:20] 1 2 3 4 5 6 7 8 9 10 ...\n"}
+{"src":"str(pi, digits.d = 10)","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":" num 3.141592654\n"}
+{"src":"str(structure(1:3, class = \"foo\"))","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":" 'foo' int [1:3] 1 2 3\n"}
+{"src":"str(quote(a + b))","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":" language a + b\n"}
+{"src":"str(as.name(\"x\"))","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":" symbol x\n"}
+{"src":"str(1:3, give.attr = FALSE)","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":" int [1:3] 1 2 3\n"}
+{"src":"str(-5:5)","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":" int [1:11] -5 -4 -3 -2 -1 0 1 2 3 4 ...\n"}
+{"src":"str(c(10.5, 200.25, 3000.125))","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":" num [1:3] 10.5 200.2 3000.1\n"}
+{"src":"str(NULL)","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":" NULL\n"}
+{"src":"str(letters)","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":" chr [1:26] \"a\" \"b\" \"c\" \"d\" \"e\" \"f\" \"g\" \"h\" \"i\" \"j\" \"k\" \"l\" \"m\" \"n\" \"o\" \"p\" ...\n"}
+{"src":"str(1:3, give.head = FALSE)","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":"1 2 3\n"}
+{"src":"str(TRUE)","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":" logi TRUE\n"}
+{"src":"str(Sys.Date() > as.Date(\"2000-01-01\"))","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":" logi TRUE\n"}
+{"src":"str(matrix(1:6, 2))","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":" int [1:2, 1:3] 1 2 3 4 5 6\n"}
+{"src":"str(c(a = 1, b = 2), give.attr = FALSE)","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":" Named num [1:2] 1 2\n"}
+{"src":"x <- str(1:3); is.null(x)","ok":true,"hex":"580a000000030004060200030500000000055554462d380000000a0000000100000001","typeof":"logical","visible":true,"output":" int [1:3] 1 2 3\n[1] TRUE\n"}
+{"src":"invisible(str(1:3))","ok":true,"hex":"580a000000030004060200030500000000055554462d38000000fe","typeof":"NULL","output":" int [1:3] 1 2 3\n"}
