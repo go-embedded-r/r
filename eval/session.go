@@ -35,7 +35,7 @@ type Options struct {
 	// MaxDepth bounds the nesting of evaluations AND the recursion of every
 	// native that walks the structure of a value (identical, print, format,
 	// deparse, unlist, anyNA, saveRDS, readRDS...), which share one counter:
-	// R's option "expressions" (default DefaultMaxDepth: 5000, and 1000 under
+	// R's option "expressions" (default DefaultMaxDepth: 5000, and 300 under
 	// js/wasm and wasip1, whose engines have a stack of their own that Go
 	// cannot grow). Exceeding it is an R error that the session survives:
 	// "evaluation nested too deeply: infinite recursion / options(expressions=)?"
