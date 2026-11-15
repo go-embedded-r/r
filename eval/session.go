@@ -176,9 +176,10 @@ type Session struct {
 
 	io ioState // connections, sinks, files and the environment variables
 
-	noQuote    bool // print(quote = FALSE) is running
-	printRight bool // print(right = TRUE) is running: strings are right-justified
-	noDispatch bool // the next primitive runs its default, not a method
+	noQuote    bool       // print(quote = FALSE) is running
+	printRight bool       // print(right = TRUE) is running: strings are right-justified
+	noDispatch bool       // the next primitive runs its default, not a method
+	dp         deparseCtl // what deparse() was asked to write, for the length of the call
 
 	// flow is set by break, next and return in statement position, and read
 	// by the construct that owns them; see eval.go.

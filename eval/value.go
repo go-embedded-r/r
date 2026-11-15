@@ -403,10 +403,38 @@ func (s *Session) toSyntax(v Value) syntax.Node {
 				extra = append(extra, a)
 			}
 		}
+		if len(namesOnly) == 0 {
+			// the labels of a one-dimensional array are its names
+			if d := dimsOf(v); len(d) == 1 {
+				if dn, ok := getAttr(v, "dimnames").(*List); ok && len(dn.V) == 1 {
+					if nm, ok := dn.V[0].(*String); ok {
+						namesOnly = []Attr{{Name: "names", Value: nm}}
+					}
+				}
+			}
+		}
+		if s.dp.noAttr {
+			extra = nil
+		}
+		if len(namesOnly) > 0 && (s.dp.noNice || !niceNames(withAttr(v, namesOnly))) {
+			// names the vector cannot show in place go in structure(), or are
+			// dropped when attributes are not shown
+			if !s.dp.noAttr {
+				extra = append(namesOnly, extra...)
+			}
+			namesOnly = nil
+			if len(extra) == 0 {
+				v = withAttr(v, nil)
+			}
+		}
 		if len(extra) > 0 {
-			call := &syntax.Call{Fun: &syntax.Sym{Name: "structure"}, Args: []syntax.Arg{{Value: s.toSyntax(withAttr(v, namesOnly))}}}
+			call := &syntax.Call{Fun: &syntax.Sym{Name: "structure"}, Attrs: true, Args: []syntax.Arg{{Value: s.toSyntax(withAttr(v, namesOnly))}}}
 			for _, a := range extra {
+				// the value of an attribute shows its own names in place
+				saved := s.dp.noNice
+				s.dp.noNice = false
 				call.Args = append(call.Args, syntax.Arg{Name: a.Name, HasName: true, Value: s.toSyntax(a.Value)})
+				s.dp.noNice = saved
 			}
 			return call
 		}
@@ -512,14 +540,57 @@ func (s *Session) toSyntax(v Value) syntax.Node {
 	return &syntax.Sym{Name: "<object>"}
 }
 
+// deparseCtl are the options of deparse() that change what toSyntax writes.
+// The zero value is R's default control: keepNA, keepInteger, niceNames and
+// showAttributes.
+type deparseCtl struct {
+	noAttr, noNice, noKeepInt, noKeepNA, quote, digits17, hex bool
+}
+
+// niceNames reports whether a vector's names can be written in place, as in
+// c(a = 1): they are not missing, and they are not all empty.
+func niceNames(v Value) bool {
+	nm := namesOf(v)
+	if nm == nil {
+		return true
+	}
+	some := false
+	for _, e := range nm.V {
+		if e.NA {
+			return false
+		}
+		some = some || e.S != ""
+	}
+	return some
+}
+
+// quoteLang wraps a symbol or a call in quote() when deparse() was asked to
+// quote expressions.
+func (s *Session) quoteLang(v Value, n syntax.Node) syntax.Node {
+	if !s.dp.quote {
+		return n
+	}
+	switch v.(type) {
+	case *Symbol, *Lang:
+		return &syntax.Call{Fun: &syntax.Sym{Name: "quote"}, Args: []syntax.Arg{{Value: n}}}
+	}
+	return n
+}
+
 // vecToSyntax writes a vector of length other than one as the call that
 // builds it, as deparse() does: c(...), a:b for a run of integers, list(...),
 // or integer(0) and the like.
 func (s *Session) vecToSyntax(head string, elems []Value, v Value) syntax.Node {
 	nm := namesOf(v)
-	call := &syntax.Call{Fun: &syntax.Sym{Name: head}, Elems: head == "expression", Vec: head == "c"}
+	call := &syntax.Call{Fun: &syntax.Sym{Name: head}, Elems: head == "expression", Vec: head == "c", First: head != "c"}
+	if s.dp.noNice || !niceNames(v) {
+		nm = nil
+	}
 	for i, e := range elems {
 		a := syntax.Arg{Value: s.toSyntax(e)}
+		if head == "list" {
+			a.Value = s.quoteLang(e, a.Value)
+		}
 		if nm != nil && !nm.V[i].NA && nm.V[i].S != "" {
 			a.Name, a.HasName = nm.V[i].S, true
 		}

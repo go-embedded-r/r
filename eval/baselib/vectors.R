@@ -108,6 +108,19 @@ lengths <- function(x, use.names = TRUE) {
 
 rep_len <- function(x, length.out) rep(x, length.out = length.out)
 
+# new levels for a factor: as many as it has, or more; the same text twice merges
+# those levels
+`levels<-.factor` <- function(x, value) {
+  if (length(levels(x)) > length(value)) stop("number of levels differs")
+  value <- as.character(value)
+  fresh <- unique(value[!is.na(value)])
+  codes <- match(value, fresh)[as.integer(x)]
+  kept <- attributes(x)
+  kept$levels <- fresh
+  attributes(codes) <- kept
+  codes
+}
+
 outer <- function(X, Y, FUN = "*", ...) {
   product <- is.character(FUN) && length(FUN) == 1L && FUN == "*"
   FUN <- match.fun(FUN)

@@ -96,6 +96,18 @@ func (s *Session) higherArray(res Value, vals []Value, names *String) Value {
 
 // asListElems splits X into its elements, as as.list does for lapply.
 func (s *Session) asListElems(c *callInfo, x Value) []Value {
+	if l, isList := x.(*List); isList && isObject(x) && !l.Expr && !hasString(classAttr(x), "data.frame") {
+		// a classed list with an as.list method of its own (a version number)
+		// is split by it
+		for _, cl := range classAttr(x) {
+			if m := s.findMethod("as.list."+cl, c.env); m != nil {
+				if r, ok := s.callFunction(m, []Value{x}).(*List); ok {
+					return r.V
+				}
+				break
+			}
+		}
+	}
 	if _, isList := x.(*List); !isList && isObject(x) && !hasString(classAttr(x), "factor") {
 		// an object is split by its own as.list method (a Date into Dates)
 		if f, ok := s.Base.Get("as.list"); ok {
@@ -956,7 +968,11 @@ func init() {
 			}
 			out := make([]float64, lo)
 			for i := range out {
-				out[i] = from + float64(i)*by
+				// fused, as the reference's arm64 build computes it, on every platform
+				out[i] = math.FMA(float64(i), by, from)
+			}
+			if a[0] != nil && a[1] != nil && a[2] == nil && lo > 1 {
+				out[lo-1] = to // the end of the range is exact, not from + (n - 1) * by
 			}
 			if (a[0] == nil && a[1] == nil && a[2] == nil) || (a[2] != nil && isInt(a[2]) && a[1] == nil && (a[0] == nil || isInt(a[0]))) {
 				return toIntVec(out)

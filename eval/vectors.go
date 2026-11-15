@@ -127,6 +127,12 @@ func init() {
 		if len(keys) == 0 {
 			return &Integer{V: []int32{}}
 		}
+		for ki, k := range keys {
+			// a classed list (a version number) is ordered by its xtfrm method
+			if l, ok := k.(*List); ok && isObject(k) && !l.Expr {
+				keys[ki] = withAttr(s.callNamed(c, "xtfrm", []Value{k}, []string{""}), nil)
+			}
+		}
 		n := Length(keys[0])
 		for ki, k := range keys {
 			if Length(k) != n {
@@ -459,7 +465,8 @@ func init() {
 				s.errorf(c.call, "argument \"x\" is missing, with no default")
 			}
 			if isObject(x) && inheritsClass(x, "data.frame") {
-				s.errorf(c.call, "data frames are not supported")
+				// a data frame is summed as the matrix it converts to
+				x = s.callNamed(c, "as.matrix", []Value{x}, []string{""})
 			}
 			dims := dimsOf(x)
 			if len(dims) < 2 {
@@ -932,6 +939,27 @@ func init() {
 				ranks[int(ord[k])-1] = r
 			}
 			i = j + 1
+		}
+		if st, ok := a[1].(*String); ok && len(st.V) == 1 && st.V[0].S == "keep" {
+			// na.last = "keep": a missing value keeps a missing rank
+			for i := range ranks {
+				na := false
+				switch v := x.(type) {
+				case *Logical:
+					na = v.V[i] == naInt
+				case *Integer:
+					na = v.V[i] == naInt
+				case *Double:
+					na = math.IsNaN(v.V[i])
+				case *String:
+					na = v.V[i].NA
+				case *Complex:
+					na = math.IsNaN(real(v.V[i])) || math.IsNaN(imag(v.V[i]))
+				}
+				if na {
+					ranks[i] = naReal
+				}
+			}
 		}
 		var res Value = &Double{V: ranks}
 		if ties != "average" {
