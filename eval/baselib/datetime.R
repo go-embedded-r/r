@@ -263,7 +263,6 @@ as.character.POSIXt <- function(x, digits = if (inherits(x, "POSIXlt")) 14L else
     one <- lapply(parts, function(col) rep_len(col, n)[i])
     whole <- abs(s - round(s)) < 1e-9
     f <- if (one$hour == 0 && one$min == 0 && s == 0) "%Y-%m-%d"
-         else if (s == 0) "%Y-%m-%d %H:%M"
          else "%Y-%m-%d %H:%M:%S"
     txt <- .dtFormat(one, f, 0L)
     if (!whole && s != 0) {
@@ -275,8 +274,6 @@ as.character.POSIXt <- function(x, digits = if (inherits(x, "POSIXlt")) 14L else
     }
     out[i] <- txt
   }
-  nm <- names(unclass(lt)$year)
-  if (!is.null(nm)) names(out) <- nm
   out
 }
 
@@ -365,6 +362,7 @@ format.Date <- function(x, format = "%Y-%m-%d", ...) {
 as.character.Date <- function(x, ...) {
   out <- format.Date(x, ...)
   out[is.na(x)] <- NA_character_
+  names(out) <- NULL
   out
 }
 

@@ -79,7 +79,26 @@ summary.factor <- function(object, maxsum = 100L, ...) {
   if (any(gone)) c(counts, "NAs" = sum(gone)) else counts
 }
 
+# the figures of a summary of dates or times, as text, the count of missing
+# values last
+..formatSummaryTime <- function(x, digits, ...) {
+  v <- as.vector(unclass(x))
+  names(v) <- names(x)
+  shown <- if (inherits(x, "Date")) format(.Date(v), ...)
+           else if (inherits(x, "POSIXct")) format(.POSIXct(v, attr(x, "tzone")), ...)
+  names(shown) <- names(v)
+  if (!is.null(attr(x, "NAs"))) shown <- c(shown, "NAs" = as.character(attr(x, "NAs")))
+  shown
+}
+
 format.summaryDefault <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
+  if (inherits(x, "Date") || inherits(x, "POSIXct")) return(..formatSummaryTime(x, digits, ...))
+  if (inherits(x, "difftime")) {
+    v <- as.vector(unclass(x))
+    names(v) <- names(x)
+    if (!is.null(attr(x, "NAs"))) v <- c(v, NAs = attr(x, "NAs"))
+    x <- v
+  }
   if (is.character(x)) {
     out <- format.default(as.vector(x), ...)
     names(out) <- names(x)
@@ -102,6 +121,19 @@ format.summaryDefault <- function(x, digits = max(3L, getOption("digits") - 3L),
 
 print.summaryDefault <- function(x, digits = max(3L, getOption("digits") - 3L),
                                  quote = FALSE, ...) {
+  if (inherits(x, "Date") || inherits(x, "POSIXct")) {
+    # a summary of dates or times prints as quoted text unless asked not to
+    print(..formatSummaryTime(x, digits), quote = if (missing(quote)) TRUE else quote, ...)
+    return(invisible(x))
+  }
+  if (inherits(x, "difftime")) {
+    cat("Time differences in ", attr(x, "units"), "\n", sep = "")
+    v <- as.vector(unclass(x))
+    names(v) <- names(x)
+    if (!is.null(attr(x, "NAs"))) v <- c(v, NAs = attr(x, "NAs"))
+    class(v) <- c("summaryDefault", "table")
+    return(print.summaryDefault(v, digits = digits, quote = quote, ...))
+  }
   if (length(dim(x)) == 2L) {
     print.table(x, quote = quote, ...)
   } else if (is.character(x)) {

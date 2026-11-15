@@ -87,8 +87,16 @@ func init() {
 				return strVec(syntax.DeparseClosure(fn.Params, fn.Body))
 			}
 		}
-		node = s.toSyntax(a[0])
-		return strVec(syntax.Deparse(node, nil))
+		opt, ctl, nlines := s.deparseArgs(c, a[1], a[2], a[3], a[4], a[0])
+		saved := s.dp
+		s.dp = ctl
+		defer func() { s.dp = saved }()
+		node = s.quoteLang(a[0], s.toSyntax(a[0]))
+		lines := syntax.Deparse(node, opt)
+		if nlines > 0 && nlines < len(lines) {
+			lines = lines[:nlines]
+		}
+		return strVec(lines)
 	})
 
 	regBuiltin("unique", func(s *Session, c *callInfo) Value {

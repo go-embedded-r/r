@@ -77,7 +77,12 @@ type Call struct {
 	// break lines without indenting, and a line is also broken before the
 	// closing parenthesis when it is too long.
 	Vec bool
-	h   int // height of the subtree, checked against Limits.MaxDepth
+	// Attrs marks the structure(value, name = attribute, ...) call a value
+	// with attributes deparses to: its attributes are written one after the
+	// other, never broken over lines between them, and a name that is not
+	// syntactic is double-quoted.
+	Attrs bool
+	h     int // height of the subtree, checked against Limits.MaxDepth
 }
 
 // Param is one formal argument of a function definition.

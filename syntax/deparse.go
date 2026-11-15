@@ -19,21 +19,31 @@ type DeparseOptions struct {
 	// NoBackquote turns off the backquoting of non-syntactic names, as
 	// deparse(backtick = FALSE) does (R turns it off for a bare symbol).
 	NoBackquote bool
-	// NoKeepInteger drops the L suffix and NA_integer_/NA_real_ spellings.
+	// NoKeepInteger drops the L suffix of integers.
 	NoKeepInteger bool
+	// NoKeepNA drops the NA_integer_, NA_real_ and NA_character_ spellings:
+	// every missing value is written NA.
+	NoKeepNA bool
+	// Digits17 writes finite numbers with 17 significant digits.
+	Digits17 bool
+	// HexNumeric writes finite numbers in hexadecimal.
+	HexNumeric bool
 }
 
 // Deparse writes n as deparse() does, one string per line, byte for byte.
 // The text is written from the documented behaviour of deparse() and
 // checked against the oracle (cmd/rparity).
 func Deparse(n Node, opt *DeparseOptions) []string {
-	d := &deparser{cutoff: 60, backtick: true, keepInt: true, startline: true}
+	d := &deparser{cutoff: 60, backtick: true, keepInt: true, keepNA: true, startline: true}
 	if opt != nil {
 		if opt.Cutoff > 0 {
 			d.cutoff = opt.Cutoff
 		}
 		d.backtick = !opt.NoBackquote
 		d.keepInt = !opt.NoKeepInteger
+		d.keepNA = !opt.NoKeepNA
+		d.digits17 = opt.Digits17
+		d.hex = opt.HexNumeric
 	}
 	d.node(n)
 	d.writeline()
@@ -134,6 +144,9 @@ type deparser struct {
 	cutoff   int
 	backtick bool
 	keepInt  bool
+	keepNA   bool
+	digits17 bool
+	hex      bool
 
 	lines     []string
 	buf       []byte
@@ -226,7 +239,7 @@ func EncodeString(s string, quote byte) string { return encodeString(s, quote) }
 // DeparseClosure writes a function the way print() shows one without source
 // references: "function (x, y = 2) " and then the body on the next lines.
 func DeparseClosure(params []Param, body Node) []string {
-	d := &deparser{cutoff: 60, backtick: true, keepInt: true, startline: true}
+	d := &deparser{cutoff: 60, backtick: true, keepInt: true, keepNA: true, startline: true}
 	d.print("function (")
 	d.formals(params)
 	d.print(") ")
@@ -451,7 +464,7 @@ func (d *deparser) constant(c *Const) {
 		}
 	case Integer:
 		switch {
-		case c.NA && d.keepInt:
+		case c.NA && d.keepNA:
 			d.print("NA_integer_")
 		case c.NA:
 			d.print("NA")
@@ -461,22 +474,49 @@ func (d *deparser) constant(c *Const) {
 			d.print(strconv.Itoa(int(c.Int)))
 		}
 	case Double:
-		if c.NA && d.keepInt {
+		switch {
+		case c.NA && d.keepNA:
 			d.print("NA_real_")
-		} else {
-			d.print(formatReal15(c.Double))
+		case c.NA:
+			d.print("NA")
+		default:
+			d.print(d.number(c.Double))
 		}
 	case Complex:
 		d.print(formatComplex15(c))
 	case Raw:
 		d.print("0x" + strconv.FormatInt(int64(c.Int)|0x100, 16)[1:])
 	case String:
-		if c.NA {
+		switch {
+		case c.NA && d.keepNA:
 			d.print("NA_character_")
-		} else {
+		case c.NA:
+			d.print("NA")
+		default:
 			d.print(encodeString(c.Str, '"'))
 		}
 	}
+}
+
+// number writes a double with 15 significant digits, or with 17 or in
+// hexadecimal when the options ask for it (finite values only).
+func (d *deparser) number(x float64) string {
+	if math.IsNaN(x) || math.IsInf(x, 0) || (!d.digits17 && !d.hex) {
+		return formatReal15(x)
+	}
+	if d.hex {
+		s := strconv.FormatFloat(x, 'x', -1, 64)
+		// Go writes the exponent with two digits, C with as many as it needs
+		if i := strings.IndexByte(s, 'p'); i >= 0 && i+2 < len(s) {
+			sign, digits := s[i+1:i+2], strings.TrimLeft(s[i+2:], "0")
+			if digits == "" {
+				digits = "0"
+			}
+			s = s[:i+1] + sign + digits
+		}
+		return s
+	}
+	return strconv.FormatFloat(x, 'g', 17, 64)
 }
 
 func formatComplex15(c *Const) string {
@@ -602,7 +642,7 @@ func (d *deparser) args(args []Arg) {
 			}
 		}
 	}
-	if vec && len(d.buf) > d.cutoff {
+	if vec && len(args) > 1 && len(d.buf) > d.cutoff {
 		d.writeline()
 	}
 	if lbreak {
@@ -748,6 +788,18 @@ func (d *deparser) operand(fop ppInfo, n Node, left bool, prevLeft int, ctx func
 func (d *deparser) call(c *Call, fnarg bool, prevLeft int) {
 	name, fop, user, builtin := callInfo(c)
 	if !builtin {
+		if c.Attrs && len(c.Args) > 0 {
+			d.print("structure(")
+			d.fnarg = true
+			d.node(c.Args[0].Value)
+			for _, a := range c.Args[1:] {
+				d.print(", " + d.quotify(a.Name, '"') + " = ")
+				d.fnarg = true
+				d.node(a.Value)
+			}
+			d.print(")")
+			return
+		}
 		// an ordinary call, or one through a computed function
 		if s, ok := c.Fun.(*Sym); ok {
 			d.print(d.quotify(s.Name, '`'))
