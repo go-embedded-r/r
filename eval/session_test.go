@@ -2,6 +2,7 @@ package eval_test
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -108,10 +109,16 @@ func TestLimits(t *testing.T) {
 	if !errors.As(err, &e) || !strings.Contains(e.Message, "nested too deeply") {
 		t.Errorf("deep recursion: %v", err)
 	}
-	// the default limit is R's 5000, and recursion that stays under it works
+	// the default limit is R's 5000 (DefaultMaxDepth: lower under js and
+	// wasip1, see depth_wasm.go), and recursion that stays under it works
 	s = eval.NewSession(eval.Options{})
-	if r, err := s.Eval("f <- function(n) if (n == 0) 0 else 1 + f(n - 1); f(500)"); err != nil || r.Value.(*eval.Double).V[0] != 500 {
-		t.Errorf("recursion 500: %v", err)
+	if eval.DefaultMaxDepth > 5000 {
+		t.Errorf("DefaultMaxDepth %d is above R's expressions limit", eval.DefaultMaxDepth)
+	}
+	// a level of this recursion is three nested evaluations
+	n := eval.DefaultMaxDepth / 6
+	if r, err := s.Eval(fmt.Sprintf("f <- function(n) if (n == 0) 0 else 1 + f(n - 1); f(%d)", n)); err != nil || r.Value.(*eval.Double).V[0] != float64(n) {
+		t.Errorf("recursion %d: %v", n, err)
 	}
 	if _, err := s.Eval("f <- function(n) f(n + 1); f(1)"); err == nil {
 		t.Error("infinite recursion accepted")
