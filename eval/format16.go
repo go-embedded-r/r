@@ -28,7 +28,7 @@ func (m numMarks) active() bool {
 // finish writes the options that act on a number after it has been padded to
 // its field: a zero printed as the text zero.print gives (as wide as the zero
 // was), and the zeros that end a number dropped, with a zero exponent.
-func (m numMarks) finish(item string) string {
+func (m numMarks) finish(item string, padZero bool) string {
 	if m.zero == nil && !m.drop0 {
 		return item
 	}
@@ -39,6 +39,9 @@ func (m numMarks) finish(item string) string {
 	if m.zero != nil {
 		if f, err := strconv.ParseFloat(trimmed, 64); err == nil && f == 0 {
 			z := *m.zero
+			if !padZero {
+				return z
+			}
 			for len(z) < len(trimmed) {
 				z += " "
 			}

@@ -56,13 +56,17 @@ round.POSIXt <- function(x, digits = c("secs", "mins", "hours", "days", "months"
   if (units == "months" || units == "years") {
     lo <- as.POSIXct(trunc.POSIXt(x, units))
     f <- ..bareLt(as.POSIXlt(lo))
-    if (units == "months") f$mon <- f$mon + 1L else f$year <- f$year + 1L
-    f$isdst[] <- -1L
-    hi <- as.POSIXct(..ltFrom(f, attr(as.POSIXlt(lo), "tzone"), NULL))
+    year <- f$year + 1900L
+    leap <- (year %% 4L == 0L & year %% 100L != 0L) | year %% 400L == 0L
+    # the period is as many whole days of seconds long as its calendar days,
+    # whatever the clock does in between (the reference counts this way)
+    days <- if (units == "months") c(31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)[f$mon + 1L] + (f$mon == 1L & leap)
+            else 365 + leap
+    hi <- unclass(lo) + days * 86400
     later <- unclass(ct) - unclass(lo) >= (unclass(hi) - unclass(lo)) / 2
     nearer <- ifelse(later, unclass(hi), unclass(lo))
     attributes(nearer) <- NULL
-    out <- trunc.POSIXt(.POSIXct(nearer, zone), units)
+    out <- as.POSIXlt(.POSIXct(nearer, zone))
     if (any(later, na.rm = TRUE)) {
       # when a time goes up the reference leaves the class after the other
       # attributes
@@ -188,98 +192,85 @@ seq.POSIXt <- function(from, to, by, length.out = NULL, along.with = NULL, ...) 
   as.integer(n)
 }
 
-# the factor of the intervals each time falls in, given the break values as
-# numbers, the labels the caller gave and the labels to use otherwise
-..cutFactor <- function(v, breaks, labels, right, fallback, ...) {
-  codes <- cut(v, breaks, labels = FALSE, right = right, ...)
-  if (is.logical(labels) && !labels) return(codes)
-  nlev <- length(breaks) - 1L
-  lev <- if (is.null(labels)) fallback(codes) else as.character(labels)
-  if (length(lev) != nlev && is.null(labels) && !length(lev)) lev <- character(nlev)
-  structure(codes, levels = lev, class = "factor")
+# the break dates a text such as "2 months" asks for, from the first one on
+# that holds the earliest date to the first one after the latest
+..dateBreaks <- function(x, text, monday) {
+  spec <- ..breakSpec(text, c("days", "weeks", "months", "years", "DSTdays", "quarters"))
+  early <- min(x, na.rm = TRUE)
+  late <- max(x, na.rm = TRUE)
+  lt <- as.POSIXlt(early)
+  byDays <- spec$kind %in% c("days", "DSTdays", "weeks")
+  if (spec$kind == "weeks") {
+    early <- early - (lt$wday - if (monday) 1L else 0L) %% 7L
+    step <- 7L * spec$mult
+  } else if (byDays) {
+    step <- spec$mult
+  } else {
+    month <- switch(spec$kind, months = lt$mon, years = 0L, quarters = lt$mon - lt$mon %% 3L)
+    early <- as.Date(ISOdate(lt$year + 1900L, month + 1L, 1L, 0, tz = "GMT"))
+    step <- spec$mult * switch(spec$kind, months = 1L, years = 12L, quarters = 3L)
+  }
+  n <- ..checkBreaks(ceiling(as.numeric(late - early) / (if (byDays) step else step * 28)) + 2)
+  pts <- if (byDays) early + step * (seq_len(n) - 1L) else seq(early, by = paste(step, "months"), length.out = n)
+  pts[seq_len(which(pts > late)[1L])]
 }
 
 cut.Date <- function(x, breaks, labels = NULL, start.on.monday = TRUE, right = FALSE, ...) {
   if (!inherits(x, "Date")) stop("'x' must be a date-time object")
   x <- as.Date(x)
-  fallback <- NULL
-  if (inherits(breaks, "Date")) {
-    breaks <- sort(as.Date(breaks))
-    fallback <- function(codes) as.character(breaks[-length(breaks)])
-    num <- unclass(breaks)
-  } else if (is.numeric(breaks) && length(breaks) == 1L) {
-    num <- breaks
-    fallback <- function(codes) as.character(x[!duplicated(codes)])
-  } else if (is.character(breaks) && length(breaks) == 1L) {
-    spec <- ..breakSpec(breaks, c("days", "weeks", "months", "years", "DSTdays", "quarters"))
-    first <- min(x, na.rm = TRUE)
-    last <- max(x, na.rm = TRUE)
-    lt <- as.POSIXlt(first)
-    if (spec$kind == "weeks") {
-      first <- first - (lt$wday - if (start.on.monday) 1L else 0L) %% 7L
-      step <- 7L * spec$mult
-    } else if (spec$kind %in% c("days", "DSTdays")) {
-      step <- spec$mult
-    } else {
-      mon <- switch(spec$kind, months = lt$mon, years = 0L, quarters = lt$mon - lt$mon %% 3L)
-      first <- as.Date(ISOdate(lt$year + 1900L, mon + 1L, 1L, 0, tz = "GMT"))
-      step <- spec$mult * switch(spec$kind, months = 1L, years = 12L, quarters = 3L)
-    }
-    n <- ..checkBreaks(ceiling(as.numeric(last - first) / (if (spec$kind %in% c("days", "DSTdays", "weeks")) step else step * 28)) + 2)
-    pts <- if (spec$kind %in% c("days", "DSTdays", "weeks")) first + step * (seq_len(n) - 1L)
-           else seq(first, by = paste(step, "months"), length.out = n)
-    keep <- which(pts > last)[1L]
-    breaks <- pts[seq_len(keep)]
-    fallback <- function(codes) as.character(breaks[-length(breaks)])
-    num <- unclass(breaks)
-  } else stop("invalid specification of 'breaks'")
-  ..cutFactor(unclass(x), num, labels, right, fallback, ...)
+  given <- if (inherits(breaks, "Date")) "dates" else if (is.numeric(breaks) && length(breaks) == 1L) "count"
+           else if (is.character(breaks) && length(breaks) == 1L) "text"
+  if (is.null(given)) stop("invalid specification of 'breaks'")
+  if (given == "dates") breaks <- sort(as.Date(breaks))
+  if (given == "text") breaks <- ..dateBreaks(x, breaks, start.on.monday)
+  # the labels are the first date of each interval for a count, else the
+  # breaks; the reference refuses when an interval is empty and so the first
+  # dates are fewer than the intervals
+  res <- cut(as.vector(unclass(x)), as.vector(unclass(breaks)), labels = labels, right = right, ...)
+  if (is.null(labels))
+    levels(res) <- as.character(if (is.numeric(breaks)) x[!duplicated(res)] else breaks[-length(breaks)])
+  res
+}
+
+# the same for date-times: the units a text can name, the earliest start at
+# the beginning of its unit, and the seq() that runs on from there
+..timeBreaks <- function(x, text, monday) {
+  spec <- ..breakSpec(text, c("secs", "mins", "hours", "days", "weeks", "months", "years", "DSTdays", "quarters"))
+  early <- min(x, na.rm = TRUE)
+  late <- max(x, na.rm = TRUE)
+  unit <- switch(spec$kind, secs = "secs", mins = "mins", hours = "hours", months = , quarters = "months",
+                 years = "years", "days")
+  early <- as.POSIXct(trunc.POSIXt(early, unit))
+  lt <- as.POSIXlt(early)
+  if (spec$kind == "weeks") {
+    back <- (lt$wday - if (monday) 1L else 0L) %% 7L
+    early <- as.POSIXct(trunc.POSIXt(early - back * 86400, "days"))
+  } else if (spec$kind == "quarters") {
+    f <- ..bareLt(lt)
+    f$mon <- f$mon - f$mon %% 3L
+    f$isdst[] <- -1L
+    early <- as.POSIXct(..ltFrom(f, attr(lt, "tzone"), NULL))
+  }
+  by <- switch(spec$kind, weeks = paste(spec$mult * 7L, "days"), paste(spec$mult, spec$kind))
+  width <- spec$mult * switch(spec$kind, secs = 1, mins = 60, hours = 3600, weeks = 604800, months = 28 * 86400,
+                              quarters = 84 * 86400, years = 365 * 86400, 86400)
+  n <- ..checkBreaks(ceiling((as.numeric(unclass(late)) - as.numeric(unclass(early))) / width) + 2)
+  pts <- seq.POSIXt(early, by = by, length.out = n)
+  pts[seq_len(which(pts > late)[1L])]
 }
 
 cut.POSIXt <- function(x, breaks, labels = NULL, start.on.monday = TRUE, right = FALSE, ...) {
   if (!inherits(x, "POSIXt")) stop("'x' must be a date-time object")
   x <- as.POSIXct(x)
-  zone <- attr(x, "tzone")
-  fallback <- NULL
-  if (inherits(breaks, "POSIXt")) {
-    breaks <- sort(as.POSIXct(breaks))
-    fallback <- function(codes) as.character(breaks[-length(breaks)])
-    num <- unclass(breaks)
-  } else if (is.numeric(breaks) && length(breaks) == 1L) {
-    num <- breaks
-    fallback <- function(codes) as.character(x[!duplicated(codes)])
-  } else if (is.character(breaks) && length(breaks) == 1L) {
-    spec <- ..breakSpec(breaks, c("secs", "mins", "hours", "days", "weeks", "months", "years", "DSTdays", "quarters"))
-    first <- min(x, na.rm = TRUE)
-    last <- max(x, na.rm = TRUE)
-    unit <- switch(spec$kind, secs = "secs", mins = "mins", hours = "hours", "days")
-    if (spec$kind %in% c("months", "years", "quarters")) unit <- "months"
-    if (spec$kind == "years") unit <- "years"
-    first <- as.POSIXct(trunc.POSIXt(first, unit))
-    lt <- as.POSIXlt(first)
-    if (spec$kind == "weeks") {
-      first <- as.POSIXct(trunc.POSIXt(first - ((lt$wday - if (start.on.monday) 1L else 0L) %% 7L) * 86400, "days"))
-    } else if (spec$kind == "quarters") {
-      f <- ..bareLt(lt)
-      f$mon <- f$mon - f$mon %% 3L
-      f$isdst[] <- -1L
-      first <- as.POSIXct(..ltFrom(f, attr(lt, "tzone"), NULL))
-    }
-    by <- switch(spec$kind, weeks = paste(spec$mult * 7L, "days"), DSTdays = paste(spec$mult, "DSTdays"),
-                 paste(spec$mult, spec$kind))
-    step <- switch(spec$kind, secs = 1, mins = 60, hours = 3600, days = 86400, weeks = 604800, DSTdays = 86400,
-                   months = 28 * 86400, quarters = 84 * 86400, years = 365 * 86400) * spec$mult
-    n <- ..checkBreaks(ceiling((as.numeric(unclass(last)) - as.numeric(unclass(first))) / step) + 2)
-    pts <- seq.POSIXt(first, by = by, length.out = n)
-    keep <- which(pts > last)[1L]
-    breaks <- pts[seq_len(keep)]
-    fallback <- function(codes) as.character(breaks[-length(breaks)])
-    num <- unclass(breaks)
-    attributes(num) <- NULL
-  } else stop("invalid specification of 'breaks'")
-  xv <- unclass(x)
-  attributes(xv) <- NULL
-  ..cutFactor(xv, num, labels, right, fallback, ...)
+  given <- if (inherits(breaks, "POSIXt")) "times" else if (is.numeric(breaks) && length(breaks) == 1L) "count"
+           else if (is.character(breaks) && length(breaks) == 1L) "text"
+  if (is.null(given)) stop("invalid specification of 'breaks'")
+  if (given == "times") breaks <- sort(as.POSIXct(breaks))
+  if (given == "text") breaks <- ..timeBreaks(x, breaks, start.on.monday)
+  res <- cut(as.vector(unclass(x)), as.vector(unclass(breaks)), labels = labels, right = right, ...)
+  if (is.null(labels))
+    levels(res) <- as.character(if (is.numeric(breaks)) x[!duplicated(res)] else breaks[-length(breaks)])
+  res
 }
 
 # ---- summaries of dates and times ------------------------------------------
@@ -287,11 +278,12 @@ cut.POSIXt <- function(x, breaks, labels = NULL, start.on.monday = TRUE, right =
 # the six figures of summary.default over the numbers of a date-time object,
 # with the count of missing values kept apart and the class given
 ..summaryTime <- function(object, digits, cls, ...) {
-  s <- summary.default(object, digits = digits, ...)
+  s <- summary.default(object, ...)
   v <- unclass(s)
   at <- match("NAs", names(v), 0L)
   nas <- if (at) as.integer(v[at])
   if (at) v <- v[-at]
+  v <- signif(v, digits)
   attributes(v) <- list(names = names(v))
   class(v) <- cls
   if (at) attr(v, "NAs") <- nas

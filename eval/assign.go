@@ -60,6 +60,12 @@ func (s *Session) targetValue(c *callInfo, inner Value, super bool) Value {
 // complexAssign performs f(g(x), a) <- value as R does: x <- `g<-`(x,
 // `f<-`(g(x), a, value = value)), one replacement at a time.
 func (s *Session) complexAssign(c *callInfo, target Value, value Value, super bool) {
+	s.complexAssignAt(c, target, value, super, true)
+}
+
+// complexAssignAt is complexAssign; orig says that value is what the right
+// hand side of the assignment gave, so the replacement call shows its text.
+func (s *Session) complexAssignAt(c *callInfo, target Value, value Value, super, orig bool) {
 	switch t := target.(type) {
 	case *Symbol:
 		s.setVar(c.env, t, value, super, c.call)
@@ -81,15 +87,22 @@ func (s *Session) complexAssign(c *callInfo, target Value, value Value, super bo
 			s.errorf(c.call, "invalid (NULL) left side of assignment")
 		}
 		cur := s.targetValue(c, inner, super)
-		nv := s.callReplacement(c, f.Name, cur, t.Args[1:], value)
-		s.complexAssign(c, inner, nv, super)
+		var shown Value
+		if orig && len(c.raw) == 2 {
+			shown = c.raw[1].Value
+		}
+		nv := s.callReplacement(c, f.Name, cur, t.Args[1:], value, shown)
+		s.complexAssignAt(c, inner, nv, super, false)
 	default:
 		s.errorf(c.call, "target of assignment expands to non-language object")
 	}
 }
 
-func (s *Session) callReplacement(c *callInfo, fname string, cur Value, extra []Arg, value Value) Value {
+func (s *Session) callReplacement(c *callInfo, fname string, cur Value, extra []Arg, value, shown Value) Value {
 	rname := Intern(fname + "<-")
+	if shown == nil {
+		shown = value
+	}
 	fn := s.findFun(rname, c.env, c.call)
 	switch f := fn.(type) {
 	case *Builtin:
@@ -115,13 +128,13 @@ func (s *Session) callReplacement(c *callInfo, fname string, cur Value, extra []
 		}
 		ci.args = append(ci.args, value)
 		ci.names = append(ci.names, "value")
-		tmp.Args = append(tmp.Args, Arg{Name: "value", HasName: true, Value: value})
+		tmp.Args = append(tmp.Args, Arg{Name: "value", HasName: true, Value: shown})
 		return f.fn(s, ci)
 	case *Closure:
 		supplied := []Arg{{Value: cur}}
 		supplied = append(supplied, s.promiseArgs(extra, c.env)...)
 		supplied = append(supplied, Arg{Name: "value", HasName: true, Value: value})
-		call := &Lang{Fun: rname, Args: append(append([]Arg{{Value: Intern("*tmp*")}}, extra...), Arg{Name: "value", HasName: true, Value: value})}
+		call := &Lang{Fun: rname, Args: append(append([]Arg{{Value: Intern("*tmp*")}}, extra...), Arg{Name: "value", HasName: true, Value: shown})}
 		return s.applyClosure(f, call, supplied, c.env, nil)
 	}
 	return Null

@@ -970,6 +970,9 @@ func init() {
 			for i := range out {
 				out[i] = from + float64(i)*by
 			}
+			if a[0] != nil && a[1] != nil && a[2] == nil && lo > 1 {
+				out[lo-1] = to // the end of the range is exact, not from + (n - 1) * by
+			}
 			if (a[0] == nil && a[1] == nil && a[2] == nil) || (a[2] != nil && isInt(a[2]) && a[1] == nil && (a[0] == nil || isInt(a[0]))) {
 				return toIntVec(out)
 			}

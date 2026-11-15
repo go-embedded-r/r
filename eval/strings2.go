@@ -350,9 +350,6 @@ func init() {
 					}
 					if verb == "fg" {
 						body = formatFG(d, p, strings.Contains(flag, "#"))
-						if digitsGiven && len(body) < p+1 {
-							body = strings.Repeat(" ", p+1-len(body)) + body
-						}
 					} else if verb == "g" || verb == "G" {
 						body = formatG(d, p, verb == "G", strings.Contains(flag, "#"))
 					} else {
@@ -374,7 +371,12 @@ func init() {
 				body = strings.Repeat(" ", digits+1-len(body)) + body
 			}
 			if format != "s" {
-				body = marks.finish(marks.apply(body))
+				body = marks.apply(body)
+				if digitsGiven && (format == "g" || format == "G" || format == "fg") && len(body) < digits+1 {
+					// digits asks for a field of digits + 1, counted after the marks
+					body = strings.Repeat(" ", digits+1-len(body)) + body
+				}
+				body = marks.finish(body, false)
 			}
 			if w := displayWidth(body); w < width {
 				switch {
@@ -425,7 +427,7 @@ func init() {
 				out[i] = e
 				continue
 			}
-			out[i] = Str{S: marks.finish(marks.apply(e.S))}
+			out[i] = Str{S: marks.finish(marks.apply(e.S), false)}
 		}
 		return withAttr(&String{V: out}, keepShapeAttrs(a[0]))
 	})

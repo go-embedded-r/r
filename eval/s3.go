@@ -84,6 +84,22 @@ func (s *Session) dispatchInternal(name string, c *callInfo, args []Value, names
 		s.noDispatch = false
 		return nil, false
 	}
+	if len(args) > 0 && !isObject(args[0]) && (name == "unique" || name == "duplicated" || name == "anyDuplicated") {
+		// a matrix or an array has the implicit class "matrix" and "array":
+		// these generics treat its slices, not its elements
+		if d := dimsOf(args[0]); len(d) >= 2 {
+			implicit := []string{"array"}
+			if len(d) == 2 {
+				implicit = []string{"matrix", "array"}
+			}
+			for i, cl := range implicit {
+				if m := s.findMethod(name+"."+cl, c.env); m != nil {
+					di := &dispatchInfo{generic: name, classes: append(append([]string{}, implicit...), "default"), idx: i, object: args[0]}
+					return s.callMethod(m, name+"."+cl, c.call, argsOf(args, names), c.env, di), true
+				}
+			}
+		}
+	}
 	if len(args) == 0 || !isObject(args[0]) {
 		return nil, false
 	}
@@ -116,7 +132,7 @@ var (
 		"gamma": true, "lgamma": true, "sinpi": true, "cospi": true, "tanpi": true, "trunc": true, "sign": true, "round": true, "signif": true,
 		"cumsum": true, "cumprod": true, "cummax": true, "cummin": true}
 	summaryGroup = map[string]bool{"sum": true, "prod": true, "min": true, "max": true, "any": true, "all": true, "range": true}
-	internalGen  = []string{"length", "length<-", "names", "names<-", "dimnames", "dimnames<-", "duplicated", "levels<-", "as.character", "as.integer", "as.double", "as.numeric", "as.logical", "c", "is.na", "dim", "dim<-", "unlist", "rep", "seq_along", "mean", "t", "as.vector", "format", "seq", "is.numeric", "unique", "xtfrm", "sort", "rev", "rank", "anyNA"}
+	internalGen  = []string{"length", "length<-", "names", "names<-", "dimnames", "dimnames<-", "duplicated", "levels<-", "as.character", "as.integer", "as.double", "as.numeric", "as.logical", "c", "is.na", "dim", "dim<-", "unlist", "rep", "seq_along", "mean", "t", "as.vector", "format", "seq", "is.numeric", "unique", "xtfrm", "sort", "rev", "rank", "anyNA", "anyDuplicated"}
 )
 
 // methodFor finds the method of generic (or of its group) for one class vector.

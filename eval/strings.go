@@ -1035,7 +1035,7 @@ func (s *Session) format(c *callInfo) Value {
 		case *Double, *Integer, *Logical:
 			if !inheritsClass(x, "factor") {
 				for i := range out {
-					out[i].S = marks.finish(out[i].S)
+					out[i].S = marks.finish(out[i].S, true)
 				}
 			}
 		}
