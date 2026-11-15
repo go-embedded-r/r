@@ -115,6 +115,7 @@ print.data.frame <- function(x, ..., digits = NULL, quote = FALSE, right = TRUE,
     cat("<0 rows> (or 0-length row.names)\n")
   } else {
     m <- as.matrix(format.data.frame(x, digits = digits, na.encode = FALSE))
+    if (is.null(colnames(m))) colnames(m) <- rep("", ncol(m))
     if (identical(row.names, FALSE)) dimnames(m)[[1L]] <- rep("", n)
     print(m, quote = quote, right = right)
   }

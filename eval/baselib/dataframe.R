@@ -215,8 +215,7 @@ as.data.frame.list <- function(x, row.names = NULL, optional = FALSE, ...,
                                cut.names = FALSE, col.names = names(x),
                                fix.empty.names = TRUE, check.names = !optional,
                                stringsAsFactors = FALSE) {
-  if (is.null(col.names)) col.names <- paste0("V", seq_along(x))
-  names(x) <- col.names
+  if (!is.null(col.names)) names(x) <- col.names
   y <- do.call(data.frame, c(x, list(check.names = check.names,
                                       stringsAsFactors = stringsAsFactors)))
   if (!is.null(row.names)) row.names(y) <- row.names
@@ -245,7 +244,7 @@ as.data.frame.vector <- function(x, row.names = NULL, optional = FALSE, ..., nm 
   n <- length(x)
   if (is.null(row.names)) {
     row.names <- names(x)
-    if (length(row.names) != n || anyDuplicated(row.names)) row.names <- .set_row_names(n)
+    if (length(row.names) != n || anyDuplicated(row.names)) row.names <- if (n == 0L) character() else .set_row_names(n)
   }
   if (!is.null(names(x))) names(x) <- NULL
   value <- list(x)
@@ -274,7 +273,7 @@ as.data.frame.complex <- ..dfvec("complex")
 as.data.frame.Date <- ..dfvec("Date")
 as.data.frame.POSIXct <- ..dfvec("POSIXct")
 as.data.frame.default <- function(x, ...)
-  stop(gettextf("cannot coerce class %s to a data.frame", sQuote(deparse(class(x))[1L])),
+  if (is.null(x)) as.data.frame.list(list()) else stop(gettextf("cannot coerce class %s to a data.frame", sQuote(deparse(class(x))[1L])),
        domain = NA)
 
 # ---- extraction -------------------------------------------------------

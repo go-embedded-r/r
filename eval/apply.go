@@ -791,6 +791,11 @@ func init() {
 			return Null
 		}
 		n := Length(x)
+		if isObject(x) {
+			if l := asInts(s.callNamed(c, "length", []Value{x}, []string{""})); len(l) == 1 && l[0] >= 0 {
+				n = int(l[0]) // the length an object's own method answers
+			}
+		}
 		pos := make([]int, n)
 		for i := range pos {
 			pos[i] = n - 1 - i
