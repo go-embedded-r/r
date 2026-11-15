@@ -11,7 +11,7 @@ import (
 	"github.com/go-embedded-r/r/syntax"
 )
 
-func syntaxDeparse(v Value) []string { return syntax.Deparse(toSyntax(v), nil) }
+func (s *Session) syntaxDeparse(v Value) []string { return syntax.Deparse(s.toSyntax(v), nil) }
 
 // charVec is as.character for the character functions: strings stay, other
 // atomic vectors are converted, anything else is an error with R's wording.
@@ -27,7 +27,7 @@ func (s *Session) charVec(c *callInfo, v Value, fname string) []Str {
 	case nullT:
 		return nil
 	case *List:
-		return asStringsList(v)
+		return s.asStringsList(v)
 	}
 	s.errorf(c.call, "non-character argument")
 	return nil
@@ -834,7 +834,7 @@ func (s *Session) sprintf1(c *callInfo, f string, args []Value, row int, used []
 					str = e.S
 				}
 			case *List:
-				e := asStringsList(v)[idx]
+				e := s.asStringsList(v)[idx]
 				str = e.S
 			default:
 				s.errorf(c.call, "unsupported type")
@@ -856,6 +856,8 @@ func (s *Session) sprintf1(c *callInfo, f string, args []Value, row int, used []
 // ---- format ------------------------------------------------------------
 
 func (s *Session) format(c *callInfo) Value {
+	s.descend()
+	defer s.ascend()
 	a := s.matchFormals(c, "x", "trim", "digits", "nsmall", "justify", "width", "na.encode", "scientific", "big.mark")
 	x := a[0]
 	if x == nil {
@@ -922,7 +924,7 @@ func (s *Session) format(c *callInfo) Value {
 		items, _ = formatElements(v, false)
 	case *List:
 		if v.Expr {
-			return strVec(syntax.Deparse(toSyntax(withAttr(v, keepNamesOnly(v))), nil))
+			return strVec(syntax.Deparse(s.toSyntax(withAttr(v, keepNamesOnly(v))), nil))
 		}
 		out := make([]Str, len(v.V))
 		for i, e := range v.V {

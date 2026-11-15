@@ -319,7 +319,12 @@ func namesAttr(n []Str) []Attr {
 // ---- conversions to and from the other packages ---------------------------
 
 // FromSyntax converts a parsed expression to a language object.
-func FromSyntax(n syntax.Node) Value {
+//
+// A tree deeper than DefaultMaxDepth panics with R's "C stack usage" error;
+// a session converts through its own bound (Options.MaxDepth).
+func FromSyntax(n syntax.Node) Value { return walkSession().fromSyntax(n) }
+
+func (s *Session) fromSyntax(n syntax.Node) Value {
 	switch x := n.(type) {
 	case nil:
 		return Missing
@@ -361,19 +366,23 @@ func FromSyntax(n syntax.Node) Value {
 		}
 		return Null
 	case *syntax.Function:
+		s.descend()
+		defer s.ascend()
 		f := &Formals{}
 		for _, p := range x.Params {
 			fm := Formal{Name: Intern(p.Name)}
 			if p.Default != nil {
-				fm.Default = FromSyntax(p.Default)
+				fm.Default = s.fromSyntax(p.Default)
 			}
 			f.F = append(f.F, fm)
 		}
-		return &Lang{Fun: Intern("function"), Args: []Arg{{Value: f}, {Value: FromSyntax(x.Body)}}}
+		return &Lang{Fun: Intern("function"), Args: []Arg{{Value: f}, {Value: s.fromSyntax(x.Body)}}}
 	case *syntax.Call:
-		l := &Lang{Fun: FromSyntax(x.Fun)}
+		s.descend()
+		defer s.ascend()
+		l := &Lang{Fun: s.fromSyntax(x.Fun)}
 		for _, a := range x.Args {
-			l.Args = append(l.Args, Arg{Name: a.Name, HasName: a.HasName, Value: FromSyntax(a.Value)})
+			l.Args = append(l.Args, Arg{Name: a.Name, HasName: a.HasName, Value: s.fromSyntax(a.Value)})
 		}
 		return l
 	}
@@ -381,7 +390,9 @@ func FromSyntax(n syntax.Node) Value {
 }
 
 // toSyntax converts a language object back, for deparse.
-func toSyntax(v Value) syntax.Node {
+func (s *Session) toSyntax(v Value) syntax.Node {
+	s.descend()
+	defer s.ascend()
 	if isVector(v) {
 		// attributes other than names are written as structure(<vector>, a = b)
 		var namesOnly, extra []Attr
@@ -393,9 +404,9 @@ func toSyntax(v Value) syntax.Node {
 			}
 		}
 		if len(extra) > 0 {
-			call := &syntax.Call{Fun: &syntax.Sym{Name: "structure"}, Args: []syntax.Arg{{Value: toSyntax(withAttr(v, namesOnly))}}}
+			call := &syntax.Call{Fun: &syntax.Sym{Name: "structure"}, Args: []syntax.Arg{{Value: s.toSyntax(withAttr(v, namesOnly))}}}
 			for _, a := range extra {
-				call.Args = append(call.Args, syntax.Arg{Name: a.Name, HasName: true, Value: toSyntax(a.Value)})
+				call.Args = append(call.Args, syntax.Arg{Name: a.Name, HasName: true, Value: s.toSyntax(a.Value)})
 			}
 			return call
 		}
@@ -409,7 +420,7 @@ func toSyntax(v Value) syntax.Node {
 		return &syntax.Const{Kind: syntax.Null}
 	case *Logical:
 		if len(x.V) != 1 || namesOf(x) != nil {
-			return atomicToSyntax(x)
+			return s.atomicToSyntax(x)
 		}
 		if len(x.V) == 1 {
 			c := &syntax.Const{Kind: syntax.Logical}
@@ -422,7 +433,7 @@ func toSyntax(v Value) syntax.Node {
 		}
 	case *Integer:
 		if len(x.V) != 1 || namesOf(x) != nil {
-			return atomicToSyntax(x)
+			return s.atomicToSyntax(x)
 		}
 		if len(x.V) == 1 {
 			c := &syntax.Const{Kind: syntax.Integer, Int: x.V[0]}
@@ -431,7 +442,7 @@ func toSyntax(v Value) syntax.Node {
 		}
 	case *Double:
 		if len(x.V) != 1 || namesOf(x) != nil {
-			return atomicToSyntax(x)
+			return s.atomicToSyntax(x)
 		}
 		if len(x.V) == 1 {
 			c := &syntax.Const{Kind: syntax.Double, Double: x.V[0]}
@@ -440,14 +451,14 @@ func toSyntax(v Value) syntax.Node {
 		}
 	case *String:
 		if len(x.V) != 1 || namesOf(x) != nil {
-			return atomicToSyntax(x)
+			return s.atomicToSyntax(x)
 		}
 		return &syntax.Const{Kind: syntax.String, Str: x.V[0].S, NA: x.V[0].NA}
 	case *Promise:
-		return toSyntax(x.Expr)
+		return s.toSyntax(x.Expr)
 	case *Complex:
 		if len(x.V) != 1 || namesOf(x) != nil {
-			return atomicToSyntax(x)
+			return s.atomicToSyntax(x)
 		}
 		c := &syntax.Const{Kind: syntax.Complex, Double: real(x.V[0]), Im: imag(x.V[0])}
 		c.NA = isNAReal(real(x.V[0])) && isNAReal(imag(x.V[0]))
@@ -475,26 +486,26 @@ func toSyntax(v Value) syntax.Node {
 		return &syntax.Call{Fun: &syntax.Sym{Name: "as.raw"}, Args: []syntax.Arg{{Value: inner}}}
 	case *List:
 		if x.Expr {
-			return vecToSyntax("expression", x.V, x)
+			return s.vecToSyntax("expression", x.V, x)
 		}
-		return vecToSyntax("list", x.V, x)
+		return s.vecToSyntax("list", x.V, x)
 	case *Lang:
-		if s, ok := x.Fun.(*Symbol); ok && s.Name == "function" && len(x.Args) == 2 {
+		if fs, ok := x.Fun.(*Symbol); ok && fs.Name == "function" && len(x.Args) == 2 {
 			if f, ok := x.Args[0].Value.(*Formals); ok {
-				fn := &syntax.Function{Body: toSyntax(x.Args[1].Value)}
+				fn := &syntax.Function{Body: s.toSyntax(x.Args[1].Value)}
 				for _, p := range f.F {
 					prm := syntax.Param{Name: p.Name.Name}
 					if p.Default != nil {
-						prm.Default = toSyntax(p.Default)
+						prm.Default = s.toSyntax(p.Default)
 					}
 					fn.Params = append(fn.Params, prm)
 				}
 				return fn
 			}
 		}
-		c := &syntax.Call{Fun: toSyntax(x.Fun)}
+		c := &syntax.Call{Fun: s.toSyntax(x.Fun)}
 		for _, a := range x.Args {
-			c.Args = append(c.Args, syntax.Arg{Name: a.Name, HasName: a.HasName, Value: toSyntax(a.Value)})
+			c.Args = append(c.Args, syntax.Arg{Name: a.Name, HasName: a.HasName, Value: s.toSyntax(a.Value)})
 		}
 		return c
 	}
@@ -504,11 +515,11 @@ func toSyntax(v Value) syntax.Node {
 // vecToSyntax writes a vector of length other than one as the call that
 // builds it, as deparse() does: c(...), a:b for a run of integers, list(...),
 // or integer(0) and the like.
-func vecToSyntax(head string, elems []Value, v Value) syntax.Node {
+func (s *Session) vecToSyntax(head string, elems []Value, v Value) syntax.Node {
 	nm := namesOf(v)
 	call := &syntax.Call{Fun: &syntax.Sym{Name: head}, Elems: head == "expression", Vec: head == "c"}
 	for i, e := range elems {
-		a := syntax.Arg{Value: toSyntax(e)}
+		a := syntax.Arg{Value: s.toSyntax(e)}
 		if nm != nil && !nm.V[i].NA && nm.V[i].S != "" {
 			a.Name, a.HasName = nm.V[i].S, true
 		}
@@ -517,7 +528,7 @@ func vecToSyntax(head string, elems []Value, v Value) syntax.Node {
 	return call
 }
 
-func atomicToSyntax(v Value) syntax.Node {
+func (s *Session) atomicToSyntax(v Value) syntax.Node {
 	n := Length(v)
 	if n == 0 {
 		name := map[Type]string{rds0Lgl: "logical", rds0Int: "integer", rds0Dbl: "numeric", rds0Str: "character", rds.CPLXSXP: "complex"}[v.Type()]
@@ -568,18 +579,25 @@ func atomicToSyntax(v Value) syntax.Node {
 		}
 	}
 	if n == 1 && namesOf(v) == nil {
-		return toSyntax(v)
+		return s.toSyntax(v)
 	}
-	return vecToSyntax("c", elems, v)
+	return s.vecToSyntax("c", elems, v)
 }
 
 // ToRDS converts a value to the serialization tree, so that it can be
 // compared with, or written like, what R serializes.
-func ToRDS(v Value) rds.Value {
+//
+// A value nested deeper than DefaultMaxDepth panics with R's "C stack usage"
+// error; a session converts through its own bound (Options.MaxDepth).
+func ToRDS(v Value) rds.Value { return walkSession().toRDS(v) }
+
+func (s *Session) toRDS(v Value) rds.Value {
+	s.descend()
+	defer s.ascend()
 	meta := func(attr []Attr) rds.Meta {
 		var m rds.Meta
 		for _, a := range attr {
-			m.Attrs = append(m.Attrs, rds.Attr{Name: a.Name, Value: ToRDS(a.Value)})
+			m.Attrs = append(m.Attrs, rds.Attr{Name: a.Name, Value: s.toRDS(a.Value)})
 			if a.Name == "class" {
 				m.Obj = true
 			}
@@ -628,7 +646,7 @@ func ToRDS(v Value) rds.Value {
 	case *List:
 		out := &rds.List{Meta: meta(x.Attr), Expr: x.Expr, V: make([]rds.Value, len(x.V))}
 		for i, e := range x.V {
-			out.V[i] = ToRDS(e)
+			out.V[i] = s.toRDS(e)
 		}
 		return out
 	case *Formals:
@@ -639,16 +657,16 @@ func ToRDS(v Value) rds.Value {
 		for _, f := range x.F {
 			var dv rds.Value = rds.MissingArg
 			if f.Default != nil {
-				dv = ToRDS(f.Default)
+				dv = s.toRDS(f.Default)
 			}
 			p.Items = append(p.Items, rds.Item{Tag: &rds.Sym{Name: f.Name.Name, Gp: rds.NewStr(f.Name.Name).Gp}, Value: dv})
 		}
 		return p
 	case *Lang:
 		p := &rds.Pairlist{Kind: rds.LANGSXP}
-		p.Items = append(p.Items, rds.Item{Value: ToRDS(x.Fun)})
+		p.Items = append(p.Items, rds.Item{Value: s.toRDS(x.Fun)})
 		for _, a := range x.Args {
-			it := rds.Item{Value: ToRDS(a.Value)}
+			it := rds.Item{Value: s.toRDS(a.Value)}
 			if a.HasName {
 				it.Tag = &rds.Sym{Name: a.Name, Gp: rds.NewStr(a.Name).Gp}
 			}

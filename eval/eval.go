@@ -130,7 +130,7 @@ func (s *Session) evalLang(c *Lang, env *Env) Value {
 	s.depth++
 	defer func() { s.depth-- }()
 	if s.depth > s.opts.MaxDepth {
-		s.errorf(nil, "evaluation nested too deeply: infinite recursion / options(expressions=)?")
+		s.evalTooDeep()
 	}
 	s.tick++
 	if s.tick&127 == 0 {
@@ -350,7 +350,7 @@ func (s *Session) bindArgs(f *Closure, call *Lang, supplied []Arg, fenv *Env) {
 	if len(rest) > 0 && dotsAt < 0 {
 		parts := make([]string, len(rest))
 		for i, a := range rest {
-			txt := strings.Join(syntax.Deparse(toSyntax(a.Value), nil), " ")
+			txt := strings.Join(syntax.Deparse(s.toSyntax(a.Value), nil), " ")
 			if a.HasName && a.Name != "" {
 				txt = a.Name + " = " + txt
 			}

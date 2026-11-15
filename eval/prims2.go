@@ -351,7 +351,7 @@ func init() {
 			s.errorf(c.call, "argument \"x\" is missing, with no default")
 		}
 		rec := a[1] != nil && s.truthy(c, a[1], "recursive")
-		return mkLogical(anyNAValue(a[0], rec))
+		return mkLogical(s.anyNAValue(a[0], rec))
 	})
 	regBuiltin("nzchar", func(s *Session, c *callInfo) Value {
 		a := s.matchFormals(c, "x", "keepNA")
@@ -747,7 +747,11 @@ func fitNamesEmpty(nm []Str, n int) []Str {
 	return out
 }
 
-func anyNAValue(v Value, rec bool) bool {
+func (s *Session) anyNAValue(v Value, rec bool) bool {
+	if _, ok := v.(*List); ok {
+		s.descend()
+		defer s.ascend()
+	}
 	switch x := v.(type) {
 	case *Logical:
 		for _, e := range x.V {
@@ -782,11 +786,11 @@ func anyNAValue(v Value, rec bool) bool {
 	case *List:
 		for _, e := range x.V {
 			if rec {
-				if anyNAValue(e, rec) {
+				if s.anyNAValue(e, rec) {
 					return true
 				}
 			} else if Length(e) == 1 && isVector(e) {
-				if _, isList := e.(*List); !isList && anyNAValue(e, false) {
+				if _, isList := e.(*List); !isList && s.anyNAValue(e, false) {
 					return true
 				}
 			}
@@ -1080,7 +1084,7 @@ func (s *Session) checkSwitchDefaults(c *callInfo, alts []Arg) {
 	var shown []string
 	for _, a := range alts {
 		if !a.HasName || a.Name == "" {
-			shown = append(shown, strings.Join(syntaxDeparse(a.Value), " "))
+			shown = append(shown, strings.Join(s.syntaxDeparse(a.Value), " "))
 		}
 	}
 	if len(shown) > 1 {
@@ -1103,7 +1107,7 @@ func (s *Session) switchDefault(c *callInfo, alts []Arg, key string) Value {
 		var shown []string
 		for _, a := range alts {
 			if !a.HasName || a.Name == "" {
-				shown = append(shown, strings.Join(syntaxDeparse(a.Value), " "))
+				shown = append(shown, strings.Join(s.syntaxDeparse(a.Value), " "))
 			}
 		}
 		s.errorf(c.call, "duplicate 'switch' defaults: '%s' and '%s'", shown[0], shown[1])
@@ -1137,6 +1141,8 @@ func (s *Session) substitute(v Value, env *Env) Value {
 			return bv
 		}
 	case *Lang:
+		s.descend()
+		defer s.ascend()
 		out := &Lang{Fun: s.substitute(x.Fun, env)}
 		for _, a := range x.Args {
 			if sym, ok := a.Value.(*Symbol); ok && sym.Name == "..." {

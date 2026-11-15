@@ -226,25 +226,25 @@ func (s *Session) textOf(c *callInfo, v Value) []Str {
 		s.errorf(c.call, "argument \"x\" is missing, with no default")
 	}
 	if _, ok := v.(*List); ok {
-		return asStringsList(v)
+		return s.asStringsList(v)
 	}
 	return asStrings(v)
 }
 
-func asStringsList(v Value) []Str {
+func (s *Session) asStringsList(v Value) []Str {
 	l := v.(*List)
 	out := make([]Str, len(l.V))
 	for i, e := range l.V {
 		if st, ok := e.(*String); ok && len(st.V) == 1 {
 			out[i] = st.V[0]
 		} else {
-			out[i] = Str{S: strings.Join(deparseValue(e), "")}
+			out[i] = Str{S: strings.Join(s.deparseValue(e), "")}
 		}
 	}
 	return out
 }
 
-func deparseValue(v Value) []string { return syntaxDeparse(v) }
+func (s *Session) deparseValue(v Value) []string { return s.syntaxDeparse(v) }
 
 func intAttrs(extra ...Attr) []Attr { return extra }
 

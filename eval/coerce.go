@@ -234,9 +234,9 @@ func (s *Session) asCharacter(c *callInfo) Value {
 					out[i] = ev.V[0]
 					continue
 				}
-				out[i] = Str{S: strings.Join(syntax.Deparse(toSyntax(e), nil), "\n")}
+				out[i] = Str{S: strings.Join(syntax.Deparse(s.toSyntax(e), nil), "\n")}
 			default:
-				out[i] = Str{S: strings.Join(syntax.Deparse(toSyntax(e), nil), "\n")}
+				out[i] = Str{S: strings.Join(syntax.Deparse(s.toSyntax(e), nil), "\n")}
 			}
 		}
 		return &String{V: out}
@@ -248,7 +248,7 @@ func (s *Session) asCharacter(c *callInfo) Value {
 				if isVector(e) && kindOf(e) != kList && Length(e) == 1 && getAttr(e, "class") == nil {
 					out[i] = asStrings(e)[0]
 				} else {
-					out[i] = Str{S: strings.Join(syntax.Deparse(toSyntax(e), nil), "\n")}
+					out[i] = Str{S: strings.Join(syntax.Deparse(s.toSyntax(e), nil), "\n")}
 				}
 			}
 			return &String{V: out}
@@ -258,12 +258,12 @@ func (s *Session) asCharacter(c *callInfo) Value {
 			for i, e := range v.V {
 				switch e.(type) {
 				case *Lang, *Symbol:
-					out[i] = Str{S: strings.Join(syntax.Deparse(toSyntax(e), nil), "\n")}
+					out[i] = Str{S: strings.Join(syntax.Deparse(s.toSyntax(e), nil), "\n")}
 				default:
 					if Length(e) == 1 && isVector(e) && kindOf(e) != kList {
 						out[i] = asStrings(e)[0]
 					} else {
-						out[i] = Str{S: strings.Join(syntax.Deparse(toSyntax(e), nil), "\n")}
+						out[i] = Str{S: strings.Join(syntax.Deparse(s.toSyntax(e), nil), "\n")}
 					}
 				}
 			}

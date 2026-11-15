@@ -28,7 +28,7 @@ func (s *Session) parseText(c *callInfo, text string, n int, desc string) *List 
 		if n >= 0 && len(out.V) >= n {
 			break
 		}
-		out.V = append(out.V, FromSyntax(e))
+		out.V = append(out.V, s.fromSyntax(e))
 	}
 	return out
 }

@@ -42,7 +42,7 @@ func (s *Session) matchFun(c *callInfo, v Value, env *Env) Value {
 	case *Symbol:
 		return s.findFun(f, env, c.call)
 	}
-	s.errorf(c.call, "'%s' is not a function, character or symbol", strings.Join(syntaxDeparse(v), ""))
+	s.errorf(c.call, "'%s' is not a function, character or symbol", strings.Join(s.syntaxDeparse(v), ""))
 	return nil
 }
 
@@ -1078,6 +1078,8 @@ func (s *Session) subsetPositions(x Value, pos []int) Value {
 // flatten collects the leaves of nested lists with R's name rules: a name
 // given to a vector of n > 1 unnamed leaves becomes name1 ... namen.
 func (s *Session) flatten(l *List, base string, rec, use bool, leaves *[]Value, names *[]string) {
+	s.descend()
+	defer s.ascend()
 	nm := namesOf(l)
 	for i, e := range l.V {
 		tag := ""

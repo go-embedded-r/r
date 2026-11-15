@@ -682,7 +682,7 @@ func init() {
 			}
 			open = st.V[0].S
 		}
-		cn := &conn{kind: kRawConn, class: "rawConnection", desc: descriptionOf(c, "object", a[0]), mode: open, open: true, binary: true}
+		cn := &conn{kind: kRawConn, class: "rawConnection", desc: s.descriptionOf(c, "object", a[0]), mode: open, open: true, binary: true}
 		if strings.HasPrefix(open, "r") {
 			cn.canRead = true
 			cn.canWrite = strings.Contains(open, "+")

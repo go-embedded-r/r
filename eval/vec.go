@@ -79,7 +79,7 @@ func (s *Session) compare(op string, c *callInfo) Value {
 		case *Symbol:
 			*p = mkString(v.Name)
 		case *Lang:
-			*p = mkString(strings.Join(syntaxDeparse(v), ""))
+			*p = mkString(strings.Join(s.syntaxDeparse(v), ""))
 		}
 	}
 	// a raw operand compares as its bytes, or as its hex text against a string
