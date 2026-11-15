@@ -66,7 +66,7 @@ func (s *Session) printMatrix(v Value, base, nr, nc int, rowNames, colNames *Str
 			pos[i] = base + j*nr + i
 		}
 		col := takeElems(v, pos)
-		items, left := formatElements(col, quote)
+		items, left := formatElementsPrint(col, quote)
 		if _, isStr := v.(*String); isStr {
 			left = !s.printRight
 		}

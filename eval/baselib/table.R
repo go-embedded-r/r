@@ -57,6 +57,7 @@ print.table <- function(x, digits = getOption("digits"), quote = FALSE, na.print
     cat("< table of extent", paste(d, collapse = " x "), ">\n")
   } else if (is.numeric(x) || is.complex(x)) {
     txt <- format(unclass(x), digits = digits)
+    if (!identical(zero.print, "0")) txt[!is.na(x) & x == 0] <- zero.print
     txt[is.na(x)] <- na.print
     print(txt, quote = quote, right = right)
   } else {
