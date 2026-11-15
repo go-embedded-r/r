@@ -515,6 +515,11 @@ func newScanCol(k scanKind) *scanCol { return &scanCol{kind: k} }
 // scanInput finds the bytes scan reads: text=, a file name or a connection. It
 // answers the connection and whether scan opened it (and so closes it).
 func (s *Session) scanInput(c *callInfo, file, text Value) (cn *conn, ours bool) {
+	return s.openInput(c, file, text, "r")
+}
+
+// openInput is scanInput with the mode of the file call R shows on a failure.
+func (s *Session) openInput(c *callInfo, file, text Value, mode string, openCall ...*Lang) (cn *conn, ours bool) {
 	if text != nil {
 		ts, ok := text.(*String)
 		if !ok {
@@ -542,7 +547,11 @@ func (s *Session) scanInput(c *callInfo, file, text Value) (cn *conn, ours bool)
 			return s.io.conns[0], false
 		}
 		cn = &conn{kind: kFile, class: "file", desc: x.V[0].S, path: s.abspath(x.V[0].S)}
-		s.openConn(fileCall("file", "r"), cn, "r")
+		oc := fileCall("file", mode)
+		if len(openCall) > 0 {
+			oc = openCall[0]
+		}
+		s.openConn(oc, cn, "r")
 		return cn, true
 	}
 	cn = s.getConn(c.call, file, "file")
@@ -583,6 +592,90 @@ func (s *Session) scanLimit(c *callInfo, v Value, def int, what string) int {
 		return def
 	}
 	return int(max(min(d[0], math.MaxInt32), -1))
+}
+
+// scanRun reads the records of the columns cols from sc, until the data ends or
+// maxRec records (nlines lines) were read; call is the call an error shows.
+func (s *Session) scanRun(call *Lang, sc *scanner, cols []*scanCol, maxRec, nlines int) (nrec int) {
+	sp := sc.sp
+	nc := len(cols)
+	bad := func(kind scanKind, text string) {
+		s.errorf(call, "scan() expected '%s', got '%s'", scanExpected[kind], text)
+	}
+	dec := sp.dec
+	colsread, linesRead := 0, 0
+	natural := true
+loop:
+	for maxRec == 0 || nrec < maxRec {
+		col := cols[colsread]
+		t := sc.next(sp.strip[colsread%len(sp.strip)])
+		switch t.kind {
+		case scEnd:
+			break loop
+		case scBlank:
+			if sp.blankSkip {
+				linesRead++
+				if nlines > 0 && linesRead >= nlines {
+					natural = false
+					break loop
+				}
+				continue
+			}
+			t = scanTok{kind: scField, eol: true}
+		}
+		col.add(t, sp, &dec, bad, nil)
+		if n := col.len(); n > s.opts.MaxVector {
+			s.errorf(call, "cannot allocate vector of length %d", n)
+		}
+		colsread++
+		if colsread == nc {
+			nrec++
+			colsread = 0
+			if sp.flush && !t.eol {
+				for {
+					u := sc.next(false)
+					if u.kind == scEnd || u.eol {
+						t.eol = u.kind != scEnd
+						break
+					}
+				}
+			}
+		}
+		if t.eol {
+			linesRead++
+			if colsread > 0 && (sp.fill || !sp.multi) {
+				if !sp.fill {
+					s.errorf(call, "line %d did not have %d elements", linesRead, nc)
+				}
+				for ; colsread < nc; colsread++ {
+					cols[colsread].pad()
+				}
+				nrec++
+				colsread = 0
+			}
+			if nlines > 0 && linesRead >= nlines {
+				natural = false
+				break loop
+			}
+		}
+	}
+	if maxRec > 0 && nrec >= maxRec {
+		natural = false
+	}
+	if sc.unclosed {
+		s.warningf(call, "EOF within quoted string")
+	}
+	if colsread > 0 {
+		missing := nc - colsread
+		if !natural || missing >= 2 {
+			s.warningf(call, "number of items read is not a multiple of the number of columns")
+		}
+		for ; colsread < nc; colsread++ {
+			cols[colsread].pad()
+		}
+		nrec++
+	}
+	return nrec
 }
 
 func init() {
@@ -696,82 +789,7 @@ func init() {
 		case !isList && nitems > 0:
 			maxRec = nitems
 		}
-		bad := func(kind scanKind, text string) {
-			s.errorf(c.call, "scan() expected '%s', got '%s'", scanExpected[kind], text)
-		}
-		var dec = sp.dec
-		nrec, colsread, linesRead := 0, 0, 0
-		natural := true
-	loop:
-		for maxRec == 0 || nrec < maxRec {
-			col := cols[colsread]
-			t := sc.next(sp.strip[colsread%len(sp.strip)])
-			switch t.kind {
-			case scEnd:
-				break loop
-			case scBlank:
-				if sp.blankSkip {
-					linesRead++
-					if nlines > 0 && linesRead >= nlines {
-						natural = false
-						break loop
-					}
-					continue
-				}
-				t = scanTok{kind: scField, eol: true}
-			}
-			col.add(t, sp, &dec, bad, nil)
-			if n := col.len(); n > s.opts.MaxVector {
-				s.errorf(c.call, "cannot allocate vector of length %d", n)
-			}
-			colsread++
-			if colsread == nc {
-				nrec++
-				colsread = 0
-				if sp.flush && !t.eol {
-					for {
-						u := sc.next(false)
-						if u.kind == scEnd || u.eol {
-							t.eol = u.kind != scEnd
-							break
-						}
-					}
-				}
-			}
-			if t.eol {
-				linesRead++
-				if colsread > 0 && (sp.fill || !sp.multi) {
-					if !sp.fill {
-						s.errorf(c.call, "line %d did not have %d elements", linesRead, nc)
-					}
-					for ; colsread < nc; colsread++ {
-						cols[colsread].pad()
-					}
-					nrec++
-					colsread = 0
-				}
-				if nlines > 0 && linesRead >= nlines {
-					natural = false
-					break loop
-				}
-			}
-		}
-		if maxRec > 0 && nrec >= maxRec {
-			natural = false
-		}
-		if sc.unclosed {
-			s.warningf(c.call, "EOF within quoted string")
-		}
-		if colsread > 0 {
-			missing := nc - colsread
-			if !natural || missing >= 2 {
-				s.warningf(c.call, "number of items read is not a multiple of the number of columns")
-			}
-			for ; colsread < nc; colsread++ {
-				cols[colsread].pad()
-			}
-			nrec++
-		}
+		nrec := s.scanRun(c.call, sc, cols, maxRec, nlines)
 		if !ours {
 			cn.pos = sc.pos
 		}
