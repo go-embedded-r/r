@@ -984,6 +984,16 @@ func (s *Session) format(c *callInfo) Value {
 				items = append(items, e.S)
 			}
 		}
+	case *Symbol, *Lang:
+		return strVec(syntax.Deparse(s.toSyntax(v), nil))
+	case *Env:
+		switch {
+		case v == s.BaseNS:
+			return mkString("<environment: namespace:base>")
+		case envName(s, v) != "":
+			return mkString("<environment: " + envName(s, v) + ">")
+		}
+		return mkString("<environment>")
 	default:
 		s.errorf(c.call, "unsupported object for format()")
 	}

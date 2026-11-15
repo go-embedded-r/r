@@ -795,6 +795,17 @@ func init() {
 		for i := range pos {
 			pos[i] = n - 1 - i
 		}
+		if isObject(x) {
+			// an object with a method for [ is reversed through it
+			idx := make([]int32, n)
+			for i := range idx {
+				idx[i] = int32(n - i)
+			}
+			s.noDispatch = false // rev itself was entered without dispatching
+			if r, ok := s.dispatchInternal("[", c, []Value{x, &Integer{V: idx}}, []string{"", ""}); ok {
+				return r
+			}
+		}
 		return s.subsetPositions(x, pos)
 	})
 	regBuiltin("which", func(s *Session, c *callInfo) Value {

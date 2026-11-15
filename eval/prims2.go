@@ -671,7 +671,7 @@ func init() {
 			return nil
 		})
 	}
-	for _, n := range []string{"~", "@", "@<-", "Exec", "Tailcall", "declare", "browser", "standardGeneric", ".Internal", ".isMethodsDispatchOn", "pos.to.env", "tracemem", "untracemem", "retracemem"} {
+	for _, n := range []string{"@", "@<-", "Exec", "Tailcall", "declare", "browser", "standardGeneric", ".Internal", ".isMethodsDispatchOn", "pos.to.env", "tracemem", "untracemem", "retracemem"} {
 		n := n
 		regSpecial(n, func(s *Session, c *callInfo) Value {
 			s.errorf(c.call, "'%s' is not supported by this evaluator (%s)", n, unsupportedWhy(n))
@@ -688,7 +688,7 @@ var unsupportedPrims = []string{
 	"lazyLoadDBfetch", ".cache_class", ".primTrace", ".primUntrace", "unCfillPOSIXlt",
 }
 
-var unsupportedSpecials = []string{"~", "@", "@<-", "Exec", "Tailcall", "declare", "browser", "standardGeneric", ".Internal", ".isMethodsDispatchOn", "pos.to.env", "tracemem", "untracemem", "retracemem"}
+var unsupportedSpecials = []string{"@", "@<-", "Exec", "Tailcall", "declare", "browser", "standardGeneric", ".Internal", ".isMethodsDispatchOn", "pos.to.env", "tracemem", "untracemem", "retracemem"}
 
 // Unsupported lists the primitives that exist as names but refuse to run:
 // they are not counted as implemented.

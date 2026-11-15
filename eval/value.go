@@ -105,6 +105,7 @@ type (
 		V    []Value
 		Attr []Attr
 		Expr bool // an expression vector (EXPRSXP)
+		Pair bool // a pairlist (LISTSXP), as the specials of a terms object
 	}
 	Complex struct {
 		V    []complex128
@@ -140,6 +141,7 @@ type Arg struct {
 type Lang struct {
 	Fun  Value
 	Args []Arg
+	Attr []Attr // a formula carries class and .Environment
 }
 
 func (*Lang) Type() Type { return rds.LANGSXP }
@@ -257,6 +259,8 @@ func attrsOf(v Value) []Attr {
 		return x.Attr
 	case *Raw:
 		return x.Attr
+	case *Lang:
+		return x.Attr
 	case *Env:
 		return x.attrs
 	}
@@ -299,11 +303,13 @@ func withAttr(v Value, attr []Attr) Value {
 	case *String:
 		return &String{V: x.V, Attr: attr}
 	case *List:
-		return &List{V: x.V, Attr: attr, Expr: x.Expr}
+		return &List{V: x.V, Attr: attr, Expr: x.Expr, Pair: x.Pair}
 	case *Complex:
 		return &Complex{V: x.V, Attr: attr}
 	case *Raw:
 		return &Raw{V: x.V, Attr: attr}
+	case *Lang:
+		return &Lang{Fun: x.Fun, Args: x.Args, Attr: attr}
 	case *Env:
 		// environments have reference semantics: the attributes change in place
 		x.attrs = attr
@@ -572,6 +578,9 @@ func (s *Session) quoteLang(v Value, n syntax.Node) syntax.Node {
 	}
 	switch v.(type) {
 	case *Symbol, *Lang:
+		if inheritsClass(v, "formula") {
+			return n // a formula is written as it is, not quoted
+		}
 		return &syntax.Call{Fun: &syntax.Sym{Name: "quote"}, Args: []syntax.Arg{{Value: n}}}
 	}
 	return n
@@ -715,6 +724,18 @@ func (s *Session) toRDS(v Value) rds.Value {
 	case *Raw:
 		return &rds.Raw{Meta: meta(x.Attr), V: append([]byte(nil), x.V...)}
 	case *List:
+		if x.Pair && len(x.V) > 0 {
+			p := &rds.Pairlist{Kind: rds.LISTSXP}
+			nm := namesOf(x)
+			for i, e := range x.V {
+				it := rds.Item{Value: s.toRDS(e)}
+				if nm != nil && nm.V[i].S != "" {
+					it.Tag = &rds.Sym{Name: nm.V[i].S, Gp: rds.NewStr(nm.V[i].S).Gp}
+				}
+				p.Items = append(p.Items, it)
+			}
+			return p
+		}
 		out := &rds.List{Meta: meta(x.Attr), Expr: x.Expr, V: make([]rds.Value, len(x.V))}
 		for i, e := range x.V {
 			out.V[i] = s.toRDS(e)
@@ -734,7 +755,7 @@ func (s *Session) toRDS(v Value) rds.Value {
 		}
 		return p
 	case *Lang:
-		p := &rds.Pairlist{Kind: rds.LANGSXP}
+		p := &rds.Pairlist{Kind: rds.LANGSXP, Meta: meta(x.Attr)}
 		p.Items = append(p.Items, rds.Item{Value: s.toRDS(x.Fun)})
 		for _, a := range x.Args {
 			it := rds.Item{Value: s.toRDS(a.Value)}

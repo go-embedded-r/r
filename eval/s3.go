@@ -39,6 +39,9 @@ func (s *Session) findMethod(name string, env *Env) Value {
 			}
 		}
 	}
+	if m, ok := s.s3reg[name]; ok {
+		return m // registered, and not visible by name
+	}
 	return nil
 }
 
@@ -284,7 +287,7 @@ func installS3() {
 			orig := b.fn
 			b.fn = func(s *Session, c *callInfo) Value {
 				r := orig(s, c)
-				if len(c.args) > 0 && isObject(c.args[0]) && isVector(r) && getAttr(r, "class") == nil {
+				if len(c.args) > 0 && isObject(c.args[0]) && isVector(r) && getAttr(r, "class") == nil && !inheritsClass(c.args[0], "formula") {
 					for _, an := range []string{"levels", "class", "units", "tzone"} {
 						if v := getAttr(c.args[0], an); v != nil {
 							r = setAttr(r, an, v)

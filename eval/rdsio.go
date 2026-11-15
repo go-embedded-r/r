@@ -74,7 +74,7 @@ func (s *Session) fromRDS(c *callInfo, v rds.Value, depth int) Value {
 			if len(x.Items) == 0 {
 				break
 			}
-			l := &Lang{Fun: s.fromRDS(c, x.Items[0].Value, depth+1)}
+			l := &Lang{Fun: s.fromRDS(c, x.Items[0].Value, depth+1), Attr: attrs(x.Meta)}
 			for _, it := range x.Items[1:] {
 				arg := Arg{Value: s.fromRDS(c, it.Value, depth+1)}
 				if it.Tag != nil {

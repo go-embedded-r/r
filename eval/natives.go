@@ -196,6 +196,8 @@ func (s *Session) paste(c *callInfo, defSep string) Value {
 		switch x := a.(type) {
 		case *Symbol:
 			strs = []Str{{S: x.Name}}
+		case *Lang:
+			strs = s.asCharacter(&callInfo{call: c.call, args: []Value{x}}).(*String).V
 		case *List:
 			if x.Expr {
 				strs = s.asCharacter(&callInfo{call: c.call, args: []Value{x}}).(*String).V

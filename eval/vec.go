@@ -642,6 +642,9 @@ func typeName(v Value) string {
 		if v.(*List).Expr {
 			return "expression"
 		}
+		if v.(*List).Pair {
+			return "pairlist"
+		}
 		return "list"
 	case *Complex:
 		return "complex"
