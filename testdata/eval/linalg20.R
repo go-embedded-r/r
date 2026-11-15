@@ -52,7 +52,7 @@ determinant(matrix(0, 2, 2))
 #---
 det(matrix(c(1,2,2,4), 2))
 #---
-det(matrix(c(3,1,2,4,5,6,7,8,10), 3)) # ulp
+signif(det(matrix(c(3,1,2,4,5,6,7,8,10), 3)), 12) # R differs from itself by 27 ulp between macOS and Linux (exact value 2)
 #---
 d <- determinant(matrix(c(-3,1,2,4,5,6,7,8,10), 3)); c(signif(as.vector(d$modulus), 9), d$sign)
 #---
