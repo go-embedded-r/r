@@ -873,6 +873,9 @@ func privateRint(x float64) float64 { return math.RoundToEven(x) }
 // even digit.
 func fround(x, dig float64) float64 {
 	const dblDig = 15
+	// a digits that is not an integer is rounded to the nearest, as R does
+	// (round(1.607143, 3.79) is round(1.607143, 4))
+	dig = math.Floor(dig + 0.5)
 	if dig > 308 {
 		return x
 	}

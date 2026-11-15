@@ -105,3 +105,27 @@ func TestKendallTauLarge(t *testing.T) {
 	}
 	_ = sort.Float64s
 }
+
+// TestPchisqClosedForms: the upper tail of the chi-squared law with 2 and 4
+// degrees of freedom has a closed form, exp(-x/2) and exp(-x/2)(1 + x/2); the
+// bound path (go-statistics/stats through chisqValue) is held to 8u relative.
+func TestPchisqClosedForms(t *testing.T) {
+	for _, x := range []float64{0.01, 0.5, 1, 2, 5, 10, 30, 100, 600} {
+		for _, c := range []struct {
+			df   float64
+			want float64
+		}{
+			{2, math.Exp(-x / 2)},
+			{4, math.Exp(-x/2) * (1 + x/2)},
+		} {
+			got := chisqValue(chisqP, x, c.df, 0, false, false, false)
+			if rel := math.Abs(got-c.want) / c.want; rel > 8*u53 {
+				t.Errorf("df %g x %g: upper tail %v, closed form %v, relative error %g", c.df, x, got, c.want, rel)
+			}
+			lg := chisqValue(chisqP, x, c.df, 0, false, false, true)
+			if d := math.Abs(lg - math.Log(c.want)); d > 8*u53*math.Max(1, math.Abs(lg)) {
+				t.Errorf("df %g x %g: log upper tail %v, want %v", c.df, x, lg, math.Log(c.want))
+			}
+		}
+	}
+}
