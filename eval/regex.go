@@ -570,7 +570,12 @@ func init() {
 					if parts == nil {
 						parts = []Str{}
 					}
-					out[i] = &String{V: parts}
+					res := &String{V: parts}
+					if d := getAttr(mi, "dim"); d != nil && len(parts) == len(mi.V) {
+						// the matches of gregexec: a matrix of the match and its groups per match
+						res.Attr = []Attr{{Name: "dim", Value: d}}
+					}
+					out[i] = res
 					continue
 				}
 				var parts []Str

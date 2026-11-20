@@ -444,7 +444,15 @@ func (s *Session) subsetArray(c *callInfo, x Value, idx []Value, dims []int, dro
 			}
 			attr := []Attr{{Name: "dim", Value: &Integer{V: nd}}}
 			if any {
-				attr = append(attr, Attr{Name: "dimnames", Value: &List{V: ndn}})
+				l := &List{V: ndn}
+				if dnn := namesOf(dn); dnn != nil {
+					kn := make([]Str, len(keep))
+					for i, d := range keep {
+						kn[i] = dnn.V[d]
+					}
+					l.Attr = namesAttr(kn)
+				}
+				attr = append(attr, Attr{Name: "dimnames", Value: l})
 			}
 			return withAttr(res, attr)
 		}

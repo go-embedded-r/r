@@ -66,7 +66,11 @@ func init() {
 			}
 		}
 		if f, ok := fn.(*Closure); ok {
-			return closureFormalsList(f)
+			fl := closureFormalsList(f)
+			if l, ok := fl.(*List); ok && len(l.V) > 0 {
+				l.Pair = true // formals is a pairlist
+			}
+			return fl
 		}
 		return Null
 	})

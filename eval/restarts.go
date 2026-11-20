@@ -10,12 +10,45 @@ type restartEntry struct {
 	id   int
 	fn   Value // nil for the built-in muffling restarts
 	cond Value
+	desc Value // the description of a withRestarts spec given as a list
 }
 
 func restartObject(e restartEntry) Value {
-	l := &List{V: []Value{mkString(e.name), Null}}
-	l.Attr = []Attr{{Name: "names", Value: strVec([]string{"name", "exit"})}, {Name: "class", Value: mkString("restart")}}
+	handler, desc := Value(Null), Value(mkString(""))
+	if e.fn != nil {
+		handler = e.fn
+	}
+	if e.desc != nil {
+		desc = e.desc
+	}
+	l := &List{V: []Value{mkString(e.name), Null, handler, desc, Null, Null}}
+	l.Attr = []Attr{{Name: "names", Value: strVec([]string{"name", "exit", "handler", "description", "test", "interactive"})}, {Name: "class", Value: mkString("restart")}}
 	return l
+}
+
+// restartSpec splits the value of a withRestarts argument: a function, or a
+// list with a handler and a description.
+func restartSpec(v Value) (fn, desc Value) {
+	l, ok := v.(*List)
+	if !ok {
+		return v, nil
+	}
+	nm := namesOf(l)
+	for i, e := range l.V {
+		if nm == nil || i >= len(nm.V) {
+			continue
+		}
+		switch nm.V[i].S {
+		case "handler":
+			fn = e
+		case "description":
+			desc = e
+		}
+	}
+	if fn == nil {
+		return v, nil
+	}
+	return fn, desc
 }
 
 // findRestart looks a restart up by name (innermost first) or by object.
@@ -85,6 +118,7 @@ func init() {
 		type spec struct {
 			name string
 			fn   Value
+			desc Value
 		}
 		var specs []spec
 		for _, a := range c.raw {
@@ -94,7 +128,8 @@ func init() {
 			case !a.HasName && !haveExpr:
 				expr, haveExpr = a.Value, true
 			case a.HasName:
-				specs = append(specs, spec{a.Name, s.eval(a.Value, c.env)})
+				fn, desc := restartSpec(s.eval(a.Value, c.env))
+				specs = append(specs, spec{a.Name, fn, desc})
 			}
 		}
 		if !haveExpr {
@@ -107,7 +142,7 @@ func init() {
 		for i := len(specs) - 1; i >= 0; i-- {
 			s.restartID++
 			ids = append(ids, s.restartID)
-			s.restarts = append(s.restarts, restartEntry{name: specs[i].name, id: s.restartID, fn: specs[i].fn})
+			s.restarts = append(s.restarts, restartEntry{name: specs[i].name, id: s.restartID, fn: specs[i].fn, desc: specs[i].desc})
 		}
 		var result Value
 		func() {

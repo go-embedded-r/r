@@ -169,6 +169,9 @@ func (s *Session) needVector(c *callInfo, x Value, what string) {
 	if _, isEnv := x.(*Env); isEnv && what == "an attribute" {
 		return
 	}
+	if _, isFn := x.(*Closure); isFn && what == "an attribute" {
+		return
+	}
 	if _, isLang := x.(*Lang); !isVector(x) && !isLang {
 		s.errorf(c.call, "cannot set %s on this object", what)
 	}
@@ -253,7 +256,8 @@ func (s *Session) setClass(c *callInfo, x, value Value) Value {
 		s.errorf(c.call, "attempt to set an attribute on NULL")
 	}
 	_, isEnv := x.(*Env)
-	if _, isLang := x.(*Lang); !isVector(x) && !isEnv && !isLang {
+	_, isFn := x.(*Closure)
+	if _, isLang := x.(*Lang); !isVector(x) && !isEnv && !isLang && !isFn {
 		s.errorf(c.call, "cannot set class on this object")
 	}
 	switch v := value.(type) {
@@ -495,7 +499,11 @@ func init() {
 					if Length(ev) != dims[i] {
 						s.errorf(c.call, "length of 'dimnames' [%d] not equal to array extent", i+1)
 					}
-					out.V[i] = &String{V: asStrings(ev)}
+					es := &String{V: asStrings(ev)}
+					if nm := namesOf(ev); nm != nil {
+						es.Attr = namesAttr(nm.V)
+					}
+					out.V[i] = es
 				default:
 					s.errorf(c.call, "invalid type (%s) for 'dimnames' (must be a vector)", typeName(e))
 				}

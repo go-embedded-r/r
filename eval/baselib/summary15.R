@@ -132,7 +132,8 @@ print.summaryDefault <- function(x, digits = max(3L, getOption("digits") - 3L),
     names(v) <- names(x)
     if (!is.null(attr(x, "NAs"))) v <- c(v, NAs = attr(x, "NAs"))
     class(v) <- c("summaryDefault", "table")
-    return(print.summaryDefault(v, digits = digits, quote = quote, ...))
+    print.summaryDefault(v, digits = digits, quote = quote, ...)
+    return(invisible(x))
   }
   if (length(dim(x)) == 2L) {
     print.table(x, quote = quote, ...)

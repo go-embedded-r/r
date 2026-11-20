@@ -106,7 +106,10 @@ lengths <- function(x, use.names = TRUE) {
   ans
 }
 
-rep_len <- function(x, length.out) rep(x, length.out = length.out)
+rep_len <- function(x, length.out) {
+  if (length(length.out) != 1L || is.na(length.out) || length.out < 0) stop("invalid 'length.out' value")
+  rep(x, length.out = length.out)
+}
 
 # new levels for a factor: as many as it has, or more; the same text twice merges
 # those levels

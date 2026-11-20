@@ -496,25 +496,26 @@ func (s *Session) printAttributes(v Value, prefix string, env *Env) {
 
 // printObject is print() for a value with a class attribute: a user method,
 // the condition printer, or the default.
-func (s *Session) printObject(v Value, prefix string, env *Env, extra ...Arg) {
+// It returns what the method returned, or nil when no method ran.
+func (s *Session) printObject(v Value, prefix string, env *Env, extra ...Arg) Value {
 	classes := classAttr(v)
 	for i, cl := range classes {
 		if m := s.findMethod("print."+cl, env); m != nil {
 			di := &dispatchInfo{generic: "print", classes: append(append([]string{}, classes...), "default"), idx: i, object: v}
 			call := &Lang{Fun: Intern("print"), Args: append([]Arg{{Value: Intern("x")}}, extra...)}
-			s.callMethod(m, "print."+cl, call, append([]Arg{{Value: v}}, extra...), env, di)
-			return
+			return s.callMethod(m, "print."+cl, call, append([]Arg{{Value: v}}, extra...), env, di)
 		}
 		if cl == "condition" {
 			s.printCondition(v)
-			return
+			return nil
 		}
 		if (cl == "factor" || cl == "ordered") && kindOf(v) == kInteger {
 			s.printFactor(v)
-			return
+			return nil
 		}
 	}
 	s.printValueTagged(v, prefix, env)
+	return nil
 }
 
 func (s *Session) printCondition(v Value) {
@@ -622,7 +623,10 @@ func init() {
 			for i := 1; i < len(c.args); i++ {
 				extra = append(extra, Arg{Name: c.names[i], HasName: c.names[i] != "", Value: c.args[i]})
 			}
-			s.printObject(x, "", c.env, extra...)
+			if r := s.printObject(x, "", c.env, extra...); r != nil {
+				// print is generic: the method's value is the call's value
+				return r
+			}
 		} else {
 			s.printValueTagged(x, "", c.env)
 		}
