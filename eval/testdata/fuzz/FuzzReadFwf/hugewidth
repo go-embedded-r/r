@@ -1,0 +1,6 @@
+go test fuzz v1
+[]byte("ab\ncdefg\n\nx")
+uint8(1)
+uint8(250)
+uint8(7)
+uint8(130)

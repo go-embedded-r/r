@@ -360,7 +360,7 @@ func init() {
 		pivot := s.optBool(c, a[1], false, "pivot")
 		tol := -1.0
 		if a[3] != nil {
-			tol = asDoubles(a[3])[0]
+			tol = s.firstDouble(c, a[3], "tol")
 		}
 		if x.nr != x.nc {
 			s.errorf(c.call, "'a' must be a square matrix")

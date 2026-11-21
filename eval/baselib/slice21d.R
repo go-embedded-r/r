@@ -18,13 +18,21 @@ is.unsorted <- function(x, na.rm = FALSE, strictly = FALSE) {
 ftable <- function(x, ...) UseMethod("ftable")
 
 ftable.default <- function(..., exclude = c(NA, NaN), row.vars = NULL, col.vars = NULL) {
-  args <- list(...)
-  if (length(args) == 0L) stop("nothing to tabulate")
-  x <- args[[1L]]
-  if (is.list(x)) x <- table(x, exclude = exclude)
-  else if (inherits(x, "ftable")) x <- as.table(x)
-  else if (!(is.array(x) && length(dim(x)) > 1L)) x <- table(..., exclude = exclude)
-  else if (!is.table(x)) x <- as.table(x)
+  dots <- list(...)
+  if (!length(dots)) stop("nothing to tabulate")
+  first <- dots[[1L]]
+  multi <- is.array(first) && length(dim(first)) > 1L
+  x <- if (inherits(first, "ftable")) {
+    as.table(first)
+  } else if (is.list(first)) {
+    table(first, exclude = exclude)
+  } else if (multi && is.table(first)) {
+    first
+  } else if (multi) {
+    as.table(first)
+  } else {
+    table(..., exclude = exclude)
+  }
   dn <- dimnames(x)
   nx <- length(dim(x))
   if (!is.null(row.vars)) {
@@ -248,8 +256,11 @@ approxfun <- function(x, y = NULL, method = "linear", yleft, yright, rule = 1, f
   } else if (is.unsorted(x)) stop("x must be sorted when ties = \"ordered\"")
   if (length(x) <= 1L && method == 1L) stop("need at least two non-NA values to interpolate")
   rule <- rep_len(rule, 2L)
-  if (missing(yleft)) yleft <- if (rule[1L] == 1) NA else y[1L]
-  if (missing(yright)) yright <- if (rule[2L] == 1) NA else y[length(y)]
+  # outside the data a rule of 1 gives NA, a rule of 2 the nearest end value
+  ends <- c(y[1L], y[length(y)])
+  edge <- function(i) if (rule[i] == 1) NA else ends[i]
+  if (missing(yleft)) yleft <- edge(1L)
+  if (missing(yright)) yright <- edge(2L)
   force(f)
   env <- new.env(parent = environment(approxfun))
   assign("x", x, envir = env)
@@ -265,31 +276,28 @@ approxfun <- function(x, y = NULL, method = "linear", yleft, yright, rule = 1, f
 }
 
 ecdf <- function(x) {
-  x <- sort(x)
-  n <- length(x)
-  if (n < 1) stop("'x' must have 1 or more non-missing values")
-  vals <- unique(x)
-  rval <- approxfun(vals, cumsum(tabulate(match(x, vals)))/n, method = "constant",
-                    yleft = 0, yright = 1, f = 0, ties = "ordered")
-  class(rval) <- c("ecdf", "stepfun", class(rval))
-  assign("nobs", n, envir = environment(rval))
-  attr(rval, "call") <- sys.call()
-  rval
+  if ((is.numeric(x) || is.logical(x)) && all(is.na(x))) stop("'x' must have 1 or more non-missing values")
+  if (!is.numeric(x) && !is.logical(x)) {
+    # R fails inside approxfun on the unique values, and the message names that call
+    shown <- as.call(list(as.name("approxfun"), quote(vals), quote(cumsum(tabulate(match(x, vals)))/n),
+                          method = "constant", yleft = 0, yright = 1, f = 0, ties = "ordered"))
+    stop(simpleError("zero non-NA points", shown))
+  }
+  k <- ..ecdfknots(x)
+  fn <- approxfun(k$x, k$y, method = "constant", yleft = 0, yright = 1, f = 0, ties = "ordered")
+  class(fn) <- c("ecdf", "stepfun", class(fn))
+  assign("nobs", k$n, envir = environment(fn))
+  attr(fn, "call") <- sys.call()
+  fn
 }
 
 knots <- function(Fn, ...) UseMethod("knots")
 knots.stepfun <- function(Fn, ...) environment(Fn)$x
 
 print.ecdf <- function(x, digits = getOption("digits") - 2L, ...) {
-  numform <- function(v) paste(formatC(v, digits = digits), collapse = ", ")
   cat("Empirical CDF \nCall: ")
   print(attr(x, "call"), ...)
-  xx <- environment(x)$x
-  n <- length(xx)
-  i1 <- seq_len(min(3L, n))
-  i2 <- if (n >= 4L) max(4L, n - 1L):n else integer()
-  cat(" x[1:", n, "] = ", numform(xx[i1]), if (n > 3L) ", ", if (n > 5L) " ..., ", numform(xx[i2]),
-      "\n", sep = "")
+  cat(..ecdfline(environment(x)$x, digits))
   invisible(x)
 }
 
@@ -456,14 +464,24 @@ read.fwf <- function(file, widths, header = FALSE, sep = "\t", skip = 0L, row.na
   piece <- function(k) ifelse(first[k] <= nc, substring(lines, first[k], last[k]), "NA")
   out <- piece(1L)
   for (k in seq_along(first)[-1L]) out <- paste0(out, seps[k - 1L], piece(k))
-  if (length(c(headerline, out)) == 0L) stop("no lines available in input")
+  if (!length(lines)) out <- character()
+  if (length(c(headerline, out)) == 0L) {
+    stop(simpleError("no lines available in input", quote(read.table(file = FILE, header = header,
+      sep = sep, row.names = row.names, col.names = col.names, quote = "", ...))))
+  }
   FILE <- textConnection(c(headerline, out))
   on.exit(close(FILE), add = TRUE)
-  args <- list(file = FILE, header = header, sep = sep)
-  if (!missing(row.names)) args$row.names <- row.names
-  if (!missing(col.names)) args$col.names <- col.names
-  dots <- list(...)
-  args[names(dots)] <- dots
+  # the call is built from symbols so an error shows it as R's read.fwf does
+  args <- list(file = quote(FILE), header = quote(header), sep = quote(sep))
+  if (!missing(row.names)) args$row.names <- quote(row.names)
+  if (!missing(col.names)) args$col.names <- quote(col.names)
   args$quote <- ""
-  do.call(read.table, args)
+  args[[length(args) + 1L]] <- quote(...)
+  tryCatch(eval(as.call(c(list(quote(read.table)), args))), error = function(e) {
+    cl <- conditionCall(e)
+    if (!is.call(cl) || !identical(cl[[1L]], quote(read.table))) stop(e)
+    # R's read.fwf passes every argument on, so its errors show them all
+    stop(simpleError(conditionMessage(e), quote(read.table(file = FILE, header = header, sep = sep,
+      row.names = row.names, col.names = col.names, quote = "", ...))))
+  })
 }

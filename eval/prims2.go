@@ -411,7 +411,13 @@ func init() {
 		}
 		return false
 	})
-	typeTest("is.pairlist", func(v Value) bool { _, null := v.(nullT); return null })
+	typeTest("is.pairlist", func(v Value) bool {
+		if l, ok := v.(*List); ok {
+			return l.Pair
+		}
+		_, null := v.(nullT)
+		return null
+	})
 	typeTest("is.expression", func(v Value) bool { l, ok := v.(*List); return ok && l.Expr })
 	typeTest("is.raw", func(v Value) bool { _, ok := v.(*Raw); return ok })
 	typeTest("isS4", func(Value) bool { return false })

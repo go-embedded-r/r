@@ -10,7 +10,7 @@ x <- noquote(matrix(c("a", "b", "c", "d"), 2)); m <- as.matrix.noquote(x); class
 #---
 x <- structure(list(1, 2), class = "simple.list"); y <- `[.simple.list`(x, 1); class(y); length(y)
 #---
-t1 <- table(c("a", "b", "a")); as.vector(`[.table`(t1, 1))
+t1 <- table(c("a", "b", "a")); as.vector(t1[1])
 #---
 f <- factor(c("a", "b")); `[[.factor`(f, 2)
 #---
@@ -66,33 +66,25 @@ lt <- as.POSIXlt(as.POSIXct("2024-01-02 03:04:05", tz = "UTC") + c(10, 0, 5)); s
 #---
 lt <- as.POSIXlt(as.POSIXct("2024-01-02 03:04:05", tz = "UTC") + c(10, 0, 5)); xtfrm.POSIXlt(lt)
 #---
-x <- ftable(table(a = c(1, 1, 2), b = c("x", "y", "x"))); as.data.frame.ftable(x)
+x <- ftable(table(a = c(1, 1, 2), b = c("x", "y", "x"))); as.data.frame(x)
 #---
-x <- ftable(table(a = c(1, 1, 2), b = c("x", "y", "x"))); as.matrix.ftable(x)
+x <- ftable(table(a = c(1, 1, 2), b = c("x", "y", "x"))); as.matrix(x)
 #---
-x <- ftable(table(a = c(1, 1, 2), b = c("x", "y", "x"))); as.table.ftable(x)
+x <- ftable(table(a = c(1, 1, 2), b = c("x", "y", "x"))); as.table(x)
 #---
-x <- ftable(table(a = c(1, 1, 2), b = c("x", "y", "x"))); format.ftable(x)
+x <- ftable(table(a = c(1, 1, 2), b = c("x", "y", "x"))); format(x)
 #---
-x <- ftable(table(a = c(1, 1, 2), b = c("x", "y", "x"))); print.ftable(x)
+x <- ftable(table(a = c(1, 1, 2), b = c("x", "y", "x"))); print(x)
 #---
-ftable.default(table(a = c(1, 1, 2), b = c("x", "y", "x")))
+Fn <- ecdf(c(3, 1, 2, 2)); summary(Fn)
 #---
-d <- data.frame(a = c(1, 1, 2), b = c("x", "y", "x")); ftable.formula(~ a + b, data = d)
+Fn <- ecdf(c(3, 1, 2, 2)); quantile(Fn, 0.5)
 #---
-Fn <- ecdf(c(3, 1, 2, 2)); print.ecdf(Fn); NULL
-#---
-Fn <- ecdf(c(3, 1, 2, 2)); summary.ecdf(Fn)
-#---
-Fn <- ecdf(c(3, 1, 2, 2)); print.summary.ecdf(summary.ecdf(Fn)); NULL
-#---
-Fn <- ecdf(c(3, 1, 2, 2)); quantile.ecdf(Fn, 0.5)
-#---
-Fn <- ecdf(c(3, 1, 2, 2)); knots.stepfun(Fn)
+Fn <- ecdf(c(3, 1, 2, 2)); knots(Fn)
 #---
 x <- polym(1:5, 1:5 + c(0, 1, 0, 1, 0), degree = 1); dim(x)
 #---
-x <- poly(1:5, 2); round(predict.poly(x, 6:7)[, 1], 6) + 0 # ulp
+x <- poly(1:5, 2); round(predict(x, 6:7)[, 1], 6) + 0 # ulp
 #---
 regexec("b+", c("abbc", "xyz"))
 #---
@@ -104,10 +96,46 @@ sf <- srcfilecopy("f.R", c("a <- 1", "b <- 2")); sr <- srcref(sf, c(1, 1, 1, 6))
 #---
 sf <- srcfilecopy("f.R", c("a <- 1", "b <- 2")); print.srcfile(sf); NULL
 #---
-sf <- srcfilecopy("f.R", c("a <- 1", "b <- 2")); class(summary.srcfile(sf)); NULL
-#---
-sf <- srcfilecopy("f.R", c("a <- 1", "b <- 2")); open.srcfile(sf); close.srcfile(sf); NULL
-#---
-sf <- srcfilecopy("f.R", c("a <- 1", "b <- 2")); open.srcfilecopy(sf); NULL
-#---
 sf <- srcfilecopy("f.R", c("a <- 1", "b <- 2")); sa <- srcfilealias("g.R", sf); open.srcfilealias(sa); close.srcfilealias(sa); NULL
+#---
+x <- ftable(table(a = c(1, 1, 2), b = c("x", "y", "x"))); stats:::as.data.frame.ftable(x)
+#---
+x <- ftable(table(a = c(1, 1, 2), b = c("x", "y", "x"))); stats:::as.matrix.ftable(x)
+#---
+x <- ftable(table(a = c(1, 1, 2), b = c("x", "y", "x"))); stats:::as.table.ftable(x)
+#---
+x <- ftable(table(a = c(1, 1, 2), b = c("x", "y", "x"))); stats:::format.ftable(x)
+#---
+x <- ftable(table(a = c(1, 1, 2), b = c("x", "y", "x"))); stats:::print.ftable(x)
+#---
+stats:::ftable.default(table(a = c(1, 1, 2), b = c("x", "y", "x")))
+#---
+stats:::ftable.formula(a ~ b, data.frame(a = c(1, 1, 2), b = c("x", "y", "x")))
+#---
+Fn <- ecdf(c(3, 1, 2, 2)); stats:::summary.ecdf(Fn)
+#---
+Fn <- ecdf(c(3, 1, 2, 2)); stats:::print.summary.ecdf(summary(Fn))
+#---
+Fn <- ecdf(c(3, 1, 2, 2)); stats:::quantile.ecdf(Fn, 0.5)
+#---
+Fn <- ecdf(c(3, 1, 2, 2)); stats:::knots.stepfun(Fn)
+#---
+Fn <- ecdf(c(3, 1, 2, 2)); x <- capture.output(stats:::print.ecdf(Fn)); x[-1]
+#---
+x <- poly(1:5, 2); round(stats:::predict.poly(x, 6:7)[, 1], 6) + 0 # ulp
+#---
+t1 <- table(c("a", "b", "a")); tryCatch(`[.table`(t1, 1), error = function(e) conditionMessage(e)); t1[2]
+#---
+sf <- srcfilecopy("f.R", c("a <- 1", "b <- 2")); r <- withVisible(close.srcfile(sf)); r$visible; r$value
+#---
+ts <- as.POSIXct("2024-01-01", tz = "UTC"); sf <- srcfilecopy("f.R", c("a <- 1", "b <- 2"), timestamp = ts); tryCatch(open.srcfile(sf, 1), error = function(e) "failed")
+#---
+sf <- srcfilecopy("f.R", c("a <- 1", "b <- 2")); tryCatch(open.srcfilecopy(sf), error = function(e) conditionMessage(e))
+#---
+sf <- srcfilecopy("f.R", c("a <- 1", "b <- 2")); cn <- open.srcfilecopy(sf, 2); class(cn); readLines(cn, 1); close.srcfile(sf)
+#---
+ts <- as.POSIXct("2024-01-01", tz = "UTC"); sf <- srcfilecopy("f.R", c("a <- 1", "b <- 2"), timestamp = ts); summary.srcfile(sf); NULL
+#---
+t1 <- table(c("a", "b", "a", "c")); t1[2]; t1[1:2]; t1[2, drop = FALSE]; t1[0]; t1["a"]
+#---
+t2 <- table(x = c("a", "b", "a"), y = c("u", "v", "v")); t2[1, ]; t2[1, , drop = FALSE]; t2[1:2, 1:2]

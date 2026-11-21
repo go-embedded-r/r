@@ -1,7 +1,10 @@
 package eval
 
 import (
+	"fmt"
 	"math"
+	"sort"
+	"strings"
 	"unicode/utf8"
 )
 
@@ -111,6 +114,94 @@ func init() {
 			}
 		}
 		return &Double{V: out}
+	})
+}
+
+// ..ecdfknots(x): the knots of the empirical distribution function of x, the
+// sorted distinct values without NA, with the proportion of observations at or
+// below each, as list(x, y, n). Each proportion is one correctly rounded
+// division of an exact count by n, so its error is at most half a unit in the
+// last place (the test asserts it against math/big).
+func init() {
+	regBuiltin("..ecdfknots", func(s *Session, c *callInfo) Value {
+		if len(c.args) != 1 {
+			s.errorf(c.call, "1 argument required")
+		}
+		switch c.args[0].(type) {
+		case *Double, *Integer, *Logical:
+		default:
+			s.errorf(c.call, "'x' must be numeric")
+		}
+		in := asDoubles(c.args[0])
+		xs := make([]float64, 0, len(in))
+		for _, v := range in {
+			if !math.IsNaN(v) {
+				xs = append(xs, v)
+			}
+		}
+		if len(xs) < 1 {
+			s.errorf(c.call, "'x' must have 1 or more non-missing values")
+		}
+		sort.Float64s(xs)
+		n := float64(len(xs))
+		var vals, cum []float64
+		for i, v := range xs {
+			if i+1 < len(xs) && xs[i+1] == v {
+				continue
+			}
+			vals = append(vals, v)
+			cum = append(cum, float64(i+1)/n)
+		}
+		l := &List{V: []Value{&Double{V: vals}, &Double{V: cum}, &Integer{V: []int32{int32(len(xs))}}}}
+		l.Attr = []Attr{{Name: "names", Value: strVec([]string{"x", "y", "n"})}}
+		return l
+	})
+}
+
+// ..ecdfline(x, digits): the line print.ecdf gives under its call, the first
+// three knots, the last two and the count, each formatted like formatC with
+// the digits significant digits (a Go native: the draft in R converged on R's
+// own text).
+func init() {
+	regBuiltin("..ecdfline", func(s *Session, c *callInfo) Value {
+		if len(c.args) != 2 {
+			s.errorf(c.call, "2 arguments required")
+		}
+		xs := asDoubles(c.args[0])
+		d := asDoubles(c.args[1])
+		dig := 5
+		if len(d) == 1 && !math.IsNaN(d[0]) && d[0] >= 1 && d[0] <= 22 {
+			dig = int(d[0])
+		}
+		n := len(xs)
+		form := func(lo, hi int) string {
+			var b strings.Builder
+			for i := lo; i < hi; i++ {
+				if i > lo {
+					b.WriteString(", ")
+				}
+				f := cFormatG(xs[i], dig)
+				// formatC pads each knot to digits + 1 characters
+				for k := len(f); k < dig+1; k++ {
+					b.WriteByte(' ')
+				}
+				b.WriteString(f)
+			}
+			return b.String()
+		}
+		var b strings.Builder
+		fmt.Fprintf(&b, " x[1:%d] = %s", n, form(0, min(3, n)))
+		if n > 3 {
+			b.WriteString(", ")
+		}
+		if n > 5 {
+			b.WriteString(" ..., ")
+		}
+		if n >= 4 {
+			b.WriteString(form(max(4, n-1)-1, n))
+		}
+		b.WriteString("\n")
+		return mkString(b.String())
 	})
 }
 

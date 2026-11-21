@@ -95,7 +95,14 @@ formatDL <- function(x, y, style = c("table", "list"), width = 0.9 * getOption("
   } else if (is.matrix(x)) {
     y <- x[, 2L]
     x <- x[, 1L]
-  } else if (length(x) != length(y)) stop("'x' and 'y' must have the same length")
+  } else {
+    if (missing(y)) {
+      if (is.null(names(x))) stop(simpleError("argument \"y\" is missing, with no default", sys.call()))
+      y <- x
+      x <- names(x)
+    }
+    if (length(x) != length(y)) stop("'x' and 'y' must have the same length")
+  }
   x <- as.character(x)
   y <- as.character(y)
   if (is.null(indent)) indent <- if (style == "table") width / 3 else width / 9
@@ -395,29 +402,55 @@ print.srcfile <- function(x, ...) {
 }
 
 summary.srcfile <- function(object, ...) {
-  cat(object$filename, "\n", "Timestamp: ", format(object$timestamp, usetz = TRUE), "\n", sep = "")
+  cat(object$filename, "\n")
+  if (inherits(object$timestamp, "POSIXt")) cat("Timestamp: ", format(object$timestamp, usetz = TRUE), "\n", sep = "")
+  enc <- object$encoding
+  cat("Encoding: \"", enc, "\"", sep = "")
+  if (!is.null(object$Enc) && object$Enc != "unknown" && !identical(object$Enc, enc)) {
+    cat(", re-encoded to \"", object$Enc, "\"", sep = "")
+  }
+  cat("\n")
   invisible(object)
 }
 
-open.srcfile <- function(con, line, ...) {
-  conn <- file(con$filename, "r")
-  con$conn <- conn
+# the connection of a source file stays open between calls; `line` is the line
+# to read up to, and is required
+..srcfile_position <- function(con, line, make, ...) {
+  if (!is.null(con$line) && con$line > line) close(con)
+  conn <- con$conn
+  if (is.null(conn)) {
+    con$conn <- conn <- make()
+    con$line <- 1L
+  } else if (!isOpen(conn)) {
+    open(conn, "r")
+    con$line <- 1L
+  }
+  if (con$line < line) {
+    readLines(conn, line - con$line, warn = FALSE)
+    con$line <- line
+  }
   invisible(conn)
 }
 
+open.srcfile <- function(con, line, ...) {
+  mt <- file.mtime(con$filename)
+  if (is.na(mt) || mt != con$timestamp) {
+    warning(gettextf("Timestamp of %s has changed", sQuote(con$filename)), call. = FALSE)
+  }
+  ..srcfile_position(con, line, function() file(con$filename, "r", encoding = con$encoding))
+}
+
 open.srcfilecopy <- function(con, line, ...) {
-  conn <- textConnection(con$lines)
-  con$conn <- conn
-  invisible(conn)
+  ..srcfile_position(con, line, function() textConnection(con$lines, "r"))
 }
 
 open.srcfilealias <- function(con, line, ...) open(con$original, line, ...)
 
 close.srcfile <- function(con, ...) {
-  if (!is.null(con$conn)) {
-    close(con$conn)
-    rm("conn", envir = con)
-  }
+  # observed: a source file with an open connection answers invisibly, one without answers NULL visibly
+  if (is.null(con$conn)) return(NULL)
+  close(con$conn)
+  rm("conn", envir = con)
   invisible(NULL)
 }
 

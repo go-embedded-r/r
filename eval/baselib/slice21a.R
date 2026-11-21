@@ -115,14 +115,19 @@ c.noquote <- function(..., recursive = FALSE) {
 as.matrix.noquote <- function(x, ...) noquote(as.matrix(unclass(x), ...))
 
 `[.table` <- function(x, ..., drop = TRUE) {
+  # R's method continues with NextMethod, which needs the dispatch that called it
+  if (!exists(".Generic", inherits = FALSE)) stop(simpleError("generic function not specified", sys.call()))
   plain <- x
   oldClass(plain) <- NULL
   r <- plain[..., drop = drop]
-  if (length(dim(x)) == 1L && is.null(dim(r)) && !is.null(names(r))) {
+  if (length(dim(x)) == 1L && is.null(dim(r)) && !is.null(names(r)) && (length(r) > 1L || !drop)) {
     nm <- names(r)
     dim(r) <- length(r)
     dn <- names(dimnames(x))
-    dimnames(r) <- if (length(dn) && nzchar(dn)) structure(list(nm), names = dn) else list(nm)
+    dimnames(r) <- if (length(dn)) structure(list(nm), names = dn) else list(nm)
+  } else if (length(dim(r)) == 1L && length(dim(x)) == 1L && is.null(names(dimnames(r)))) {
+    dn <- names(dimnames(x))
+    if (length(dn) && !is.null(dimnames(r))) names(dimnames(r)) <- dn
   }
   if (length(dim(r)) > 0L) class(r) <- oldClass(x)
   r
