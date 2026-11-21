@@ -484,7 +484,14 @@ func init() {
 						msg := condMessage(us.cond)
 						text := "Error : " + msg + "\n"
 						if cl := condCall(us.cond); cl != nil {
-							text = "Error in " + s.callText(cl) + " : " + msg + "\n"
+							// try() breaks the line after the call when it would pass 75 columns
+							dcall := s.callText(cl)
+							first, _, _ := strings.Cut(msg, "\n")
+							sep := " : "
+							if 14+displayWidth(dcall)+displayWidth(first) > 75 {
+								sep = " : \n  "
+							}
+							text = "Error in " + dcall + sep + msg + "\n"
 						}
 						s.lastErr = text
 						if !silent {
