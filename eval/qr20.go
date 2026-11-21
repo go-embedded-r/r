@@ -408,6 +408,16 @@ func (s *Session) qrCoefFn(c *callInfo, q *qrObj, m *lmat, y Value) Value {
 	return dmat(q.p, ny, out, cn, ycn)
 }
 
+// firstDouble is the first element of a numeric argument; an empty one (a
+// missing argument as in qr(,), or numeric()) is an error, not a panic.
+func (s *Session) firstDouble(c *callInfo, v Value, name string) float64 {
+	d := asDoubles(v)
+	if len(d) == 0 {
+		s.errorf(c.call, "invalid '%s' argument", name)
+	}
+	return d[0]
+}
+
 func (s *Session) qrAs(c *callInfo, x Value, tol float64, lapack bool) Value {
 	m := s.lmatrix(c, x, "")
 	_ = m
@@ -422,7 +432,7 @@ func init() {
 		}
 		tol := 1e-7
 		if a[1] != nil {
-			tol = asDoubles(a[1])[0]
+			tol = s.firstDouble(c, a[1], "tol")
 		}
 		lapack := s.optBool(c, a[2], false, "LAPACK")
 		var m *lmat
@@ -493,7 +503,7 @@ func init() {
 			}
 			k := q.rank
 			if !resid && a[2] != nil {
-				k = int(asDoubles(a[2])[0])
+				k = int(s.firstDouble(c, a[2], "k"))
 			}
 			if k < 0 || k > q.rank {
 				s.errorf(c.call, "invalid 'k' argument")
@@ -629,7 +639,7 @@ func init() {
 			if fromMatrix && !inheritsFrom(x, "qr") {
 				tol := 1e-7
 				if a[2] != nil {
-					tol = asDoubles(a[2])[0]
+					tol = s.firstDouble(c, a[2], "tol")
 				}
 				x = s.callNamed(c, "qr", []Value{x, mkDouble(tol)}, []string{"", "tol"})
 			} else if !fromMatrix && !inheritsFrom(x, "qr") {

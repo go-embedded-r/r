@@ -163,6 +163,7 @@ type Closure struct {
 	Formals []Formal
 	Body    Value
 	Env     *Env
+	Attr    []Attr
 }
 
 func (*Closure) Type() Type { return rds.CLOSXP }
@@ -263,6 +264,8 @@ func attrsOf(v Value) []Attr {
 		return x.Attr
 	case *Env:
 		return x.attrs
+	case *Closure:
+		return x.Attr
 	}
 	return nil
 }
@@ -314,6 +317,8 @@ func withAttr(v Value, attr []Attr) Value {
 		// environments have reference semantics: the attributes change in place
 		x.attrs = attr
 		return x
+	case *Closure:
+		return &Closure{Formals: x.Formals, Body: x.Body, Env: x.Env, Attr: attr}
 	}
 	return v
 }

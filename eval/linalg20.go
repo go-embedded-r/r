@@ -390,7 +390,7 @@ func init() {
 			if k := kindOf(a[2]); k != kDouble && k != kInteger && k != kLogical || Length(a[2]) < 1 {
 				s.errorf(c.call, "invalid 'tol' argument")
 			}
-			tol = asDoubles(a[2])[0]
+			tol = s.firstDouble(c, a[2], "tol")
 		}
 		if am.nr != am.nc {
 			s.errorf(c.call, "'a' (%d x %d) must be square", am.nr, am.nc)

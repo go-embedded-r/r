@@ -182,6 +182,12 @@ func TestPrimitiveCoverage(t *testing.T) {
 						}
 					}
 				} else {
+					// pkg:::name(...) calls name, a method R does not export
+					if q, ok := x.Fun.(*syntax.Call); ok && (q.FunName() == "::" || q.FunName() == ":::") && len(q.Args) == 2 {
+						if s, ok := q.Args[1].Value.(*syntax.Sym); ok {
+							used[s.Name] = true
+						}
+					}
 					walk(x.Fun)
 				}
 				for _, a := range x.Args {

@@ -1,0 +1,6 @@
+go test fuzz v1
+[]byte("h1h2\nabcd\nefgh\n")
+uint8(2)
+uint8(2)
+uint8(0)
+uint8(1)

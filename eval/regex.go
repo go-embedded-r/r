@@ -495,7 +495,12 @@ func init() {
 	regBuiltin("regmatches", func(s *Session, c *callInfo) Value {
 		a := s.matchFormals(c, "x", "m", "invert")
 		x := s.textOf(c, a[0])
-		invert := a[2] != nil && s.truthy(c, a[2], "invert")
+		// invert = NA gives the gaps and the matches alternately
+		both := false
+		if lg, ok := a[2].(*Logical); ok && len(lg.V) == 1 && lg.V[0] == naInt {
+			both = true
+		}
+		invert := a[2] != nil && !both && s.truthy(c, a[2], "invert")
 		runes := func(str string, start, length int) string {
 			return substrRunes(str, start, start+length-1)
 		}
@@ -504,6 +509,21 @@ func init() {
 			ml, _ := getAttr(m, "match.length").(*Integer)
 			if ml == nil || len(m.V) != len(x) {
 				s.errorf(c.call, "'x' and 'm' must have the same length")
+			}
+			if both {
+				out := make([]Value, len(x))
+				for i, e := range x {
+					switch {
+					case e.NA:
+						out[i] = &String{V: []Str{{NA: true}}}
+					case m.V[i] < 0 || m.V[i] == naInt:
+						out[i] = &String{V: []Str{e}}
+					default:
+						st, ln := int(m.V[i]), int(ml.V[i])
+						out[i] = &String{V: []Str{{S: substrRunes(e.S, 1, st-1)}, {S: runes(e.S, st, ln)}, {S: substrRunes(e.S, st+ln, 1<<30)}}}
+					}
+				}
+				return listOfNamed(out, namesOf(a[0]))
 			}
 			if !invert {
 				var out []Str
@@ -554,9 +574,23 @@ func init() {
 				ml, _ := getAttr(mi, "match.length").(*Integer)
 				if e.NA {
 					out[i] = &String{V: []Str{}}
-					if invert {
+					if invert || both {
 						out[i] = &String{V: []Str{{NA: true}}}
 					}
+					continue
+				}
+				if both {
+					var parts []Str
+					prev := 1
+					for k, p := range mi.V {
+						if p < 0 || p == naInt {
+							continue
+						}
+						parts = append(parts, Str{S: substrRunes(e.S, prev, int(p)-1)}, Str{S: runes(e.S, int(p), int(ml.V[k]))})
+						prev = int(p) + int(ml.V[k])
+					}
+					parts = append(parts, Str{S: substrRunes(e.S, prev, 1<<30)})
+					out[i] = &String{V: parts}
 					continue
 				}
 				if !invert {
@@ -570,7 +604,12 @@ func init() {
 					if parts == nil {
 						parts = []Str{}
 					}
-					out[i] = &String{V: parts}
+					res := &String{V: parts}
+					if d := getAttr(mi, "dim"); d != nil && len(parts) == len(mi.V) {
+						// the matches of gregexec: a matrix of the match and its groups per match
+						res.Attr = []Attr{{Name: "dim", Value: d}}
+					}
+					out[i] = res
 					continue
 				}
 				var parts []Str

@@ -155,6 +155,9 @@ func (s *Session) evalLang(c *Lang, env *Env) Value {
 		ci := &callInfo{call: c, env: env, raw: c.Args}
 		if !f.Special {
 			s.evalArgs(ci)
+			// what the arguments evaluated last (invisible(), an
+			// assignment) does not decide the visibility of the result
+			s.visible = true
 		}
 		return f.fn(s, ci)
 	case *Closure:
