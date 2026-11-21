@@ -62,7 +62,7 @@ Fn <- ecdf(c(3, 1, 2, 2)); is.null(environment(Fn)$n); environment(Fn)$nobs; typ
 #---
 x <- poly(1:5, 2); round(x[, 1:2], 7) + 0 # ulp
 #---
-x <- poly(1:5, 2); attr(x, "coefs") # ulp
+x <- poly(1:5, 2); lapply(attr(x, "coefs"), round, 7) # ulp
 #---
 x <- poly(1:5, 2); attr(x, "degree"); class(x); dim(x)
 #---
@@ -74,11 +74,11 @@ x <- poly(1:5, 2); round(crossprod(unclass(x)), 12) + 0
 #---
 x <- poly(c(1, 2, 3, 5, 8), 2); round(x[, 1:2], 9) + 0; attr(x, "degree"); class(x) # ulp
 #---
-x <- poly(c(1, 2, 3, 5, 8), 3); attr(x, "coefs") # ulp
+x <- poly(c(1, 2, 3, 5, 8), 3); lapply(attr(x, "coefs"), round, 7) # ulp
 #---
-x <- poly(1:5, 2); predict(x, 6:7) # ulp
+x <- poly(1:5, 2); round(predict(x, 6:7), 7) + 0 # ulp
 #---
-x <- poly(1:5, 2); predict(x, c(1, 2.5)) # ulp
+x <- poly(1:5, 2); round(predict(x, c(1, 2.5)), 7) + 0 # ulp
 #---
 x <- poly(1:5, 2); round(predict(x)[, 1:2], 7) + 0 # ulp
 #---
@@ -102,7 +102,7 @@ x <- poly(cbind(1:5, c(2, 1, 4, 3, 5)), degree = 2); dimnames(x)[[2]]; dim(x)
 #---
 x <- poly(cbind(a = 1:5, b = c(2, 1, 4, 3, 5)), degree = 2); round(x[, 1:3], 6) + 0 # ulp
 #---
-x <- poly(1:5, 2); x[1:2, ] # ulp
+x <- poly(1:5, 2); round(x[1:2, ], 7) + 0 # ulp
 #---
 x <- poly(1:5, 2); round(x[, 2], 6) # ulp
 #---
@@ -148,7 +148,7 @@ x <- poly(1:5, 2); names(attributes(predict(x, 6)))
 #---
 x <- poly(1:5, 2, raw = TRUE); names(attributes(predict(x, 6))); predict(x, c(2, NA))
 #---
-x <- poly(1:5, 2); predict(x, 6:7, degree = 1) # ulp
+x <- poly(1:5, 2); round(predict(x, 6:7, degree = 1), 7) + 0 # ulp
 #---
 poly(1:5, degree = 2, coefs = list(alpha = 3, norm2 = c(1, 5, 10, 14))) # ulp
 #---
