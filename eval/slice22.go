@@ -153,9 +153,6 @@ func chooseExact(n float64, k int) float64 {
 			tmp.Sub(ni, big.NewInt(int64(j)))
 			r.Mul(r, tmp)
 			r.Quo(r, big.NewInt(int64(j+1)))
-			if r.BitLen() > 1100 {
-				return math.Inf(r.Sign())
-			}
 		}
 		f, _ := new(big.Float).SetInt(r).Float64()
 		return f
