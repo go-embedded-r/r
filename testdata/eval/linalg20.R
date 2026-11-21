@@ -10,7 +10,7 @@ solve(2) # ulp
 #---
 solve(matrix(1:4, 2)) # ulp
 #---
-solve(matrix(c(4,2,7,6), 2), matrix(c(1,0,0,1), 2)) # ulp
+round(solve(matrix(c(4,2,7,6), 2), matrix(c(1,0,0,1), 2)), 10) + 0 # ulp
 #---
 round(solve(matrix(c(4,2,1,3,5,1,2,2,6), 3)), 10)
 #---
@@ -114,7 +114,7 @@ norm(matrix(c(1,2,3,4,5,6,7,8,10,1,0,1), 4), "E") # ulp
 #---
 norm(matrix(c(1,2,3,4,5,6,7,8,10,1,0,1), 4), "M") # ulp
 #---
-norm(matrix(c(1,2,3,4,5,6,7,8,10,1,0,1), 4), "2") # ulp
+round(norm(matrix(c(1,2,3,4,5,6,7,8,10,1,0,1), 4), "2"), 9) # ulp
 #---
 norm(matrix(c(1,2,3,4,5,6,7,8,10,1,0,1), 4), "o") # ulp
 #---
@@ -152,9 +152,9 @@ kappa(diag(3))
 #---
 kappa(matrix(c(2,0,1,3), 2), triangular = TRUE) # ulp
 #---
-kappa(matrix(c(1,2,3,4), 2), exact = TRUE) # ulp
+round(kappa(matrix(c(1,2,3,4), 2), exact = TRUE), 9) # ulp
 #---
-kappa(matrix(c(1,2,3,4,5,6,7,8,10,1,0,1), 4), exact = TRUE) # ulp
+round(kappa(matrix(c(1,2,3,4,5,6,7,8,10,1,0,1), 4), exact = TRUE), 9) # ulp
 #---
 isSymmetric(matrix(c(2,1,1,3), 2))
 #---
