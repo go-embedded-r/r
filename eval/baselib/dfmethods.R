@@ -68,7 +68,30 @@
 # ---- format, print, matrix --------------------------------------------
 
 format.data.frame <- function(x, ..., justify = "left", na.encode = TRUE) {
-  cols <- lapply(..dfcols(x), function(col) {
+  cols0 <- ..dfcols(x)
+  nms0 <- names(x)
+  if (any(vapply(cols0, function(col) length(dim(col)) == 2L, NA))) {
+    # a matrix column shows as one column per matrix column, named name.colname
+    cols1 <- list()
+    nms1 <- character()
+    for (i in seq_along(cols0)) {
+      col <- cols0[[i]]
+      if (length(dim(col)) == 2L) {
+        cn <- colnames(col)
+        if (is.null(cn)) cn <- seq_len(ncol(col))
+        for (j in seq_len(ncol(col))) {
+          cols1[[length(cols1) + 1L]] <- col[, j]
+          nms1 <- c(nms1, paste(nms0[i], cn[j], sep = "."))
+        }
+      } else {
+        cols1[[length(cols1) + 1L]] <- col
+        nms1 <- c(nms1, nms0[i])
+      }
+    }
+    cols0 <- cols1
+    nms0 <- nms1
+  }
+  cols <- lapply(cols0, function(col) {
     if (is.factor(col)) col <- as.character(col)
     if (is.character(col)) {
       if (na.encode) col[is.na(col)] <- "NA"
@@ -79,7 +102,7 @@ format.data.frame <- function(x, ..., justify = "left", na.encode = TRUE) {
     class(col) <- "AsIs"
     col
   })
-  ..mkdf(unname(cols), names(x), row.names(x))
+  ..mkdf(unname(cols), nms0, row.names(x))
 }
 
 as.matrix.data.frame <- function(x, rownames.force = NA, ...) {

@@ -201,7 +201,7 @@ print.by <- function(x, ..., vsep) {
   prod
 }
 
-assign("kronecker", ..kronecker)
+kronecker <- ..kronecker
 
 `%x%` <- function(X, Y) ..kronecker(X, Y)
 
