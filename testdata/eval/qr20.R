@@ -88,7 +88,7 @@ z <- cbind(c(1,2,3,4), c(2,4,6,8), c(10,1,0,1)); qr(z, LAPACK = TRUE)$pivot
 #---
 x <- matrix(c(1,2,3,4,5,6,7,8,10,1,0,1), 4); qr.fitted(qr(x, LAPACK = TRUE), 1:4)
 #---
-qr(1:3) # ulp
+q <- qr(1:3); q$qr <- round(q$qr, 7); q$qraux <- round(q$qraux, 7); q # ulp
 #---
 qr(matrix(0, 2, 2))
 #---
