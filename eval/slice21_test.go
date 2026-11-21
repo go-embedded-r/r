@@ -110,7 +110,15 @@ func TestSlice21GuardValues(t *testing.T) {
 		`withRestarts(invokeRestart("r", 5), r = function(x) x + 1) == 6`,
 		`withRestarts(invokeRestart("r", 5), r = list(handler = function(x) x + 2, description = "d")) == 7`,
 	} {
-		evalTrue(t, s, src)
+		func() {
+			// a guard removed shows as a panic in the native: report it as a failure
+			defer func() {
+				if r := recover(); r != nil {
+					t.Errorf("%s: the native failed with %v", src, r)
+				}
+			}()
+			evalTrue(t, s, src)
+		}()
 	}
 }
 

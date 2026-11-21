@@ -211,10 +211,7 @@ func init() {
 func init() {
 	// sys.parents: for each frame up to the caller's, the number of its parent frame
 	regBuiltin("sys.parents", func(s *Session, c *callInfo) Value {
-		cur, fr := s.frameIndex(c.env)
-		if fr == nil {
-			return &Integer{}
-		}
+		cur, _ := s.frameIndex(c.env) // -1 at the top level: no frames
 		out := make([]int32, 0, cur+1)
 		for i := 0; i <= cur; i++ {
 			p := int32(0)
