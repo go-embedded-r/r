@@ -90,6 +90,30 @@ func TestEmptyScalarArgumentsRefused(t *testing.T) {
 	}
 }
 
+// The values on both sides of the guards of the natives of slice 21.
+func TestSlice21GuardValues(t *testing.T) {
+	s := NewSession(Options{})
+	for _, src := range []string{
+		// an empty yleft is NA, a given one is used
+		`is.na(..approxeval(c(1, 2), c(1, 2), 0.5, 1L, numeric(), numeric(), 0))`,
+		`identical(..approxeval(c(1, 2), c(1, 2), 0.5, 1L, 7, 8, 0), 7)`,
+		// sys.parents at the top level has no frame; inside a function it has
+		`identical(sys.parents(), integer(0))`,
+		`identical((function() sys.parents())(), 0L)`,
+		// pairlist() and ..mkpair of nothing or of a non-list are NULL
+		`is.null(pairlist())`,
+		`is.null(..mkpair(list()))`,
+		`is.null(..mkpair(1))`,
+		`typeof(pairlist(a = 1)) == "pairlist"`,
+		`typeof(..mkpair(list(1))) == "pairlist"`,
+		// a restart given as a function, or as a list with a handler
+		`withRestarts(invokeRestart("r", 5), r = function(x) x + 1) == 6`,
+		`withRestarts(invokeRestart("r", 5), r = list(handler = function(x) x + 2, description = "d")) == 7`,
+	} {
+		evalTrue(t, s, src)
+	}
+}
+
 func TestEcdfLine(t *testing.T) {
 	s := NewSession(Options{})
 	for _, c := range []struct{ src, want string }{
