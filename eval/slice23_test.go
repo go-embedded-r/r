@@ -199,12 +199,17 @@ func TestAgrepMatchUnboundedAndShortcut(t *testing.T) {
 	for i := range long {
 		long[i] = 'a' + rune(i%7)
 	}
-	start := time.Now()
-	if !agrepMatch(long, []rune("zzzz"), agrepBounds{cost: -1, ins: -1, del: -1, sub: -1, all: 300}) {
-		t.Error("a bound of the pattern length always matches")
-	}
-	if time.Since(start) > 2*time.Second {
-		t.Errorf("the shortcut was not taken: %v", time.Since(start))
+	done := make(chan bool, 1)
+	go func() {
+		done <- agrepMatch(long, []rune("zzzz"), agrepBounds{cost: -1, ins: -1, del: -1, sub: -1, all: 300})
+	}()
+	select {
+	case got := <-done:
+		if !got {
+			t.Error("a bound of the pattern length always matches")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("the shortcut was not taken: no answer in 2 s")
 	}
 }
 
