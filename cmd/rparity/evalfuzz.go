@@ -115,6 +115,11 @@ func evalfuzzCmd() *cobra.Command {
 						srcs[i] = fuzzSlice16(r)
 					} else if mode == "slice17" {
 						srcs[i] = fuzzSlice17(r)
+					} else if mode == "slice23" {
+						srcs[i] = fuzzSlice23(r)
+						if strings.HasSuffix(srcs[i], "# libm") {
+							libm++
+						}
 					} else if mode == "slice22" {
 						srcs[i] = fuzzSlice22(r)
 						if strings.HasSuffix(srcs[i], "# libm") {
@@ -176,7 +181,7 @@ func evalfuzzCmd() *cobra.Command {
 				}
 				for _, rec := range recs {
 					fn := rec.Src
-					if mode == "env" || mode == "datetime" || mode == "io" || mode == "arrays" || mode == "rawcplx" || mode == "dataframe" || mode == "summary" || mode == "slice16" || mode == "slice17" || mode == "slice18" || mode == "slice20" || mode == "slice21" || mode == "slice22" {
+					if mode == "env" || mode == "datetime" || mode == "io" || mode == "arrays" || mode == "rawcplx" || mode == "dataframe" || mode == "summary" || mode == "slice16" || mode == "slice17" || mode == "slice18" || mode == "slice20" || mode == "slice21" || mode == "slice22" || mode == "slice23" {
 						// the first line names the family
 						fn = strings.TrimPrefix(fn[:strings.IndexByte(fn, '\n')], "# ")
 					} else if i := strings.IndexByte(fn, '('); i > 0 {
@@ -304,7 +309,7 @@ func evalfuzzCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().Int64Var(&maxULP, "ulp", 4, "math mode: units in the last place allowed to libm cases")
-	cmd.Flags().StringVar(&mode, "mode", "arith", "arith, subset, regex, strings, apply, math, vec, strings2, env, datetime, io, arrays, rawcplx, dataframe, summary, slice16, slice17, slice18, slice20, slice21 or slice22")
+	cmd.Flags().StringVar(&mode, "mode", "arith", "arith, subset, regex, strings, apply, math, vec, strings2, env, datetime, io, arrays, rawcplx, dataframe, summary, slice16, slice17, slice18, slice20, slice21, slice22 or slice23")
 	cmd.Flags().IntVar(&n, "n", 2000, "expressions")
 	cmd.Flags().Int64Var(&seed, "seed", 1, "random seed")
 	cmd.Flags().IntVar(&maxFail, "max-diff", 15, "differences to print")
