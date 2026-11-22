@@ -147,7 +147,8 @@ rewritten in v0.12.2 and `cmd/cleanroom` now checks every file of
 | M1 parser | `syntax`: lexer, parser, AST with source map, tokens, R's parse errors, `deparse`, `TopLevelNames` | **done** |
 | M2 evaluator | `eval`: values, environments, promises, closures, control flow, replacement functions, subsetting, attributes, S3, conditions, printing, the `Eval` API with safe limits, apply family, strings, regular expressions (over `go-embedded-r/tre`), math group, factors; 175 of the 210 primitives implemented and the other 35 refused with an error that says why (complex, raw, S4, formulas, expression vectors, foreign calls, `.Internal`; complex, raw and expression vectors since v0.15.0: 183 implemented, 27 refused) | **done** (v0.7.0), see [docs/m2-design.md](docs/m2-design.md) |
 | M3 base R, clean-room | rewrite of base's 1 152 closures under BSD from the help pages and the oracle, never from R's sources; plan, order and coverage metric in [docs/m3-plan.md](docs/m3-plan.md); `go run ./cmd/rparity basecov` | **in progress**: 81.1 % of base's 1 362 exports agree with the oracle (1 105; v0.25.0; 79.1 % at v0.24.0, 75.8 % at v0.23.0, 69.2 % at v0.22.0, 66.4 % at v0.21.0, 66.4 % at v0.19.0, 63.8 % at v0.18.0, 57.4 % at v0.17.0, 48.4 % at v0.16.0, 43.4 % at v0.15.0, 40.8 % at v0.14.0, 37.7 % at v0.13.0, 33.9 % at v0.12.0, 26.4 % at v0.11.0, 24.4 % at v0.10.0, 23.3 % at v0.9.0, 22.2 % at v0.8.0, 19.8 % at v0.7.0, 14.4 % at v0.6.0) |
-| M4 – M8 | numerics, stats, graphics, notebook bridge, wasm playground, CRAN ports | planned |
+| M4 numerics | `.Random.seed` streams, special functions, d/p/q/r of `stats`, optimisers and `integrate`, bound to go-numerics, go-statistics and go-ndarray with a stated error bound per slice; slices 24–31 and upstream gaps in [docs/m4-plan.md](docs/m4-plan.md) | planned |
+| M5 – M8 | stats modelling, graphics, notebook bridge, wasm playground, CRAN ports | planned |
 
 ### M2: the evaluator (package `eval`)
 
