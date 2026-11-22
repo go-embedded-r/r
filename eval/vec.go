@@ -419,26 +419,29 @@ func (s *Session) combine(c *callInfo) Value {
 			anyNames = true
 		}
 	}
-	addNames := func(i int, a Value, n int) {
-		if !anyNames {
-			return
-		}
-		tag := c.names[i]
-		nm := namesOf(a)
-		for j := 0; j < n; j++ {
-			var inner string
-			if nm != nil {
-				inner = nm.V[j].S
-			}
-			switch {
-			case tag != "" && inner != "":
-				names = append(names, Str{S: tag + "." + inner})
-			case tag != "" && n == 1:
-				names = append(names, Str{S: tag})
-			case tag != "":
-				names = append(names, Str{S: tag + strconv.Itoa(j+1)})
-			default:
-				names = append(names, Str{S: inner})
+	// without any name nothing is built: the closure is empty, which no output
+	// can tell from the full one (finish drops the table), only the time and
+	// the memory of c() on long unnamed vectors
+	addNames := func(int, Value, int) {}
+	if anyNames {
+		addNames = func(i int, a Value, n int) {
+			tag := c.names[i]
+			nm := namesOf(a)
+			for j := 0; j < n; j++ {
+				var inner string
+				if nm != nil {
+					inner = nm.V[j].S
+				}
+				switch {
+				case tag != "" && inner != "":
+					names = append(names, Str{S: tag + "." + inner})
+				case tag != "" && n == 1:
+					names = append(names, Str{S: tag})
+				case tag != "":
+					names = append(names, Str{S: tag + strconv.Itoa(j+1)})
+				default:
+					names = append(names, Str{S: inner})
+				}
 			}
 		}
 	}
