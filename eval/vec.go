@@ -710,17 +710,8 @@ func init() {
 	regBuiltin(":", func(s *Session, c *callInfo) Value { return s.colon(c) })
 	regBuiltin("c", func(s *Session, c *callInfo) Value {
 		// recursive= and use.names= are controls, not elements
-		ctl := false
-		for _, n := range c.names {
-			if n == "recursive" || n == "use.names" {
-				ctl = true
-			}
-		}
-		if !ctl {
-			return s.combine(c)
-		}
 		rec, use := false, true
-		sub := &callInfo{call: c.call, env: c.env}
+		sub := &callInfo{call: c.call, env: c.env, args: make([]Value, 0, len(c.args)), names: make([]string, 0, len(c.args))}
 		for i, a := range c.args {
 			switch c.names[i] {
 			case "recursive":

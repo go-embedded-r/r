@@ -5,7 +5,6 @@ import (
 	"math"
 	"math/big"
 	"testing"
-	"time"
 )
 
 // The natives of slice 23, checked against exact arithmetic or a brute force.
@@ -195,21 +194,18 @@ func TestAgrepMatchUnboundedAndShortcut(t *testing.T) {
 	if !agrepMatch([]rune("abc"), []rune("xyz"), none) {
 		t.Error("with no bound at all, abc matches xyz")
 	}
-	long := make([]rune, 300)
-	for i := range long {
-		long[i] = 'a' + rune(i%7)
+	before := agrepTables.Load()
+	if !agrepMatch([]rune("abcd"), []rune("zzzz"), agrepBounds{cost: -1, ins: -1, del: -1, sub: -1, all: 4}) {
+		t.Error("a bound of the pattern length always matches")
 	}
-	done := make(chan bool, 1)
-	go func() {
-		done <- agrepMatch(long, []rune("zzzz"), agrepBounds{cost: -1, ins: -1, del: -1, sub: -1, all: 300})
-	}()
-	select {
-	case got := <-done:
-		if !got {
-			t.Error("a bound of the pattern length always matches")
-		}
-	case <-time.After(2 * time.Second):
-		t.Fatal("the shortcut was not taken: no answer in 2 s")
+	if agrepTables.Load() != before {
+		t.Error("the shortcut was not taken: a table was built")
+	}
+	if agrepMatch([]rune("abcd"), []rune("zzzz"), agrepBounds{cost: -1, ins: -1, del: -1, sub: -1, all: 3}) {
+		t.Error("three edits cannot turn abcd into a substring of zzzz")
+	}
+	if agrepTables.Load() == before {
+		t.Error("below the pattern length the table must be built")
 	}
 }
 

@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"sort"
 	"strings"
+	"sync/atomic"
 	"unicode"
 )
 
@@ -140,6 +141,9 @@ func abbreviateOne(x string, minlength int, useClasses bool) string {
 	return b.String()
 }
 
+// agrepTables counts the tables of counts agrepMatch has built.
+var agrepTables atomic.Int64
+
 // agrepBounds are the resolved limits of an approximate match; a negative
 // field is no limit.
 type agrepBounds struct{ cost, ins, del, sub, all int }
@@ -148,8 +152,7 @@ type agrepBounds struct{ cost, ins, del, sub, all int }
 // some substring of t is reached from p by at most that many insertions
 // (characters of t that p lacks), deletions (characters of p that t lacks)
 // and substitutions, each at unit cost.
-func agrepMatch(p, t []rune, b agrepBounds) bool {
-	limit := func(v int) int {
+func agrepMatch(p, t []rune, b agrepBounds) bool {	limit := func(v int) int {
 		if v < 0 {
 			return len(p) + len(t)
 		}
@@ -164,6 +167,7 @@ func agrepMatch(p, t []rune, b agrepBounds) bool {
 		}
 	}
 	// the state of a cell is the set of (ins, del, sub) counts that reach it
+	agrepTables.Add(1)
 	di, dd, ds := mi+1, md+1, ms+1
 	cube := di * dd * ds
 	idx := func(a, d, s int) int { return (a*dd+d)*ds + s }
