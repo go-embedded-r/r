@@ -13,6 +13,12 @@ type restartEntry struct {
 	desc Value // the description of a withRestarts spec given as a list
 }
 
+// abortRestart is the outermost restart R establishes at top level: it has a
+// name and an exit and nothing else.
+func abortRestart() Value {
+	return &List{V: []Value{mkString("abort"), Null}, Attr: []Attr{{Name: "class", Value: mkString("restart")}}}
+}
+
 func restartObject(e restartEntry) Value {
 	handler, desc := Value(Null), Value(mkString(""))
 	if e.fn != nil {
@@ -101,7 +107,7 @@ func init() {
 		for i := len(s.restarts) - 1; i >= 0; i-- {
 			out = append(out, restartObject(s.restarts[i]))
 		}
-		return &List{V: out}
+		return &List{V: append(out, abortRestart())}
 	})
 	regBuiltin("findRestart", func(s *Session, c *callInfo) Value {
 		if len(c.args) == 0 {
@@ -109,6 +115,9 @@ func init() {
 		}
 		if e, ok := s.findRestart(c.args[0]); ok {
 			return restartObject(e)
+		}
+		if st, ok := c.args[0].(*String); ok && len(st.V) == 1 && st.V[0].S == "abort" {
+			return abortRestart()
 		}
 		return Null
 	})

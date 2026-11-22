@@ -708,7 +708,37 @@ func init() {
 		return mkLogical(false)
 	})
 	regBuiltin(":", func(s *Session, c *callInfo) Value { return s.colon(c) })
-	regBuiltin("c", func(s *Session, c *callInfo) Value { return s.combine(c) })
+	regBuiltin("c", func(s *Session, c *callInfo) Value {
+		// recursive= and use.names= are controls, not elements
+		rec, use := false, true
+		sub := &callInfo{call: c.call, env: c.env, args: make([]Value, 0, len(c.args)), names: make([]string, 0, len(c.args))}
+		for i, a := range c.args {
+			switch c.names[i] {
+			case "recursive":
+				rec = s.truthy(c, a, "recursive")
+			case "use.names":
+				use = s.truthy(c, a, "use.names")
+			default:
+				sub.args = append(sub.args, a)
+				sub.names = append(sub.names, c.names[i])
+			}
+		}
+		res := s.combine(sub)
+		if rec {
+			if l, ok := res.(*List); ok && !l.Expr {
+				u := int32(0)
+				if use {
+					u = 1
+				}
+				res = builtins["unlist"].fn(s, &callInfo{call: c.call, env: c.env,
+					args: []Value{res, &Logical{V: []int32{1}}, &Logical{V: []int32{u}}}, names: []string{"", "recursive", "use.names"}})
+			}
+		}
+		if !use {
+			res = builtins["unname"].fn(s, &callInfo{call: c.call, env: c.env, args: []Value{res}, names: []string{""}})
+		}
+		return res
+	})
 	regBuiltin("list", func(s *Session, c *callInfo) Value { return s.list(c) })
 	regBuiltin("length", func(s *Session, c *callInfo) Value {
 		if len(c.args) != 1 {
