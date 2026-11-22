@@ -167,10 +167,7 @@ func (s *Session) rngEnd(g *random.MT19937) {
 
 // rngPeek reads the kinds from a valid .Random.seed without warnings.
 func (s *Session) rngPeek() {
-	v, found := s.getVar(".Random.seed", s.Global, false, false)
-	if !found {
-		return
-	}
+	v, _ := s.getVar(".Random.seed", s.Global, false, false) // absent: v is nil, not an *Integer
 	iv, ok := v.(*Integer)
 	if !ok || len(iv.V) == 0 {
 		return
@@ -187,9 +184,7 @@ func unifRand(g *random.MT19937) float64 {
 	if v <= 0 {
 		return 0.5 * rngI2_32m
 	}
-	if 1-v <= 0 {
-		return 1 - 0.5*rngI2_32m
-	}
+	// the largest word gives 1 - 2^-32 here, so there is no upper fixup
 	return v
 }
 
@@ -207,11 +202,11 @@ func unifIndex(g *random.MT19937, dn float64, rounding bool) float64 {
 	if rounding {
 		return math.Floor(dn * unifRand(g))
 	}
-	if dn <= 0 {
-		return 0
-	}
+	// the callers draw from a population of at least one
 	bits := int(math.Ceil(math.Log2(dn)))
-	for {
+	// each attempt succeeds with probability above one half, so the bound is
+	// never reached by chance (2^-4096); it only keeps a broken test finite
+	for range 4096 {
 		var v int64
 		for n := 0; n <= bits; n += 16 {
 			v = 65536*v + int64(math.Floor(unifRand(g)*65536))
@@ -223,6 +218,7 @@ func unifIndex(g *random.MT19937, dn float64, rounding bool) float64 {
 			return dv
 		}
 	}
+	return 0
 }
 
 // rngInvalid raises the error of the random generators for a bad argument.

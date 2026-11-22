@@ -324,6 +324,72 @@ func TestSampleSemantics(t *testing.T) {
 	refused(t, s, `sample.int(10, 3, TRUE, useHash = TRUE)`, "replace")
 }
 
+// Each guard of the draw functions, with the value on both sides of it. The
+// expected values were settled with the oracle (R 4.6.2).
+func TestRandomGuards(t *testing.T) {
+	s := newRandSession()
+	run := func(src string) string {
+		t.Helper()
+		res, err := s.Eval(src)
+		if err != nil {
+			t.Fatalf("%q: %v", src, err)
+		}
+		return res.Output
+	}
+	def := `[1] "Mersenne-Twister" "Inversion"        "Rejection"       ` + "\n"
+	// RNGkind() reads the kinds of a valid state and leaves an invalid one alone
+	run(`RNGkind("Mersenne-Twister", "Inversion", "Rejection")`)
+	for _, bad := range []string{`"a"`, `integer(0)`, `NA_integer_`, `-3L`, `11001L`, `10408L`, `10603L`, `1.5`} {
+		src := fmt.Sprintf(`set.seed(1); .Random.seed <- %s; RNGkind()`, bad)
+		if bad != `"a"` && bad != `integer(0)` && bad != `1.5` {
+			src = fmt.Sprintf(`set.seed(1); s <- .Random.seed; s[1] <- %s; .Random.seed <- s; RNGkind()`, bad)
+		}
+		if got := run(src); got != def {
+			t.Errorf("%s: kinds changed to %q", bad, got)
+		}
+	}
+	if got := run(`set.seed(1); s <- .Random.seed; s[1] <- 10203L; .Random.seed <- s; RNGkind()[2]`); got != "[1] \"Box-Muller\"\n" {
+		t.Errorf("got %q", got)
+	}
+	run(`RNGkind("Mersenne-Twister", "Inversion", "Rejection")`)
+	if got := run(`rm(list = ".Random.seed", envir = globalenv()); RNGkind()`); got != def {
+		t.Errorf("without a state: %q", got)
+	}
+	// the smallest and the largest word of the generator
+	const half = `0.5 * 2.328306437080797e-10`
+	if got := run(`set.seed(1); s <- .Random.seed; s[2] <- 1L; s[4] <- 0L; .Random.seed <- s; runif(1) == ` + half); got != "[1] TRUE\n" {
+		t.Errorf("word 0: %q", got)
+	}
+	// a count of length other than one stands for its length
+	if got := run(`length(runif(c(5, 5, 5))); length(runif(integer(0))); length(runif(c(TRUE, TRUE))); length(rnorm(c("1", "1", "1"))); length(runif(character(0))); length(runif(c("2")))`); got != "[1] 3\n[1] 0\n[1] 2\n[1] 3\n[1] 0\n[1] 2\n" {
+		t.Errorf("counts: %q", got)
+	}
+	// a zero-length parameter gives NA with a warning
+	for _, src := range []string{`runif(2, numeric(0))`, `runif(2, 0, numeric(0))`, `rnorm(2, numeric(0))`, `rnorm(2, 0, numeric(0))`} {
+		got := run(`withCallingHandlers(` + src + `, warning = function(w) { cat(conditionMessage(w), "\n"); invokeRestart("muffleWarning") })`)
+		if got != "NAs produced \n[1] NA NA\n" {
+			t.Errorf("%s: %q", src, got)
+		}
+	}
+	// the NA string is no choice
+	refused(t, s, `RNGkind(normal.kind = NA_character_)`, "'NA' is not a valid choice")
+	refused(t, s, `RNGkind(sample.kind = NA_character_)`, "'NA' is not a valid choice")
+	refused(t, s, `RNGkind(NA_character_)`, "'NA' is not a valid abbreviation")
+	// replace is one non-NA value
+	refused(t, s, `sample.int(10, 3, replace = NA_integer_)`, "invalid 'replace' argument")
+	refused(t, s, `sample.int(10, 3, replace = 1:2)`, "invalid 'replace' argument")
+	refused(t, s, `sample.int(10, 3, replace = c(TRUE, FALSE))`, "invalid 'replace' argument")
+	refused(t, s, `sample.int(10, 3, replace = NA_real_)`, "invalid 'replace' argument")
+	refused(t, s, `sample.int(10, 3, replace = NA_character_)`, "invalid 'replace' argument")
+	if got := run(`set.seed(1); length(sample.int(10, 20, replace = 1L)); length(sample.int(10, 20, replace = 2.5)); length(sample.int(10, 20, replace = "TRUE"))`); got != "[1] 20\n[1] 20\n[1] 20\n" {
+		t.Errorf("replace: %q", got)
+	}
+	// a population of one, with probabilities
+	if got := run(`set.seed(1); sample.int(1, 1, prob = 1); sample.int(1, 3, TRUE, prob = 1)`); got != "[1] 1\n[1] 1 1 1\n" {
+		t.Errorf("one: %q", got)
+	}
+}
+
 func FuzzRandomSeed(f *testing.F) {
 	f.Add(int32(10403), int32(624), uint8(2), int32(1))
 	f.Add(int32(10403), int32(-1), uint8(2), int32(1))
