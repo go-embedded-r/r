@@ -924,13 +924,11 @@ func fround(x, dig float64) float64 {
 	return r
 }
 
-// decimalExponent is floor(log10(x)) for x > 0. A subnormal x takes its
-// exponent from its shortest decimal form: math.Log10 is wrong there on amd64
-// (log10(1.8e-321) comes back as -307.95).
+// decimalExponent is floor(log10(x)) for x > 0, read from the shortest decimal
+// form of x: math.Log10 is wrong for a subnormal x on amd64 (log10(1.8e-321)
+// comes back as -307.95), and a branch for it would be one that tests on
+// another architecture cannot reach.
 func decimalExponent(x float64) int {
-	if x >= 0x1p-1022 {
-		return int(math.Floor(math.Log10(x)))
-	}
 	s := strconv.FormatFloat(x, 'e', -1, 64)
 	i := strings.IndexByte(s, 'e')
 	e, _ := strconv.Atoi(s[i+1:])

@@ -608,12 +608,12 @@ func (s *Session) sampleSize(v Value, call *Lang) int {
 	if math.IsNaN(d) || d < 0 || d > 4.5e15 {
 		bad()
 	}
-	if math.MaxInt == math.MaxInt32 && d > math.MaxInt32 {
-		// int(d) is undefined past the range of int, which is 32 bits on
-		// 386; the clamp keeps it a length checkLen refuses.
-		return math.MaxInt32
-	}
-	return int(d)
+	// int(d) is undefined past the range of int, which is 32 bits on 386.
+	// The clamp to math.MaxInt changes nothing where int is 64 bits (d is at
+	// most 4.5e15 here) and keeps a length that checkLen refuses on 386.
+	// It is a clamp, not a branch, so no build has a guard that another
+	// build's tests cannot reach.
+	return int(math.Min(d, math.MaxInt))
 }
 
 func (s *Session) sampleN(v Value, call *Lang) float64 {
@@ -741,11 +741,11 @@ func init() {
 		s.checkLen(call, k)
 		_, isNull := c.args[3].(nullT)
 		var p []float64
-		if math.MaxInt == math.MaxInt32 && dn > math.MaxInt32 {
-			// A population past 2^31 - 1 needs a 64-bit int (divergence on 32-bit).
-			s.errorf(call, "cannot allocate vector of length %.0f", dn)
-		}
-		n := int(dn)
+		// A population past 2^31 - 1 needs a 64-bit int: on 386 the clamp
+		// makes n the largest int, which the checks below refuse, instead
+		// of the undefined int(dn) (a divergence on 32-bit builds).
+		// On 64-bit builds it changes nothing.
+		n := int(math.Min(dn, math.MaxInt))
 		if !isNull {
 			s.checkLen(call, n)
 			p = s.sampleProb(c.args[3], n, k, replace, call)
