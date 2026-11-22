@@ -344,6 +344,30 @@ func Scientific(x float64, digits int) (neg, kpower, nsig int, roundingWidens bo
 	return scientificD(x, digits)
 }
 
+// decimalExponent is floor(log10(x)) for a finite x > 0, read from the
+// shortest decimal form of x. math.Log10 is wrong for a subnormal x on amd64
+// (log10(1.8e-321) comes back as -307.95), and a branch for it would be one
+// that tests on another architecture cannot reach (go-embedded-r/r#58).
+func decimalExponent(x float64) int {
+	var buf [32]byte
+	b := strconv.AppendFloat(buf[:0], x, 'e', -1, 64)
+	i := len(b) - 1
+	for b[i] != 'e' {
+		i--
+	}
+	e, sign := 0, 1
+	for _, c := range b[i+1:] {
+		switch c {
+		case '-':
+			sign = -1
+		case '+':
+		default:
+			e = e*10 + int(c-'0')
+		}
+	}
+	return sign * e
+}
+
 func scientificD(x float64, digits int) (neg, kpower, nsig int, roundingWidens bool) {
 	if x == 0 {
 		return 0, 0, 1, false
@@ -352,7 +376,7 @@ func scientificD(x float64, digits int) (neg, kpower, nsig int, roundingWidens b
 	if x < 0 {
 		neg, r = 1, -x
 	}
-	kp := int(math.Floor(math.Log10(r))) - digits + 1
+	kp := decimalExponent(r) - digits + 1
 	rp := r
 	switch {
 	case kp >= -22 && kp <= 22:
