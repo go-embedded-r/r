@@ -148,23 +148,40 @@ var agrepTables atomic.Int64
 // field is no limit.
 type agrepBounds struct{ cost, ins, del, sub, all int }
 
-// agrepMatch reports whether pattern p occurs in text t within the bounds:
-// some substring of t is reached from p by at most that many insertions
-// (characters of t that p lacks), deletions (characters of p that t lacks)
-// and substitutions, each at unit cost.
-func agrepMatch(p, t []rune, b agrepBounds) bool {
+// agrepMaxCells bounds the table of counts agrepMatch builds for one text.
+const agrepMaxCells = 1 << 24
+
+// agrepClamp resolves the bounds: no limit is the sum of the lengths, and
+// there can be no more deletions or substitutions than the pattern has
+// characters, no more insertions than the text has; a larger bound only
+// grows the table.
+func agrepClamp(p, t []rune, b agrepBounds) (total, mi, md, ms int) {
 	limit := func(v int) int {
 		if v < 0 {
 			return len(p) + len(t)
 		}
 		return v
 	}
-	total := min(limit(b.cost), limit(b.all))
-	// no more deletions or substitutions than the pattern has characters,
-	// no more insertions than the text has: a larger bound only grows the table
-	mi := min(limit(b.ins), total, len(t))
-	md := min(limit(b.del), total, len(p))
-	ms := min(limit(b.sub), total, len(p))
+	total = min(limit(b.cost), limit(b.all))
+	return total, min(limit(b.ins), total, len(t)), min(limit(b.del), total, len(p)), min(limit(b.sub), total, len(p))
+}
+
+// agrepCells is the size of the table agrepMatch would build for p, t and b
+// (0 when the answer is known without one).
+func agrepCells(p, t []rune, b agrepBounds) float64 {
+	_, mi, md, ms := agrepClamp(p, t, b)
+	if md >= len(p) {
+		return 0
+	}
+	return float64(mi+1) * float64(md+1) * float64(ms+1) * float64(len(t)+1)
+}
+
+// agrepMatch reports whether pattern p occurs in text t within the bounds:
+// some substring of t is reached from p by at most that many insertions
+// (characters of t that p lacks), deletions (characters of p that t lacks)
+// and substitutions, each at unit cost.
+func agrepMatch(p, t []rune, b agrepBounds) bool {
+	total, mi, md, ms := agrepClamp(p, t, b)
 	if md >= len(p) {
 		// deleting the whole pattern is within reach: it matches the empty substring
 		return true
@@ -399,7 +416,11 @@ func init() {
 			if i&15 == 0 {
 				s.checkInterrupt()
 			}
-			if agrepMatch(pr, fold(e.S), b) {
+			tx := fold(e.S)
+			if agrepCells(pr, tx, b) > agrepMaxCells {
+				s.errorf(c.call, "approximate matching of a pattern of %d characters within these distances is too large", len(pr))
+			}
+			if agrepMatch(pr, tx, b) {
 				out[i] = 1
 			}
 		}

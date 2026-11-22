@@ -51,6 +51,8 @@ func TestSlice23Bombs(t *testing.T) {
 		if res.Output != "[1] TRUE\n" {
 			t.Fatalf("got %q", res.Output)
 		}
+		// no shortcut here: 101^3 counts per position of the text, refused
+		refused(t, s, `agrepl(strrep("ab", 200), strrep("ba", 200), max.distance = 100)`, "too large")
 		refused(t, s, `agrepl("a", rep("b", 2^40))`, refusal, "too large")
 	})
 	t.Run("showConnections", func(t *testing.T) {
