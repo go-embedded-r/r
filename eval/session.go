@@ -180,6 +180,7 @@ type Session struct {
 	printRight bool             // print(right = TRUE) is running: strings are right-justified
 	noDispatch bool             // the next primitive runs its default, not a method
 	s3reg      map[string]Value // methods registered with registerS3method
+	rngCode    int              // 1 + 100*normal kind + 10000*sample kind; 0 = the defaults (slice 24)
 	dp         deparseCtl       // what deparse() was asked to write, for the length of the call
 
 	// flow is set by break, next and return in statement position, and read

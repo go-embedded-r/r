@@ -2,6 +2,7 @@ package eval
 
 import (
 	"math"
+	"strconv"
 	"strings"
 )
 
@@ -923,6 +924,17 @@ func fround(x, dig float64) float64 {
 	return r
 }
 
+// decimalExponent is floor(log10(x)) for x > 0, read from the shortest decimal
+// form of x: math.Log10 is wrong for a subnormal x on amd64 (log10(1.8e-321)
+// comes back as -307.95), and a branch for it would be one that tests on
+// another architecture cannot reach.
+func decimalExponent(x float64) int {
+	s := strconv.FormatFloat(x, 'e', -1, 64)
+	i := strings.IndexByte(s, 'e')
+	e, _ := strconv.Atoi(s[i+1:])
+	return e
+}
+
 func fsignif(x, dig float64) float64 {
 	if x == 0 {
 		return x
@@ -938,7 +950,7 @@ func fsignif(x, dig float64) float64 {
 	if neg {
 		x = -x
 	}
-	e10 := d - 1 - int(math.Floor(math.Log10(x)))
+	e10 := d - 1 - decimalExponent(x)
 	var r float64
 	switch {
 	case e10 > 306:

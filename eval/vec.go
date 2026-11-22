@@ -340,13 +340,18 @@ func (s *Session) colon(c *callInfo) Value {
 		s.errorf(c.call, "NA/NaN argument")
 	}
 	nf := math.Floor(math.Abs(a-b)+1e-10) + 1
-	if math.IsNaN(nf) { // Inf:Inf (Inf - Inf is NaN): R answers numeric(0)
-		return &Double{V: []float64{}}
-	}
 	if nf > 1<<52 {
 		s.errorf(c.call, "result would be too long a vector")
 	}
-	n := int(math.Min(nf, float64(s.opts.MaxVector)+1)) // checkLen refuses it
+	// Inf:Inf (Inf - Inf is NaN) falls to the last case: R answers numeric(0);
+	// a float-to-int conversion of NaN is machine-dependent, so it is not made
+	var n int
+	switch {
+	case nf >= float64(s.opts.MaxVector)+1:
+		n = s.opts.MaxVector + 1 // checkLen refuses it
+	case nf >= 1:
+		n = int(nf)
+	}
 	s.checkLen(c.call, n)
 	useInt := a == math.Floor(a) && a <= math.MaxInt32 && a > math.MinInt32
 	if useInt {
@@ -419,26 +424,29 @@ func (s *Session) combine(c *callInfo) Value {
 			anyNames = true
 		}
 	}
-	addNames := func(i int, a Value, n int) {
-		if !anyNames {
-			return
-		}
-		tag := c.names[i]
-		nm := namesOf(a)
-		for j := 0; j < n; j++ {
-			var inner string
-			if nm != nil {
-				inner = nm.V[j].S
-			}
-			switch {
-			case tag != "" && inner != "":
-				names = append(names, Str{S: tag + "." + inner})
-			case tag != "" && n == 1:
-				names = append(names, Str{S: tag})
-			case tag != "":
-				names = append(names, Str{S: tag + strconv.Itoa(j+1)})
-			default:
-				names = append(names, Str{S: inner})
+	// without any name nothing is built: the closure is empty, which no output
+	// can tell from the full one (finish drops the table), only the time and
+	// the memory of c() on long unnamed vectors
+	addNames := func(int, Value, int) {}
+	if anyNames {
+		addNames = func(i int, a Value, n int) {
+			tag := c.names[i]
+			nm := namesOf(a)
+			for j := 0; j < n; j++ {
+				var inner string
+				if nm != nil {
+					inner = nm.V[j].S
+				}
+				switch {
+				case tag != "" && inner != "":
+					names = append(names, Str{S: tag + "." + inner})
+				case tag != "" && n == 1:
+					names = append(names, Str{S: tag})
+				case tag != "":
+					names = append(names, Str{S: tag + strconv.Itoa(j+1)})
+				default:
+					names = append(names, Str{S: inner})
+				}
 			}
 		}
 	}
