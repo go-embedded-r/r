@@ -25,34 +25,38 @@ RNGversion <- function(vstr) {
 }
 
 sample <- function(x, size, replace = FALSE, prob = NULL) {
-  if (length(x) == 1L && is.numeric(x) && is.finite(x) && x >= 1) {
-    if (missing(size)) size <- x
-    sample.int(x, size, replace, prob)
-  } else {
+  if (length(x) != 1L || !is.numeric(x) || !is.finite(x) || x < 1) {
+    # a set of things to shuffle: draw positions, then look them up
     if (missing(size)) size <- length(x)
-    x[sample.int(length(x), size, replace, prob)]
+    return(x[sample.int(length(x), size, replace, prob)])
   }
+  # a single number n stands for 1:n
+  if (missing(size)) size <- x
+  sample.int(x, size, replace, prob)
 }
 
 sample.int <- function(n, size = n, replace = FALSE, prob = NULL,
-                       useHash = (n > 1e7 && !replace && is.null(prob) && (!is.null(size)) && size <= n/2)) {
+                       useHash = n > 1e7 && !replace && is.null(prob) && !is.null(size) && size <= n/2) {
   stopifnot(length(n) == 1L)
-  if (useHash) {
-    stopifnot(is.null(prob), !replace)
-    ..sample2(n, size)
-  } else ..sample(n, size, replace, prob)
+  if (!useHash) return(..sample(n, size, replace, prob))
+  stopifnot(is.null(prob), !replace)
+  ..sample2(n, size)
 }
 
 jitter <- function(x, factor = 1, amount = NULL) {
-  if (length(x) == 0L) return(x)
+  if (!length(x)) return(x)
   if (!is.numeric(x)) stop("'x' must be numeric")
-  z <- diff(r <- range(x, na.rm = TRUE))
-  if (z == 0) z <- abs(r[1L])
-  if (z == 0) z <- 1
-  if (is.null(amount)) {
-    d <- diff(xx <- unique(sort.int(round(x, 3 - floor(log10(z))))))
-    d <- if (length(d)) min(d) else if (xx != 0) xx / 10 else z / 10
-    amount <- factor / 5 * abs(d)
-  } else if (amount == 0) amount <- factor * (z / 50)
-  x + runif(length(x), -amount, amount)
+  lims <- range(x, na.rm = TRUE)
+  spread <- lims[2L] - lims[1L]
+  if (spread == 0) spread <- abs(lims[1L])
+  if (spread == 0) spread <- 1
+  half <- if (is.null(amount)) {
+    levels <- unique(sort.int(round(x, 3 - floor(log10(spread)))))
+    gaps <- diff(levels)
+    step <- if (length(gaps)) min(gaps) else if (levels != 0) levels / 10 else spread / 10
+    factor / 5 * abs(step)
+  } else if (amount == 0) {
+    factor * (spread / 50)
+  } else amount
+  x + runif(length(x), -half, half)
 }
