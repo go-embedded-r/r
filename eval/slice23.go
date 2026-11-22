@@ -189,6 +189,10 @@ func agrepMatch(p, t []rune, b agrepBounds) bool {
 	// the state of a cell is the set of (ins, del, sub) counts that reach it
 	agrepTables.Add(1)
 	di, dd, ds := mi+1, md+1, ms+1
+	if float64(di)*float64(dd)*float64(ds)*float64(len(t)+1) > agrepMaxCells {
+		// callers refuse such a table before asking; reaching here is a bug
+		panic("agrepMatch: table too large")
+	}
 	cube := di * dd * ds
 	idx := func(a, d, s int) int { return (a*dd+d)*ds + s }
 	rows := [2][][]bool{}
