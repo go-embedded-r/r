@@ -152,19 +152,22 @@ type agrepBounds struct{ cost, ins, del, sub, all int }
 // some substring of t is reached from p by at most that many insertions
 // (characters of t that p lacks), deletions (characters of p that t lacks)
 // and substitutions, each at unit cost.
-func agrepMatch(p, t []rune, b agrepBounds) bool {	limit := func(v int) int {
+func agrepMatch(p, t []rune, b agrepBounds) bool {
+	limit := func(v int) int {
 		if v < 0 {
 			return len(p) + len(t)
 		}
 		return v
 	}
 	total := min(limit(b.cost), limit(b.all))
-	mi, md, ms := min(limit(b.ins), total), min(limit(b.del), total), min(limit(b.sub), total)
-	if total >= len(p) && mi >= 0 {
-		// deleting the whole pattern costs len(p): always within reach
-		if md >= len(p) {
-			return true
-		}
+	// no more deletions or substitutions than the pattern has characters,
+	// no more insertions than the text has: a larger bound only grows the table
+	mi := min(limit(b.ins), total, len(t))
+	md := min(limit(b.del), total, len(p))
+	ms := min(limit(b.sub), total, len(p))
+	if md >= len(p) {
+		// deleting the whole pattern is within reach: it matches the empty substring
+		return true
 	}
 	// the state of a cell is the set of (ins, del, sub) counts that reach it
 	agrepTables.Add(1)
