@@ -16,12 +16,17 @@ RNGkind <- function(kind = NULL, normal.kind = NULL, sample.kind = NULL) {
 }
 
 RNGversion <- function(vstr) {
-  vnum <- as.numeric(strsplit(as.character(vstr), ".", fixed = TRUE)[[1L]])
-  if (length(vnum) < 2L) stop("malformed version string")
-  v <- vnum[1L] * 1e6 + vnum[2L] * 1e3 + (if (length(vnum) >= 3L) vnum[3L] else 0)
-  if (v >= 3006000) RNGkind("Mersenne-Twister", "Inversion", "Rejection")
-  else if (v >= 1007000) RNGkind("Mersenne-Twister", "Inversion", "Rounding")
-  else RNGkind("Marsaglia-Multicarry", "Buggy Kinderman-Ramage", "Rounding")
+  parts <- as.numeric(unlist(strsplit(as.character(vstr), ".", fixed = TRUE)))
+  if (length(parts) < 2L) stop("malformed version string")
+  # the version as one number: major, minor and patch in three decimal places
+  when <- sum(parts[1:3] * c(1e6, 1e3, 1), na.rm = TRUE)
+  if (when >= 3006000) {
+    RNGkind("Mersenne-Twister", "Inversion", "Rejection")
+  } else if (when >= 1007000) {
+    RNGkind("Mersenne-Twister", "Inversion", "Rounding")
+  } else {
+    RNGkind("Marsaglia-Multicarry", "Buggy Kinderman-Ramage", "Rounding")
+  }
 }
 
 sample <- function(x, size, replace = FALSE, prob = NULL) {
