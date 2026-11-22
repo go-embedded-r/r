@@ -340,13 +340,18 @@ func (s *Session) colon(c *callInfo) Value {
 		s.errorf(c.call, "NA/NaN argument")
 	}
 	nf := math.Floor(math.Abs(a-b)+1e-10) + 1
-	if math.IsNaN(nf) { // Inf:Inf (Inf - Inf is NaN): R answers numeric(0)
-		return &Double{V: []float64{}}
-	}
 	if nf > 1<<52 {
 		s.errorf(c.call, "result would be too long a vector")
 	}
-	n := int(math.Min(nf, float64(s.opts.MaxVector)+1)) // checkLen refuses it
+	// Inf:Inf (Inf - Inf is NaN) falls to the last case: R answers numeric(0);
+	// a float-to-int conversion of NaN is machine-dependent, so it is not made
+	var n int
+	switch {
+	case nf >= float64(s.opts.MaxVector)+1:
+		n = s.opts.MaxVector + 1 // checkLen refuses it
+	case nf >= 1:
+		n = int(nf)
+	}
 	s.checkLen(c.call, n)
 	useInt := a == math.Floor(a) && a <= math.MaxInt32 && a > math.MinInt32
 	if useInt {
