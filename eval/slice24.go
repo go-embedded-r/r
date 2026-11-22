@@ -251,6 +251,10 @@ func (s *Session) rngCount(v Value, call *Lang) int {
 	if math.IsNaN(d) || d < 0 || d > 4.5e15 {
 		s.rngInvalid(call)
 	}
+	if d > math.MaxInt32 {
+		// int(d) is not defined past the range of int, which is 32 bits on 386.
+		s.errorf(call, "cannot allocate vector of length %.0f", d)
+	}
 	n := int(d)
 	s.checkLen(call, n)
 	return n
@@ -604,6 +608,11 @@ func (s *Session) sampleSize(v Value, call *Lang) int {
 	if math.IsNaN(d) || d < 0 || d > 4.5e15 {
 		bad()
 	}
+	if math.MaxInt == math.MaxInt32 && d > math.MaxInt32 {
+		// int(d) is undefined past the range of int, which is 32 bits on
+		// 386; the clamp keeps it a length checkLen refuses.
+		return math.MaxInt32
+	}
 	return int(d)
 }
 
@@ -732,6 +741,10 @@ func init() {
 		s.checkLen(call, k)
 		_, isNull := c.args[3].(nullT)
 		var p []float64
+		if math.MaxInt == math.MaxInt32 && dn > math.MaxInt32 {
+			// A population past 2^31 - 1 needs a 64-bit int (divergence on 32-bit).
+			s.errorf(call, "cannot allocate vector of length %.0f", dn)
+		}
 		n := int(dn)
 		if !isNull {
 			s.checkLen(call, n)

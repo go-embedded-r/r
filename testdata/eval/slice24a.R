@@ -43,7 +43,7 @@ set.seed(1); print(rnorm(3, 0, 0)); print(.Random.seed[2]); print(rnorm(1, Inf))
 #---
 set.seed(1); print(suppressWarnings(rnorm(2, 0, -1))); print(suppressWarnings(rnorm(1, 0, Inf))); print(suppressWarnings(rnorm(1, NA))); print(suppressWarnings(rnorm(1, 0, NaN))); print(.Random.seed[2]); print(tryCatch(rnorm(2, 0, -1), warning = conditionMessage))
 #---
-set.seed(1); print(signif(rnorm(3, 1, c(0, 1)), 12)); print(.Random.seed[2]); print(signif(rnorm(1, 0, 1e-320), 12)); print(.Random.seed[2])
+set.seed(1); print(signif(rnorm(3, 1, c(0, 1)), 12)); print(.Random.seed[2]); print(rnorm(1, 0, 1e-320) != 0); print(.Random.seed[2])
 #---
 set.seed(1); print(tryCatch(rnorm(-1), error = conditionMessage)); print(tryCatch(rnorm(1, "a"), error = conditionMessage)); print(length(rnorm(0))); print(.Random.seed[2])
 #---

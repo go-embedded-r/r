@@ -1,6 +1,7 @@
 package eval_test
 
 import (
+	"strconv"
 	"testing"
 	"time"
 
@@ -44,14 +45,16 @@ func TestSlice24Bombs(t *testing.T) {
 	})
 	t.Run("what is allowed still works", func(t *testing.T) {
 		s := small()
-		res, err := s.Eval(`set.seed(1); x <- sample.int(2^40, 3); length(x)`)
-		if err != nil {
-			t.Fatal(err)
+		if strconv.IntSize == 64 { // a population past 2^31 - 1 needs a 64-bit int
+			res, err := s.Eval(`set.seed(1); x <- sample.int(2^40, 3); length(x)`)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if res.Output != "[1] 3\n" {
+				t.Fatalf("got %q", res.Output)
+			}
 		}
-		if res.Output != "[1] 3\n" {
-			t.Fatalf("got %q", res.Output)
-		}
-		res, err = s.Eval(`set.seed(1); length(runif(1e5))`)
+		res, err := s.Eval(`set.seed(1); length(runif(1e5))`)
 		if err != nil || res.Output != "[1] 100000\n" {
 			t.Fatalf("%v %q", err, res.Output)
 		}

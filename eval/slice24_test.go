@@ -301,8 +301,10 @@ func TestSampleSemantics(t *testing.T) {
 		t.Fatalf("got %q", got)
 	}
 	// the result of a population above 2^31-1 is double
-	if got := run(`set.seed(1); typeof(sample.int(2^31, 2)); typeof(sample.int(2^31 - 1, 2)); typeof(sample.int(10, 2))`); got != "[1] \"double\"\n[1] \"integer\"\n[1] \"integer\"\n" {
-		t.Fatalf("got %q", got)
+	if strconv.IntSize == 64 { // a population past 2^31 - 1 needs a 64-bit int
+		if got := run(`set.seed(1); typeof(sample.int(2^31, 2)); typeof(sample.int(2^31 - 1, 2)); typeof(sample.int(10, 2))`); got != "[1] \"double\"\n[1] \"integer\"\n[1] \"integer\"\n" {
+			t.Fatalf("got %q", got)
+		}
 	}
 	refused(t, s, `sample.int(5, 3, prob = c(1, 1, 1))`, "incorrect number of probabilities")
 	refused(t, s, `sample.int(5, 3, prob = c(1, 1, 1, 1, NA))`, "NA in probability vector")
@@ -320,7 +322,9 @@ func TestSampleSemantics(t *testing.T) {
 	refused(t, s, `sample.int(-1)`, "invalid first argument")
 	refused(t, s, `sample.int(5e15, 2)`, "invalid first argument")
 	refused(t, s, `sample.int(0, 1)`, "invalid first argument")
-	refused(t, s, `sample.int(2^40, 2^39 + 1, useHash = TRUE)`, "size <= n/2")
+	if strconv.IntSize == 64 {
+		refused(t, s, `sample.int(2^40, 2^39 + 1, useHash = TRUE)`, "size <= n/2")
+	}
 	refused(t, s, `sample.int(10, 3, TRUE, useHash = TRUE)`, "replace")
 }
 
