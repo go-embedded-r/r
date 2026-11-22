@@ -218,7 +218,7 @@ func unifIndex(g *random.MT19937, dn float64, rounding bool) float64 {
 			return dv
 		}
 	}
-	return 0
+	panic("unifIndex: rejection sampling did not terminate")
 }
 
 // rngInvalid raises the error of the random generators for a bad argument.
