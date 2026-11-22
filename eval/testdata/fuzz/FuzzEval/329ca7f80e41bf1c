@@ -1,0 +1,2 @@
+go test fuzz v1
+string("y<-c(00,)\n(agrep(\"0\",0,,c,c=))")

@@ -393,10 +393,12 @@ func init() {
 	regBuiltin("..agrepGo", func(s *Session, c *callInfo) Value {
 		p, _ := c.args[0].(*String)
 		x, _ := c.args[1].(*String)
-		ic := asDoubles(c.args[2])[0] != 0
+		// the arguments come from R code that may be handed an empty vector
+		icv := asDoubles(c.args[2])
+		ic := len(icv) > 0 && icv[0] != 0
 		bd := asDoubles(c.args[3])
 		get := func(i int) int {
-			if math.IsNaN(bd[i]) {
+			if i >= len(bd) || math.IsNaN(bd[i]) {
 				return -1
 			}
 			return int(min(bd[i], 1<<20))

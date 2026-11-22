@@ -635,7 +635,6 @@ func init() {
 	regBuiltin("as.character", func(s *Session, c *callInfo) Value { return s.asCharacter(c) })
 	regBuiltin("abs", (*Session)(nil).math1("abs", math.Abs, true))
 	regBuiltin("sqrt", (*Session)(nil).math1("sqrt", math.Sqrt, false))
-	regBuiltin("exp", (*Session)(nil).math1("exp", math.Exp, false))
 	regBuiltin("floor", (*Session)(nil).math1("floor", math.Floor, false))
 	regBuiltin("ceiling", (*Session)(nil).math1("ceiling", math.Ceil, false))
 	for _, n := range []string{"sum", "prod", "min", "max"} {

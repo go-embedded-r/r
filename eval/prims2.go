@@ -969,21 +969,6 @@ func fsignif(x, dig float64) float64 {
 	return r
 }
 
-func gammaFn(x float64) float64 {
-	if x == 0 || (x < 0 && x == math.Floor(x)) {
-		return math.NaN()
-	}
-	return math.Gamma(x)
-}
-
-func lgammaFn(x float64) float64 {
-	if x <= 0 && x == math.Floor(x) {
-		return math.Inf(1)
-	}
-	v, _ := math.Lgamma(x)
-	return v
-}
-
 func sinpi(x float64) float64 {
 	if math.IsInf(x, 0) {
 		return math.NaN()
@@ -1401,47 +1386,6 @@ func dimNamesOf(v Value, d int) *String {
 		}
 	}
 	return nil
-}
-
-func digammaFn(x float64) float64 {
-	if math.IsNaN(x) {
-		return x
-	}
-	if x <= 0 && x == math.Floor(x) {
-		return math.NaN()
-	}
-	if x < 0 {
-		return digammaFn(1-x) - math.Pi/math.Tan(math.Pi*x)
-	}
-	r := 0.0
-	for x < 10 {
-		r -= 1 / x
-		x++
-	}
-	f := 1 / (x * x)
-	t := f * (-1.0/12 + f*(1.0/120+f*(-1.0/252+f*(1.0/240+f*(-1.0/132+f*(691.0/32760+f*(-1.0/12)))))))
-	return r + math.Log(x) - 0.5/x + t
-}
-
-func trigammaFn(x float64) float64 {
-	if math.IsNaN(x) {
-		return x
-	}
-	if x <= 0 && x == math.Floor(x) {
-		return math.Inf(1)
-	}
-	if x < 0 {
-		sn := math.Sin(math.Pi * x)
-		return math.Pi*math.Pi/(sn*sn) - trigammaFn(1-x)
-	}
-	r := 0.0
-	for x < 10 {
-		r += 1 / (x * x)
-		x++
-	}
-	f := 1 / (x * x)
-	t := 1/x + f/2 + (1/x)*f*(1.0/6+f*(-1.0/30+f*(1.0/42+f*(-1.0/30+f*(5.0/66+f*(-691.0/2730+f*(7.0/6)))))))
-	return r + t
 }
 
 func init() {

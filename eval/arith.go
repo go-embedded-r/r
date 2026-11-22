@@ -374,11 +374,7 @@ func rpow(x, y float64) float64 {
 		if y == 2 {
 			return x * x
 		}
-		r := math.Pow(x, y)
-		if math.IsNaN(r) {
-			return rNaN // C's pow gives the hardware NaN, Go's a different payload
-		}
-		return r
+		return rpowFinite(x, y)
 	}
 	if math.IsNaN(x) || math.IsNaN(y) {
 		return x + y
