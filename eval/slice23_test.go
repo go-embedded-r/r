@@ -209,6 +209,28 @@ func TestAgrepMatchUnboundedAndShortcut(t *testing.T) {
 	}
 }
 
+// agrepClamp: -1 is no limit (the sum of the lengths, then clamped to what can
+// happen), 0 is a limit of zero, and a limit is never above the total.
+func TestAgrepClamp(t *testing.T) {
+	p, tx := []rune("ab"), []rune("abc")
+	cases := []struct {
+		b                agrepBounds
+		total, i, d, sub int
+	}{
+		{agrepBounds{-1, -1, -1, -1, -1}, 5, 3, 2, 2},
+		{agrepBounds{0, -1, -1, -1, -1}, 0, 0, 0, 0},
+		{agrepBounds{-1, -1, -1, -1, 1}, 1, 1, 1, 1},
+		{agrepBounds{-1, 1, 0, -1, -1}, 5, 1, 0, 2},
+		{agrepBounds{-1, 0, -1, 1, 4}, 4, 0, 2, 1},
+	}
+	for _, c := range cases {
+		total, i, d, sub := agrepClamp(p, tx, c.b)
+		if total != c.total || i != c.i || d != c.d || sub != c.sub {
+			t.Errorf("agrepClamp(%+v) = %d %d %d %d, want %d %d %d %d", c.b, total, i, d, sub, c.total, c.i, c.d, c.sub)
+		}
+	}
+}
+
 func TestLchooseEmptyArguments(t *testing.T) {
 	s := NewSession(Options{})
 	res, err := s.EvalIn(context.Background(), `print(lchoose(numeric(0), 2)); print(lchoose(5, integer(0)))`, NewEnv(s.Global))
