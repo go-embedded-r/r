@@ -146,7 +146,7 @@ old <- Sys.getlocale("LC_COLLATE")
 print(Sys.setlocale("LC_COLLATE", "C")); print(Sys.getlocale("LC_COLLATE"))
 print(Sys.setlocale("LC_COLLATE", old)); print(Sys.getlocale("LC_COLLATE"))
 #---
-print(withVisible(Sys.setlocale("LC_COLLATE", "C"))$visible)
+old <- Sys.getlocale("LC_COLLATE"); print(withVisible(Sys.setlocale("LC_COLLATE", old))$visible)
 #---
 print(tryCatch(Sys.setlocale("LC_COLLATE", "xx_YY"), warning = conditionMessage))
 #---
@@ -158,7 +158,7 @@ print(tryCatch(Sys.setlocale("LC_COLLATE", c("C", "C")), error = conditionMessag
 #---
 print(tryCatch(Sys.setlocale("zz", "C"), error = conditionMessage))
 #---
-print(Sys.setlocale("LC_TIME", "POSIX")); print(Sys.getlocale("LC_TIME"))
+print(Sys.setlocale("LC_TIME", "C")); print(Sys.getlocale("LC_TIME"))
 #---
 print(names(Sys.localeconv())[1:6]); print(Sys.localeconv()[["decimal_point"]]); print(length(Sys.localeconv()))
 #---
