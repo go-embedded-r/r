@@ -953,6 +953,8 @@ func fsignif(x, dig float64) float64 {
 	e10 := d - 1 - decimalExponent(x)
 	var r float64
 	switch {
+	case x < 0x1p-1022:
+		r = signifSubnormal(x, d)
 	case e10 > 306:
 		p := math.Pow(10, float64(e10-306))
 		r = privateRint(x*1e306*p) / 1e306 / p
