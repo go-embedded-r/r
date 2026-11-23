@@ -317,19 +317,14 @@ func (l locScale) PDF(x float64) float64 {
 	if math.IsInf(l.scale, 1) {
 		return 0
 	}
-	if math.IsInf(x, 0) && x == l.loc {
-		return math.NaN()
-	}
-	// an infinite z is a density of 0 in the standard law itself
+	// x = loc = +-Inf makes z NaN, which the standard law answers with NaN; an
+	// infinite z is a density of 0 in the standard law itself
 	return l.std.PDF(l.z(x)) / l.scale
 }
 
 func (l locScale) LogPDF(x float64) float64 {
 	if math.IsInf(l.scale, 1) {
 		return math.Inf(-1)
-	}
-	if math.IsInf(x, 0) && x == l.loc {
-		return math.NaN()
 	}
 	return l.std.LogPDF(l.z(x)) - math.Log(l.scale)
 }

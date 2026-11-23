@@ -110,3 +110,22 @@ func TestSlice26QuantileInvalidProb(t *testing.T) {
 		}
 	}
 }
+
+// An infinite x equal to an infinite location is NaN in the density: z is NaN
+// and every standard law carries it through.
+func TestSlice26InfEqualsLoc(t *testing.T) {
+	for _, name := range []string{"norm", "logis", "cauchy"} {
+		for _, loc := range []float64{math.Inf(1), math.Inf(-1)} {
+			d, ok := fam(t, name).build([]float64{loc, 1})
+			if !ok {
+				continue
+			}
+			if v := d.PDF(loc); !math.IsNaN(v) {
+				t.Errorf("%s loc %v: PDF(loc) = %v, want NaN", name, loc, v)
+			}
+			if v := d.LogPDF(loc); !math.IsNaN(v) {
+				t.Errorf("%s loc %v: LogPDF(loc) = %v, want NaN", name, loc, v)
+			}
+		}
+	}
+}
