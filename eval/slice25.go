@@ -9,6 +9,7 @@ package eval
 import (
 	"math"
 	"math/big"
+	"sync"
 
 	"github.com/go-numerics/special"
 	ddp "github.com/go-numerics/special/dd"
@@ -343,12 +344,18 @@ func jvHankel(nu, x float64) (r float64, ok bool) {
 	return math.Sqrt(2/(math.Pi*x)) * (p*math.Cos(c) - q*math.Sin(c)), true
 }
 
-var bigPi320Once = func() *big.Float {
-	f, _, _ := big.ParseFloat("3.14159265358979323846264338327950288419716939937510582097494459230781640628620899862803482534211706798214808651", 10, 320, big.ToNearestEven)
-	return f
-}()
+var (
+	bigPi320Once sync.Once
+	bigPi320Val  *big.Float
+)
 
-func bigPi320() *big.Float { return bigPi320Once }
+// bigPi320 is pi to 320 bits, parsed on first use (not at program start).
+func bigPi320() *big.Float {
+	bigPi320Once.Do(func() {
+		bigPi320Val, _, _ = big.ParseFloat("3.14159265358979323846264338327950288419716939937510582097494459230781640628620899862803482534211706798214808651", 10, 320, big.ToNearestEven)
+	})
+	return bigPi320Val
+}
 
 // besselArgs checks the numeric arguments of a binary or ternary math
 // function and recycles them: the doubles of each, and the common length.
