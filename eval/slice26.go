@@ -2,6 +2,8 @@ package eval
 
 import (
 	"math"
+	"slices"
+	"strings"
 
 	"github.com/go-statistics/stats"
 )
@@ -117,9 +119,7 @@ var families = []family{
 	{name: "norm", ncp: -1,
 		params: []famParam{{"mean", 0, false}, {"sd", 1, false}},
 		build: func(p []float64) (dist, bool) {
-			if p[1] < 0 {
-				return nil, false
-			}
+			// a negative sd is refused by lsOf below
 			if p[1] == 0 {
 				return massIn{pointMass{p[0]}, math.Inf(-1), math.Inf(1)}, true
 			}
@@ -230,8 +230,14 @@ var families = []family{
 		params: []famParam{{"df", 0, true}, {"ncp", 0, false}},
 		build: func(p []float64) (dist, bool) {
 			df, ncp := p[0], p[1]
-			if df < 0 || ncp < 0 || math.IsInf(df, 0) || math.IsInf(ncp, 0) {
+			if df < 0 || ncp < 0 || math.IsInf(ncp, 0) {
 				return nil, false
+			}
+			if math.IsInf(df, 1) {
+				if ncp > 0 {
+					return nil, false
+				}
+				return infDf{}, true
 			}
 			if ncp > 0 {
 				return mustNew(stats.NewNoncentralChiSquared(df, ncp, 0, 1))
@@ -244,9 +250,7 @@ var families = []family{
 	{name: "lnorm", ncp: -1,
 		params: []famParam{{"meanlog", 0, false}, {"sdlog", 1, false}},
 		build: func(p []float64) (dist, bool) {
-			if p[1] < 0 {
-				return nil, false
-			}
+			// a negative sdlog is refused by lsOf below
 			if p[1] == 0 {
 				return massIn{pointMass{math.Exp(p[0])}, 0, math.Inf(1)}, true
 			}
@@ -261,9 +265,7 @@ var families = []family{
 	{name: "logis", ncp: -1,
 		params: []famParam{{"location", 0, false}, {"scale", 1, false}},
 		build: func(p []float64) (dist, bool) {
-			if p[1] < 0 {
-				return nil, false
-			}
+			// a negative scale is refused by lsOf below
 			if p[1] == 0 {
 				return nanLaw{p[0], math.Inf(-1), math.Inf(1)}, true
 			}
@@ -272,9 +274,7 @@ var families = []family{
 	{name: "cauchy", ncp: -1,
 		params: []famParam{{"location", 0, false}, {"scale", 1, false}},
 		build: func(p []float64) (dist, bool) {
-			if p[1] < 0 {
-				return nil, false
-			}
+			// a negative scale is refused by lsOf below
 			if p[1] == 0 {
 				return nanLaw{p[0], p[0], p[0]}, true
 			}
@@ -516,6 +516,15 @@ func (pointNaN) exact() {}
 func (zeroPlus) exact() {}
 func (densZero) exact() {}
 
+// infDf is the chi-squared law with infinite degrees of freedom: R answers a
+// density of 0, NaN for the tails and an infinite quantile (but the ends of the
+// support at the probabilities 0 and 1).
+type infDf struct{ densZero }
+
+func (infDf) PPF(float64) float64 { return math.Inf(1) }
+func (infDf) ISF(float64) float64 { return math.Inf(1) }
+func (infDf) exact()              {}
+
 // nanLaw is the logistic or Cauchy law with scale 0: R answers NaN for the
 // density and the distribution, and the location for a quantile (lo and hi
 // are the quantiles of probability 0 and 1).
@@ -718,7 +727,11 @@ func (b betaMass) PPF(p float64) float64 {
 	}
 	return 0.5
 }
-func (b betaMass) ISF(q float64) float64 { return b.PPF(1 - q) }
+
+// ISF: R's quantile of beta(0, 0) compares the probability it is given with 1/2
+// whichever tail it is, so the upper-tail quantile is not the mirrored one
+// (qbeta(0.3, 0, 0, lower.tail = FALSE) is 0).
+func (b betaMass) ISF(q float64) float64 { return b.PPF(q) }
 func (betaMass) Support() (float64, float64) {
 	return 0, 1
 }
@@ -844,8 +857,47 @@ func (f *family) formals(kind distKind) []string {
 	return append(out, "lower.tail", "log.p")
 }
 
+// partialNames gives R's partial matching of argument names: a name that is not
+// a formal but is the prefix of exactly one formal not already named in full
+// stands for that formal (qnorm(p, lower = FALSE, log = TRUE)).
+func partialNames(c *callInfo, formals []string) *callInfo {
+	exact := map[string]bool{}
+	for _, n := range c.names {
+		exact[n] = true
+	}
+	var names []string
+	for i, n := range c.names {
+		if n == "" || slices.Contains(formals, n) {
+			continue
+		}
+		hit := ""
+		count := 0
+		for _, f := range formals {
+			if !exact[f] && strings.HasPrefix(f, n) {
+				hit = f
+				count++
+			}
+		}
+		if count != 1 {
+			continue
+		}
+		if names == nil {
+			names = slices.Clone(c.names)
+		}
+		names[i] = hit
+		exact[hit] = true
+	}
+	if names == nil {
+		return c
+	}
+	cc := *c
+	cc.names = names
+	return &cc
+}
+
 func (s *Session) distCall(c *callInfo, f *family, kind distKind) Value {
 	formals := f.formals(kind)
+	c = partialNames(c, formals)
 	a := s.matchFormals(c, formals...)
 	if a[0] == nil {
 		s.errorf(c.call, "argument \"%s\" is missing, with no default", formals[0])
@@ -1098,7 +1150,7 @@ func quantile(d dist, p float64, lower, logp bool) float64 {
 	// the laws that are a transform of another: the deep quantile of the law
 	// underneath, transformed (the overflow of the scaling is then the answer)
 	switch v := d.(type) {
-	case pointMass, massIn, nanLaw, zeroPlus, negMass, pointNaN, endsLaw, fMass, weibMass:
+	case pointMass, massIn, nanLaw, zeroPlus, negMass, pointNaN, endsLaw, fMass, weibMass, infDf:
 		return v.PPF(0.5)
 	case locScale:
 		if finite(v.scale) {
