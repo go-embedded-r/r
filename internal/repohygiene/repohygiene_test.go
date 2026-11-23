@@ -1,4 +1,3 @@
-// Package repohygiene holds a test that refuses stray tracked files.
 package repohygiene
 
 import (
