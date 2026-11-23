@@ -27,7 +27,9 @@ func (s *Session) printMatrix(v Value, base, nr, nc int, rowNames, colNames *Str
 		s.out.WriteString("<0 x 0 matrix>\n")
 		return
 	}
-	rw := len(strconv.Itoa(nr)) + 3
+	// R sizes the default [i,] labels from nr+1, not nr: 9 rows already print
+	// as " [1,]" … " [9,]", 99 rows as "  [1,]" … " [99,]" (issue #60).
+	rw := len(strconv.Itoa(nr+1)) + 3
 	if rowNames != nil {
 		rw = 0
 		for _, e := range rowNames.V {
