@@ -197,9 +197,7 @@ var families = []family{
 	{name: "t", ncp: 1,
 		params: []famParam{{"df", 0, true}, {"ncp", 0, false}},
 		build: func(p []float64) (dist, bool) {
-			if p[0] <= 0 {
-				return nil, false
-			}
+			// df <= 0 and NaN are refused by NewStudentT itself
 			if math.IsInf(p[0], 1) {
 				return mustNew(stats.NewNormal(0, 1))
 			}
@@ -209,9 +207,7 @@ var families = []family{
 		params: []famParam{{"df1", 0, true}, {"df2", 0, true}, {"ncp", 0, false}},
 		build: func(p []float64) (dist, bool) {
 			m, n := p[0], p[1]
-			if m <= 0 || n <= 0 {
-				return nil, false
-			}
+			// df <= 0 and NaN are refused by the constructors below
 			switch {
 			case math.IsInf(m, 1) && math.IsInf(n, 1):
 				return fMass{pointMass{1}}, true
@@ -324,11 +320,8 @@ func (l locScale) PDF(x float64) float64 {
 	if math.IsInf(x, 0) && x == l.loc {
 		return math.NaN()
 	}
-	z := l.z(x)
-	if !finite(z) {
-		return 0
-	}
-	return l.std.PDF(z) / l.scale
+	// an infinite z is a density of 0 in the standard law itself
+	return l.std.PDF(l.z(x)) / l.scale
 }
 
 func (l locScale) LogPDF(x float64) float64 {
@@ -338,11 +331,7 @@ func (l locScale) LogPDF(x float64) float64 {
 	if math.IsInf(x, 0) && x == l.loc {
 		return math.NaN()
 	}
-	z := l.z(x)
-	if !finite(z) {
-		return math.Inf(-1)
-	}
-	return l.std.LogPDF(z) - math.Log(l.scale)
+	return l.std.LogPDF(l.z(x)) - math.Log(l.scale)
 }
 
 // tail answers a cdf-like call: the standard law's f at z, or the value it
@@ -1153,9 +1142,7 @@ func quantile(d dist, p float64, lower, logp bool) float64 {
 	case pointMass, massIn, nanLaw, zeroPlus, negMass, pointNaN, endsLaw, fMass, weibMass, infDf:
 		return v.PPF(0.5)
 	case locScale:
-		if finite(v.scale) {
-			return v.loc + v.scale*quantile(v.std, p, lower, logp)
-		}
+		return v.loc + v.scale*quantile(v.std, p, lower, logp)
 	case expOf:
 		return math.Exp(quantile(v.n, p, lower, logp))
 	}
