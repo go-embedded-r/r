@@ -313,12 +313,9 @@ func besselK(x, nu float64, scaled bool, w warnf) float64 {
 func jvHankel(nu, x float64) (r float64, ok bool) {
 	mu := 4 * nu * nu
 	t, p, q := 1.0, 1.0, 0.0
-	for k := 1; ; k++ {
-		next := t * (mu - float64((2*k-1)*(2*k-1))) / (float64(k) * 8 * x)
-		if math.Abs(next) >= math.Abs(t) && k > 1 || k > 60 {
-			return 0, false
-		}
-		t = next
+	converged := false
+	for k := 1; k <= 60 && !converged; k++ {
+		t *= (mu - float64((2*k-1)*(2*k-1))) / (float64(k) * 8 * x)
 		switch k & 3 {
 		case 1:
 			q += t
@@ -329,9 +326,10 @@ func jvHankel(nu, x float64) (r float64, ok bool) {
 		case 0:
 			p += t
 		}
-		if math.Abs(t) < 1e-17 {
-			break
-		}
+		converged = math.Abs(t) < 1e-17
+	}
+	if !converged {
+		return 0, false
 	}
 	const prec = 320
 	pi := bigPi320()
@@ -356,6 +354,7 @@ func bigPi320() *big.Float { return bigPi320Once }
 // function and recycles them: the doubles of each, and the common length.
 func (s *Session) mathArgs(c *callInfo, a []Value) (d [][]float64, m int) {
 	d = make([][]float64, len(a))
+	nonEmpty := 1 // 0 when any argument has no element: the result is empty
 	for i, v := range a {
 		switch v.(type) {
 		case *Logical, *Integer, *Double:
@@ -364,11 +363,11 @@ func (s *Session) mathArgs(c *callInfo, a []Value) (d [][]float64, m int) {
 		}
 		d[i] = asDoubles(v)
 		if len(d[i]) == 0 {
-			return d, 0
+			nonEmpty = 0
 		}
 		m = max(m, len(d[i]))
 	}
-	return d, m
+	return d, m * nonEmpty
 }
 
 // mathAttrs: the attributes come from the first argument of full length.
