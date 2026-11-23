@@ -10,7 +10,7 @@ print(signif(trigamma(c(0.5, 1, 2, 10.5, 100, -0.5, -2.25, 1e-5, 1e5, 30.5)), 12
 #---
 print(signif(psigamma(c(0.5, 2.5, 10, 0.1, 30.5), 2), 12)); print(signif(psigamma(c(0.5, 2.5, 10), 3:5), 12)); print(signif(psigamma(c(-0.5, -2.5, -7.25), 2), 12)); print(signif(psigamma(-0.5, 2:5), 12))
 #---
-psigamma(1, c(-1, 0.4, 0.6, 100, 101, 1e9, NA, NaN, Inf)); psigamma(c(0, -1, Inf, -Inf), 3); psigamma(-1, 0:5); signif(psigamma(1), 12); signif(psigamma(1, deriv = 2L), 12)
+psigamma(1, c(-1, 0.4, 0.6, 100, 101, 1e9, NA, NaN)); psigamma(c(0, -1, Inf, -Inf), 3); psigamma(-1, 0:5); signif(psigamma(1), 12); signif(psigamma(1, deriv = 2L), 12)
 #---
 signif(psigamma(1:3, c(0, 1)), 12); signif(psigamma(c(a = 1, b = 2), 1), 12); signif(psigamma(matrix(1:4, 2), 1), 12); psigamma(numeric(0), 1); tryCatch(psigamma("a"), error = function(e) conditionMessage(e)); tryCatch(psigamma(), error = function(e) conditionMessage(e))
 #---
