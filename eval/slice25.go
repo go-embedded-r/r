@@ -399,7 +399,7 @@ func init() {
 			a := s.matchFormals(c, "a", "b")
 			s.needArgs(c, a, "a", "b")
 			d, m := s.mathArgs(c, a)
-			if m == 0 {
+			if m == 0 && e.name == "lbeta" { // lbeta is a closure in R: no attributes
 				return &Double{V: []float64{}}
 			}
 			out := make([]float64, m)
@@ -425,9 +425,6 @@ func init() {
 			a[1] = &Double{V: []float64{0}}
 		}
 		d, m := s.mathArgs(c, a)
-		if m == 0 {
-			return &Double{V: []float64{}}
-		}
 		out := make([]float64, m)
 		nan := false
 		for i := range out {
@@ -486,9 +483,6 @@ func init() {
 				a[2] = &Logical{V: lv}
 			}
 			d, m := s.mathArgs(c, a)
-			if m == 0 {
-				return &Double{V: []float64{}}
-			}
 			w := func(format string, args ...any) { s.warningf(c.call, format, args...) }
 			out := make([]float64, m)
 			nan := false
