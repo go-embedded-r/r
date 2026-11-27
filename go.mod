@@ -5,7 +5,7 @@ go 1.27.2
 require (
 	github.com/go-embedded-r/tre v0.1.3
 	github.com/go-ndarray/ndarray v0.46.0
-	github.com/go-numerics/special v0.21.0
+	github.com/go-numerics/special v0.22.1
 	github.com/go-statistics/stats v0.1.1
 	github.com/spf13/cobra v1.10.2
 )

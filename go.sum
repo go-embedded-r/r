@@ -7,8 +7,8 @@ github.com/go-ndarray/ndarray v0.46.0 h1:yKAaV7P2ZyzAL68wRGMbcGbXbwNicE4od7Rejlu
 github.com/go-ndarray/ndarray v0.46.0/go.mod h1:RwzukOi5C/TwFEKjZfQ56S8duTpiFDWVfw9QqrzUdZo=
 github.com/go-numerics/optimize v0.6.0 h1:7QjTy+M+PclufHFwIo5PrxReU397BvX0ys/ZIJ+kkSo=
 github.com/go-numerics/optimize v0.6.0/go.mod h1:b5Fg+NuuCKViOXQLzfgBhxd0thmAjt6lREE8EDFVyQ8=
-github.com/go-numerics/special v0.21.0 h1:NO6Jle08l/Vg6DH0+/poFPPwTdRZ9O8o8cZ+LsvYBs0=
-github.com/go-numerics/special v0.21.0/go.mod h1:P8PzeWPXgcceozc0BhS+rauVmn6bwXQIJF3du6Yq9PQ=
+github.com/go-numerics/special v0.22.1 h1:VNvkRvqijtohvY/O1X7EH1AoFp+xbtwnI41mBGk2mtc=
+github.com/go-numerics/special v0.22.1/go.mod h1:P8PzeWPXgcceozc0BhS+rauVmn6bwXQIJF3du6Yq9PQ=
 github.com/go-simd/floats v0.26.0 h1:IovUqTYY7U+CPDh/4JJMoCGBzuYK6zpSOzuWg/tn4Ks=
 github.com/go-simd/floats v0.26.0/go.mod h1:Aq5a6oY5pUqm9Hpi+iV2nrNmaaUb0rwHvUHIerXWSvA=
 github.com/go-sparse/sparse v0.3.0 h1:y++tCTIdQsGwUavxCHKfDt4AX8T2zUnwyDQ3Vix3uP8=
